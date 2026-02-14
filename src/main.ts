@@ -27,6 +27,8 @@ type WriteOutputFormat = "default" | "json" | "path";
 type CheckOutputFormat = "text" | "json";
 type SearchOutputFormat = "detail" | "table" | "json" | "csv";
 
+class UserFacingError extends Error {}
+
 const program = new Command();
 
 program
@@ -320,13 +322,19 @@ program
 				throw new Error(`unknown collection: ${collection}`);
 			}
 			const vars = extractPlaceholders(schema.slug).filter((v) => v !== "short_id" && v !== "date");
-			const defaults = vars.map((name) => {
+			const missing: string[] = [];
+			const defaults: string[] = [];
+			for (const name of vars) {
 				const value = schema.fields[name]?.default;
 				if (value === undefined || value === null || String(value).length === 0) {
-					throw new Error(`missing argument for template variable '{{${name}}}'`);
+					missing.push(name);
+					continue;
 				}
-				return normalizeFieldValue(name, String(value), schema);
-			});
+				defaults.push(normalizeFieldValue(name, String(value), schema));
+			}
+			if (missing.length > 0) {
+				throw new UserFacingError(formatMissingOpenTemplateArgs(collection, missing));
+			}
 			const upsert = await manager.Documents().UpsertBySlug(resolvedCollection, defaults);
 			return upsert.record;
 		});
@@ -814,11 +822,39 @@ schemaField
 		renderSchemaOutput(result, opts.output, formatSchemaReadText);
 	});
 
-await program.parseAsync(process.argv);
+try {
+	await program.parseAsync(process.argv);
+} catch (err) {
+	if (err instanceof UserFacingError) {
+		console.error(err.message);
+		process.exit(1);
+	}
+	if (err instanceof Error) {
+		if (process.env.TMDOC_DEBUG === "1" && err.stack) {
+			console.error(err.stack);
+		} else {
+			console.error(`Error: ${err.message}`);
+		}
+		process.exit(1);
+	}
+	console.error("Error: unknown failure");
+	process.exit(1);
+}
 
 function getWorkDir(cmd: Command): string {
 	const directory = cmd.opts<{ directory?: string }>().directory;
 	return resolve(directory ?? process.cwd());
+}
+
+function formatMissingOpenTemplateArgs(collection: string, missing: string[]): string {
+	const vars = missing.map((name) => `{{${name}}}`).join(", ");
+	return [
+		`Cannot create a new '${collection}' document from the slug template.`,
+		`Missing values for: ${vars}`,
+		"",
+		`Try: tmdoc open ${collection} "<value>"`,
+		"or set defaults for those fields in your schema.",
+	].join("\n");
 }
 
 function renderSchemaOutput<T>(
