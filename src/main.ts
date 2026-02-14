@@ -61,6 +61,7 @@ program
 	.option("--template <name>", "Template name")
 	.option("--no-template", "Skip template selection and processing")
 	.option("--content <text>", "Initial content")
+	.option("--skip-validation", "Bypass validation", false)
 	.option("-o, --output <format>", "Output format: default|json|path", "default")
 	.action(
 		async (
@@ -71,6 +72,7 @@ program
 				field: string[];
 				template?: string | boolean;
 				content?: string;
+				skipValidation: boolean;
 				output: WriteOutputFormat;
 			},
 		) => {
@@ -115,12 +117,16 @@ program
 					}
 				}
 
-				return await manager.Documents().Create({
+				const created = await manager.Documents().Create({
 					collection: resolvedCollection,
 					fields,
 					content: opts.content,
 					templateContent,
 				});
+				if (!opts.skipValidation) {
+					await assertNoValidationErrors(manager, resolvedCollection, created.path);
+				}
+				return created;
 			});
 
 			renderWriteOutput(created, opts.output);
@@ -158,11 +164,18 @@ program
 	.option("-f, --field <key=value>", "Field value", collectRepeated, [])
 	.option("--unset <key>", "Unset field", collectRepeated, [])
 	.option("--content <text>", "Replace markdown content")
+	.option("--skip-validation", "Bypass validation", false)
 	.option("-o, --output <format>", "Output format: default|json|path", "default")
 	.action(
 		async (
 			id: string,
-			opts: { field: string[]; unset: string[]; content?: string; output: WriteOutputFormat },
+			opts: {
+				field: string[];
+				unset: string[];
+				content?: string;
+				skipValidation: boolean;
+				output: WriteOutputFormat;
+			},
 		) => {
 			if (opts.field.length === 0 && opts.unset.length === 0 && opts.content === undefined) {
 				throw new Error("no fields or content to update");
@@ -170,11 +183,16 @@ program
 			const content = opts.content === "-" ? await readFromStdin() : opts.content;
 			const manager = await Manager.New(getWorkDir(program));
 			const updated = await withWriteLock(manager, async () => {
-				return await manager.Documents().UpdateByID(id, {
+				const updated = await manager.Documents().UpdateByID(id, {
 					fields: parseFields(opts.field),
 					unsetFields: opts.unset,
 					content,
 				});
+				if (!opts.skipValidation) {
+					const collection = updated.path.split("/")[0] ?? "";
+					await assertNoValidationErrors(manager, collection, updated.path);
+				}
+				return updated;
 			});
 			renderWriteOutput(updated, opts.output);
 		},
@@ -887,6 +905,24 @@ function parseBool(value: string): boolean {
 	if (value === "true") return true;
 	if (value === "false") return false;
 	throw new Error(`invalid boolean: ${value} (expected true|false)`);
+}
+
+async function assertNoValidationErrors(
+	manager: Manager,
+	collection: string,
+	path: string,
+): Promise<void> {
+	const result = await manager.Validation().Check({
+		collection,
+		fix: false,
+		pruneAttachments: false,
+	});
+	const errors = result.issues.filter((issue) => issue.path === path && issue.severity === "error");
+	if (errors.length === 0) {
+		return;
+	}
+	const details = errors.map((issue) => `${issue.code}: ${issue.message}`).join("; ");
+	throw new Error(`validation failed: ${details}`);
 }
 
 async function readFromStdin(): Promise<string> {

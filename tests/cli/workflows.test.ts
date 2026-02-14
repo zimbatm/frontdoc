@@ -53,6 +53,14 @@ async function runOk(
 	return res.stdout.trim();
 }
 
+async function runFail(args: string[], cwd: string): Promise<{ stdout: string; stderr: string }> {
+	const res = await runCli(args, cwd);
+	if (res.code === 0) {
+		throw new Error(`expected command to fail: ${args.join(" ")}\nstdout:\n${res.stdout}`);
+	}
+	return { stdout: res.stdout, stderr: res.stderr };
+}
+
 describe("CLI workflows", () => {
 	test("init + schema + create/read/update/delete lifecycle", async () => {
 		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-"));
@@ -626,7 +634,16 @@ fi
 		};
 		const shortID = created.document.metadata.id.slice(-6);
 		await runOk(
-			["-C", root, "create", "cli", "Broken", "--content", `[[${shortID}x:Missing]]`],
+			[
+				"-C",
+				root,
+				"create",
+				"cli",
+				"Broken",
+				"--content",
+				`[[${shortID}x:Missing]]`,
+				"--skip-validation",
+			],
 			root,
 		);
 
@@ -637,5 +654,80 @@ fi
 		const verbose = await runOk(["-C", root, "check", "--verbose"], root);
 		expect(verbose).toContain("ERROR ");
 		expect(verbose).toContain("broken wiki-style link");
+	});
+
+	test("create/update validate by default and support --skip-validation", async () => {
+		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-skip-validation-"));
+		await runOk(["-C", root, "init"], root);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"create",
+				"clients",
+				"--prefix",
+				"cli",
+				"--slug",
+				"{{short_id}}-{{name}}",
+			],
+			root,
+		);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"field",
+				"create",
+				"clients",
+				"name",
+				"--type",
+				"string",
+				"--required",
+			],
+			root,
+		);
+		await runOk(
+			["-C", root, "schema", "field", "create", "clients", "currency", "--type", "currency"],
+			root,
+		);
+
+		const createFail = await runFail(
+			["-C", root, "create", "cli", "BadCurrency", "-f", "currency=usd"],
+			root,
+		);
+		expect(createFail.stderr).toContain("validation failed");
+
+		const created = JSON.parse(
+			await runOk(
+				[
+					"-C",
+					root,
+					"create",
+					"cli",
+					"SkipValidation",
+					"-f",
+					"currency=usd",
+					"--skip-validation",
+					"-o",
+					"json",
+				],
+				root,
+			),
+		) as {
+			document: { metadata: { id: string } };
+		};
+		const id = created.document.metadata.id;
+
+		const updateFail = await runFail(["-C", root, "update", id, "-f", "currency=eur"], root);
+		expect(updateFail.stderr).toContain("validation failed");
+
+		await runOk(
+			["-C", root, "update", id, "-f", "currency=eur", "--skip-validation", "-o", "path"],
+			root,
+		);
+		const raw = await runOk(["-C", root, "read", id, "-o", "raw"], root);
+		expect(raw).toContain("currency: eur");
 	});
 });
