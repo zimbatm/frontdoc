@@ -390,6 +390,9 @@ tmdoc open journals today
 
 If `journals` has slug `journal-{{date}}`, this opens the existing
 `journal-2024-03-22.md` or creates it.
+When creation is needed, `open` applies the collection template selection
+rules (single template auto-applies, multiple templates prompt, none uses
+empty content).
 
 ### 9c. Open with default slug values
 
@@ -400,6 +403,7 @@ tmdoc open journals
 If the `date` field has `default: today` in the schema, the date is filled
 automatically. If any template variable has no default and no argument,
 returns an error.
+If this path creates a document, the selected template content is applied.
 
 ### 9d. Post-edit behavior
 

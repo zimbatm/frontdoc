@@ -215,7 +215,9 @@ provides a slug template argument for find-or-create.
    a. Try to find an existing document by ID (short or full) within the
       collection.
    b. If not found by ID, use UpsertBySlug: map the argument to the first
-      slug template variable and find-or-create the document.
+      slug template variable and find-or-create the document. If creation is
+      needed, resolve template content (single template auto, multiple prompt,
+      none empty) and apply it.
 3. If no second argument is provided:
    a. For each unfilled slug template variable, check if the corresponding
       field has a `default` value in the schema. If so, use it (processing
@@ -223,7 +225,9 @@ provides a slug template argument for find-or-create.
       date).
    b. If any template variable has no default and no argument, return an
       error: "missing argument for template variable `{{field}}`".
-   c. Use UpsertBySlug with the resolved values.
+   c. Use UpsertBySlug with the resolved values. If creation is needed,
+      resolve template content (single template auto, multiple prompt, none
+      empty) and apply it.
 4. Open the document's content path in `$EDITOR` (falls back to `vi`).
 5. After the editor closes, run validation on the modified document. If
    validation errors are found, warn the user and offer to re-open the

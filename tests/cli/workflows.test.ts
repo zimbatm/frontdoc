@@ -191,6 +191,178 @@ describe("CLI workflows", () => {
 		expect(noTemplate.document.content).not.toContain("Welcome");
 	});
 
+	test("open applies template on first create only", async () => {
+		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-open-template-"));
+		await runOk(["-C", root, "init"], root);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"create",
+				"clients",
+				"--prefix",
+				"cli",
+				"--slug",
+				"{{short_id}}-{{name}}",
+			],
+			root,
+		);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"field",
+				"create",
+				"clients",
+				"name",
+				"--type",
+				"string",
+				"--required",
+			],
+			root,
+		);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"create",
+				"templates",
+				"--prefix",
+				"tpl",
+				"--slug",
+				"{{short_id}}-{{name}}",
+			],
+			root,
+		);
+		await runOk(
+			[
+				"-C",
+				root,
+				"create",
+				"templates",
+				"Client Journal",
+				"-f",
+				"name=Client Journal",
+				"-f",
+				"for=clients",
+				"--content",
+				"# Hello {{name}}",
+				"-o",
+				"path",
+			],
+			root,
+		);
+
+		const createdPath = await runOk(["-C", root, "open", "cli", "Acme"], root);
+		expect(createdPath).toContain("acme.md");
+		const listed = JSON.parse(await runOk(["-C", root, "list", "cli", "-o", "json"], root)) as Array<{
+			document: { metadata: { _id: string } };
+		}>;
+		expect(listed).toHaveLength(1);
+		const id = listed[0].document.metadata._id;
+		const createdRaw = await runOk(["-C", root, "read", id, "-o", "raw"], root);
+		expect(createdRaw).toContain("# Hello Acme");
+
+		await runOk(["-C", root, "update", id, "--content", "# Custom body", "-o", "path"], root);
+		await runOk(["-C", root, "open", "cli", "Acme"], root);
+		const reopenedRaw = await runOk(["-C", root, "read", id, "-o", "raw"], root);
+		expect(reopenedRaw).toContain("# Custom body");
+		expect(reopenedRaw).not.toContain("# Hello Acme");
+	});
+
+	test("open does not prompt for template when slug match already exists", async () => {
+		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-open-existing-no-prompt-"));
+		await runOk(["-C", root, "init"], root);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"create",
+				"clients",
+				"--prefix",
+				"cli",
+				"--slug",
+				"{{short_id}}-{{name}}",
+			],
+			root,
+		);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"field",
+				"create",
+				"clients",
+				"name",
+				"--type",
+				"string",
+				"--required",
+			],
+			root,
+		);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"create",
+				"templates",
+				"--prefix",
+				"tpl",
+				"--slug",
+				"{{short_id}}-{{name}}",
+			],
+			root,
+		);
+		await runOk(
+			[
+				"-C",
+				root,
+				"create",
+				"templates",
+				"Template A",
+				"-f",
+				"name=Template A",
+				"-f",
+				"for=clients",
+				"--content",
+				"# A {{name}}",
+				"-o",
+				"path",
+			],
+			root,
+		);
+		await runOk(
+			[
+				"-C",
+				root,
+				"create",
+				"templates",
+				"Template B",
+				"-f",
+				"name=Template B",
+				"-f",
+				"for=clients",
+				"--content",
+				"# B {{name}}",
+				"-o",
+				"path",
+			],
+			root,
+		);
+		const created = JSON.parse(
+			await runOk(["-C", root, "create", "cli", "Acme", "--no-template", "-o", "json"], root),
+		) as { path: string };
+
+		const openedPath = await runOk(["-C", root, "open", "cli", "Acme"], root);
+		expect(openedPath).toBe(created.path);
+	});
+
 	test("create prompts for template selection when multiple templates exist", async () => {
 		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-template-prompt-"));
 		await runOk(["-C", root, "init"], root);

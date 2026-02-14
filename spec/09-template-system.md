@@ -90,16 +90,18 @@ The TemplateService wraps the template engine with schema awareness:
 
 Delegates to the template engine's ProcessTemplate.
 
-## Template Usage in Document Creation
+## Template Usage in Document Creation and Open-Creation
 
-When creating a document:
+When creating a document via `create`, or when `open` needs to create a new
+document (find-or-create by slug):
 
-1. If `--no-template` is specified, skip template selection entirely and
+1. For `create`: if `--no-template` is specified, skip template selection entirely and
    create with empty content (or user-provided `--content`). This bypasses
    auto-selection even when exactly one template exists for the collection.
-2. If `--template "Name"` is specified, find the matching template and use its
+2. For `create`: if `--template "Name"` is specified, find the matching template and use its
    content.
-3. If neither flag is specified but templates exist for the collection:
+3. For `create` (without flags) and `open` (on create path), if templates
+   exist for the collection:
    - If exactly one template: use it automatically.
    - If multiple templates: prompt the user to choose (interactive mode).
    - If no templates: create with empty content (or user-provided content).

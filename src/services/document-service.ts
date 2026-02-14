@@ -40,6 +40,11 @@ export interface UpsertResult {
 	created: boolean;
 }
 
+export interface UpsertBySlugOptions {
+	templateContent?: string;
+	resolveTemplateContent?: () => Promise<string | undefined>;
+}
+
 export class DocumentService {
 	constructor(
 		private readonly schemas: Map<string, CollectionSchema>,
@@ -175,7 +180,11 @@ export class DocumentService {
 		return records.sort((a, b) => a.path.localeCompare(b.path));
 	}
 
-	async UpsertBySlug(collectionInput: string, args: string[]): Promise<UpsertResult> {
+	async UpsertBySlug(
+		collectionInput: string,
+		args: string[],
+		options: UpsertBySlugOptions = {},
+	): Promise<UpsertResult> {
 		const collection = this.ResolveCollection(collectionInput);
 		const schema = this.getCollectionSchema(collection);
 		const variables = extractTemplateVariables(schema.slug);
@@ -189,10 +198,15 @@ export class DocumentService {
 		if (existing) {
 			return { record: existing, created: false };
 		}
+		const templateContent =
+			options.templateContent !== undefined
+				? options.templateContent
+				: await options.resolveTemplateContent?.();
 
 		const created = await this.Create({
 			collection,
 			fields: mapped,
+			templateContent,
 		});
 		return { record: created, created: true };
 	}

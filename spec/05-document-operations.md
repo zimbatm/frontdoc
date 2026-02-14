@@ -173,7 +173,7 @@ relative path within the collection folder, not just the basename.
 
 ## Upsert by Slug
 
-`DocumentService.UpsertBySlug(collection, args)`:
+`DocumentService.UpsertBySlug(collection, args, options)`:
 
 Used by the `open` command to find-or-create documents based on slug template
 variables (e.g. `tmdoc open journals 2024-03-22`).
@@ -189,7 +189,9 @@ variables (e.g. `tmdoc open journals 2024-03-22`).
    template and check if a file or folder exists at that path.
 6. If found on disk, parse and return it.
 7. Otherwise, create a new document with the given fields (injecting defaults
-   and today's date for `date` fields).
+   and today's date for `date` fields). If options provide template content
+   (directly or via resolver), process and apply it as initial document
+   content.
 8. Return the new document with a "created" flag.
 
 ## Auto-Rename

@@ -310,13 +310,32 @@ program
 	.action(async (collection: string, idOrArg: string | undefined) => {
 		const manager = await Manager.New(getWorkDir(program));
 		const resolvedCollection = manager.Documents().ResolveCollection(collection);
+		let templateResolved = false;
+		let templateContent: string | undefined;
+		const resolveTemplateContent = async (): Promise<string | undefined> => {
+			if (templateResolved) {
+				return templateContent;
+			}
+			const templates = await manager.Templates().GetTemplatesForCollection(resolvedCollection);
+			if (templates.length === 1) {
+				templateContent = templates[0].content;
+			} else if (templates.length > 1) {
+				templateContent = await chooseTemplateContent(templates, resolvedCollection);
+			}
+			templateResolved = true;
+			return templateContent;
+		};
 
 		const record: DocumentRecord = await withWriteLock(manager, async () => {
 			if (idOrArg) {
 				try {
 					return await manager.Documents().ReadByID(`${resolvedCollection}/${idOrArg}`);
 				} catch {
-					const upsert = await manager.Documents().UpsertBySlug(resolvedCollection, [idOrArg]);
+					const upsert = await manager.Documents().UpsertBySlug(
+						resolvedCollection,
+						[idOrArg],
+						{ resolveTemplateContent },
+					);
 					return upsert.record;
 				}
 			}
@@ -339,7 +358,9 @@ program
 			if (missing.length > 0) {
 				throw new UserFacingError(formatMissingOpenTemplateArgs(collection, missing));
 			}
-			const upsert = await manager.Documents().UpsertBySlug(resolvedCollection, defaults);
+			const upsert = await manager.Documents().UpsertBySlug(resolvedCollection, defaults, {
+				resolveTemplateContent,
+			});
 			return upsert.record;
 		});
 
