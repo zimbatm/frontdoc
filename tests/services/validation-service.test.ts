@@ -24,8 +24,19 @@ function makeServices(vfs: MemoryVFS): {
 				references: {},
 			},
 		],
+		[
+			"templates",
+			{
+				slug: "{{short_id}}-{{name}}",
+				fields: {
+					name: { type: "string", required: true },
+					for: { type: "string", required: true },
+				},
+				references: {},
+			},
+		],
 	]);
-	const aliases = { cli: "clients" };
+	const aliases = { cli: "clients", tpl: "templates" };
 	const repo = new Repository(vfs);
 	const documents = new DocumentService(schemas, aliases, repo);
 	const validation = new ValidationService(
@@ -83,5 +94,61 @@ describe("ValidationService", () => {
 
 		expect(await vfs.isDir(folderPath)).toBe(false);
 		expect(await vfs.isFile(created.path)).toBe(true);
+	});
+
+	test("check validates wiki links and fixes stale link titles", async () => {
+		const vfs = new MemoryVFS();
+		await vfs.mkdirAll("clients");
+		const { documents, validation } = makeServices(vfs);
+		const target = await documents.Create({
+			collection: "clients",
+			fields: { id: "01arz3ndektsv4rrffq69g5fav", name: "Target Document" },
+		});
+		const source = await documents.Create({
+			collection: "clients",
+			fields: { id: "01arz3ndektsv4rrffq69g5faw", name: "Source Document" },
+			content: `[[${target.document.metadata.id}:Stale Title]]\n[[missing123:Broken]]`,
+		});
+
+		const before = await validation.Check({});
+		expect(before.issues.some((i) => i.code === "wiki.stale-title")).toBe(true);
+		expect(before.issues.some((i) => i.code === "wiki.broken")).toBe(true);
+
+		const fixed = await validation.Check({ fix: true });
+		expect(fixed.fixed).toBeGreaterThanOrEqual(1);
+
+		const updatedRaw = await documents.ReadRawByID(String(source.document.metadata.id));
+		expect(updatedRaw).toContain(`[[${target.document.metadata.id}:Target Document]]`);
+		expect(updatedRaw).toContain("[[missing123:Broken]]");
+	});
+
+	test("check validates template 'for' collection values", async () => {
+		const vfs = new MemoryVFS();
+		await vfs.mkdirAll("templates");
+		const { documents, validation } = makeServices(vfs);
+
+		await documents.Create({
+			collection: "templates",
+			fields: {
+				id: "01arz3ndektsv4rrffq69g5fb0",
+				name: "Valid Template",
+				for: "cli",
+			},
+			content: "# Valid",
+		});
+		await documents.Create({
+			collection: "templates",
+			fields: {
+				id: "01arz3ndektsv4rrffq69g5fb1",
+				name: "Invalid Template",
+				for: "unknown_collection",
+			},
+			content: "# Invalid",
+		});
+
+		const result = await validation.Check({});
+		const invalidTargetIssues = result.issues.filter((i) => i.code === "template.for.invalid");
+		expect(invalidTargetIssues).toHaveLength(1);
+		expect(invalidTargetIssues[0].message).toContain("unknown_collection");
 	});
 });

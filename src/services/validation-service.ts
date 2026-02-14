@@ -2,7 +2,7 @@ import { readFile as readHostFile } from "node:fs/promises";
 import { basename, dirname } from "node:path";
 import { resolveAlias } from "../config/alias.js";
 import type { CollectionSchema } from "../config/types.js";
-import { buildDocument, type Document, parseDocument } from "../document/document.js";
+import { buildDocument, type Document, displayName, parseDocument } from "../document/document.js";
 import { generateFilename } from "../document/slug.js";
 import { processTemplate } from "../document/template-engine.js";
 import { byCollection, type DocumentRecord, type Repository } from "../repository/repository.js";
@@ -130,6 +130,30 @@ export class ValidationService {
 			}
 		}
 
+		if (collection === "templates") {
+			const targetRaw = record.document.metadata.for;
+			if (typeof targetRaw !== "string" || targetRaw.length === 0) {
+				issues.push({
+					severity: "error",
+					path: record.path,
+					code: "template.for.missing",
+					message: "template is missing required 'for' field",
+				});
+			} else {
+				const target = this.resolveCollection(targetRaw);
+				if (!this.schemas.has(target)) {
+					issues.push({
+						severity: "error",
+						path: record.path,
+						code: "template.for.invalid",
+						message: `template 'for' references unknown collection: ${targetRaw}`,
+					});
+				}
+			}
+		}
+
+		issues.push(...(await this.validateWikiLinks(record)));
+
 		const expectedPath = this.expectedPath(record.document, schema, collection);
 		if (expectedPath !== record.path) {
 			issues.push({
@@ -174,6 +198,11 @@ export class ValidationService {
 		}
 		if (changedFields) {
 			await this.save(refreshed.document);
+			fixed++;
+		}
+
+		const wikiFixed = await this.fixWikiLinkTitles(refreshed);
+		if (wikiFixed) {
 			fixed++;
 		}
 
@@ -298,6 +327,100 @@ export class ValidationService {
 		}
 		await this.repository.fileSystem().writeFile(contentPath, buildDocument(doc));
 	}
+
+	private async validateWikiLinks(record: DocumentRecord): Promise<ValidationIssue[]> {
+		const issues: ValidationIssue[] = [];
+		for (const link of parseWikiLinks(record.document.content)) {
+			const linkID = link.idToken;
+			if (link.invalidReason) {
+				issues.push({
+					severity: "error",
+					path: record.path,
+					code: "wiki.invalid",
+					message: `invalid wiki link: ${link.invalidReason}`,
+				});
+				continue;
+			}
+
+			let target: DocumentRecord;
+			try {
+				target = await this.repository.findByID(linkID);
+			} catch {
+				issues.push({
+					severity: "error",
+					path: record.path,
+					code: "wiki.broken",
+					message: `broken wiki-style link: [[${link.raw}]]`,
+				});
+				continue;
+			}
+
+			if (link.title) {
+				const expected = this.displayNameForRecord(target);
+				if (link.title !== expected) {
+					issues.push({
+						severity: "warning",
+						path: record.path,
+						code: "wiki.stale-title",
+						message: `stale wiki link title for '${linkID}': expected '${expected}'`,
+					});
+				}
+			}
+		}
+		return issues;
+	}
+
+	private async fixWikiLinkTitles(record: DocumentRecord): Promise<boolean> {
+		const rebuilt = await this.rebuildWikiTitlesAsync(record.document.content);
+		if (!rebuilt.changed) {
+			return false;
+		}
+		record.document.content = rebuilt.content;
+		await this.save(record.document);
+		return true;
+	}
+
+	private async rebuildWikiTitlesAsync(
+		content: string,
+	): Promise<{ changed: boolean; content: string }> {
+		const re = /\[\[([^\]]+)\]\]/g;
+		let changed = false;
+		let out = "";
+		let lastIndex = 0;
+		let match = re.exec(content);
+		while (match !== null) {
+			out += content.slice(lastIndex, match.index);
+			const inner = match[1].trim();
+			const parsed = parseSingleWikiLink(inner);
+			if (!parsed || !parsed.title) {
+				out += match[0];
+			} else {
+				try {
+					const target = await this.repository.findByID(parsed.idToken);
+					const expected = this.displayNameForRecord(target);
+					if (expected !== parsed.title) {
+						changed = true;
+						const prefix = parsed.collectionPrefix ? `${parsed.collectionPrefix}/` : "";
+						out += `[[${prefix}${parsed.idToken}:${expected}]]`;
+					} else {
+						out += match[0];
+					}
+				} catch {
+					out += match[0];
+				}
+			}
+			lastIndex = re.lastIndex;
+			match = re.exec(content);
+		}
+		out += content.slice(lastIndex);
+		return { changed, content: out };
+	}
+
+	private displayNameForRecord(record: DocumentRecord): string {
+		const collection = record.path.split("/")[0];
+		const schema = this.schemas.get(collection);
+		return displayName(record.document, schema?.slug, schema?.short_id_length ?? 6);
+	}
 }
 
 function hasValue(value: unknown): boolean {
@@ -385,4 +508,62 @@ function stripMd(path: string): string {
 
 export async function readAttachmentSource(sourcePath: string): Promise<string> {
 	return await readHostFile(sourcePath, "utf8");
+}
+
+interface WikiLink {
+	raw: string;
+	idToken: string;
+	title?: string;
+	collectionPrefix?: string;
+	invalidReason?: string;
+}
+
+function parseWikiLinks(content: string): WikiLink[] {
+	const links: WikiLink[] = [];
+	const re = /\[\[([^\]]*)\]\]/g;
+	let match = re.exec(content);
+	while (match !== null) {
+		const inner = match[1].trim();
+		const parsed = parseSingleWikiLink(inner);
+		if (!parsed) {
+			links.push({
+				raw: inner,
+				idToken: "",
+				invalidReason: "empty or malformed wiki link",
+			});
+		} else {
+			links.push(parsed);
+		}
+		match = re.exec(content);
+	}
+	return links;
+}
+
+function parseSingleWikiLink(inner: string): WikiLink | null {
+	if (inner.length === 0) return null;
+	if (inner.length > 200) {
+		return { raw: inner, idToken: "", invalidReason: "wiki link exceeds 200 characters" };
+	}
+	if (inner.includes("[[") || inner.includes("]]")) {
+		return { raw: inner, idToken: "", invalidReason: "nested brackets are not allowed" };
+	}
+
+	const [lhs, title] = inner.split(":", 2);
+	const rawTarget = lhs.trim();
+	if (rawTarget.length === 0) {
+		return { raw: inner, idToken: "", invalidReason: "wiki link id is empty" };
+	}
+	const [collectionPrefix, token] = rawTarget.includes("/")
+		? [rawTarget.split("/")[0], rawTarget.split("/").slice(1).join("/")]
+		: [undefined, rawTarget];
+	const idToken = token.trim();
+	if (idToken.length === 0) {
+		return { raw: inner, idToken: "", invalidReason: "wiki link id is empty" };
+	}
+	return {
+		raw: inner,
+		idToken,
+		title: title?.trim() || undefined,
+		collectionPrefix,
+	};
 }
