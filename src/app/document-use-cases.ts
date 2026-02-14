@@ -1,4 +1,5 @@
 import type { DocumentRecord } from "../repository/repository.js";
+import { collectionFromPath as pathCollectionFromPath } from "../document/path-utils.js";
 
 interface DocumentsPort {
 	Create(options: {
@@ -74,7 +75,7 @@ export async function updateDocumentUseCase(
 }
 
 export function collectionFromPath(path: string): string {
-	return path.split("/")[0] ?? "";
+	return pathCollectionFromPath(path);
 }
 
 export async function assertNoValidationErrorsForPath(

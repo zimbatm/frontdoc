@@ -210,7 +210,7 @@ async function handleCollections(
 	const docs = await manager.Documents().List();
 	const counts = new Map<string, number>();
 	for (const doc of docs) {
-		const collection = doc.path.split("/")[0] ?? "";
+		const collection = collectionFromPath(doc.path);
 		counts.set(collection, (counts.get(collection) ?? 0) + 1);
 	}
 	const aliases = manager.Aliases();
@@ -291,7 +291,7 @@ async function handleReadDocument(
 		}
 
 		const record = await manager.Documents().ReadByID(id);
-		const collection = record.path.split("/")[0] ?? "";
+		const collection = collectionFromPath(record.path);
 		if (!isCollectionAllowed(collection, collectionScopeSet(allowedCollections))) {
 			return json(404, { error: `collection not served: ${collection}` });
 		}
@@ -484,7 +484,7 @@ async function handleUpdateDocument(
 		const scope = collectionScopeSet(allowedCollections);
 		if (body.fields) {
 			const existing = await manager.Documents().ReadByID(id);
-			const collection = existing.path.split("/")[0] ?? "";
+			const collection = collectionFromPath(existing.path);
 			if (!isCollectionAllowed(collection, scope)) {
 				return json(400, { error: `collection not served: ${collection}` });
 			}
@@ -506,7 +506,7 @@ async function handleUpdateDocument(
 				unsetFields: update.unsetFields,
 				content: update.content,
 			});
-			const collection = record.path.split("/")[0] ?? "";
+			const collection = collectionFromPath(record.path);
 			if (!isCollectionAllowed(collection, scope)) {
 				throw new Error(`collection not served: ${collection}`);
 			}
@@ -675,7 +675,7 @@ function listItemFromRecord(
 	record: DocumentRecord,
 	schemas: Map<string, CollectionSchema>,
 ): WebListItem {
-	const collection = record.path.split("/")[0] ?? "";
+	const collection = collectionFromPath(record.path);
 	const schema = schemas.get(collection);
 	const id = String(record.document.metadata._id ?? "");
 	const shortLength = schema?.short_id_length ?? 6;
@@ -866,7 +866,7 @@ function draftEditID(draftPath: string): string {
 }
 
 function openDraftPath(targetPath: string, id: string): string {
-	const collection = targetPath.split("/")[0] ?? "";
+	const collection = collectionFromPath(targetPath);
 	const base = routeTargetFromPath(collection, targetPath).split("/").pop() ?? "";
 	const suffix = base.length > 0 ? base : "draft";
 	const shortID = id.length >= 6 ? id.slice(-6) : "draft";

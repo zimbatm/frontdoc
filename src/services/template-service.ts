@@ -1,4 +1,4 @@
-import { resolveAlias } from "../config/alias.js";
+import { resolveCollection } from "../config/collection-resolver.js";
 import type { CollectionSchema } from "../config/types.js";
 import { processTemplate } from "../document/template-engine.js";
 import { byCollection, type Repository } from "../repository/repository.js";
@@ -53,6 +53,6 @@ export class TemplateService {
 	}
 
 	private resolveCollection(nameOrAlias: string): string {
-		return resolveAlias(nameOrAlias, this.aliases, new Set(this.schemas.keys()));
+		return resolveCollection(nameOrAlias, this.aliases, this.schemas);
 	}
 }

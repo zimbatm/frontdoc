@@ -1,5 +1,6 @@
 import { stringify } from "yaml";
-import { generateAlias, resolveAlias } from "../config/alias.js";
+import { generateAlias } from "../config/alias.js";
+import { resolveCollection } from "../config/collection-resolver.js";
 import { serializeRepoConfig } from "../config/repo-config.js";
 import { generateDefaultSlug, serializeCollectionSchema } from "../config/schema.js";
 import {
@@ -83,7 +84,7 @@ export class SchemaService {
 	}
 
 	ResolveCollectionAlias(nameOrAlias: string): string {
-		return resolveAlias(nameOrAlias, this.repoConfig.aliases, new Set(this.schemas.keys()));
+		return resolveCollection(nameOrAlias, this.repoConfig.aliases, this.schemas);
 	}
 
 	async AddCollection(options: AddCollectionOptions): Promise<SchemaReadResult> {

@@ -10,6 +10,7 @@ import { registerSchemaCommands } from "./cli/schema-commands.js";
 import { normalizeDateInput, normalizeDatetimeInput } from "./config/date-input.js";
 import type { CollectionSchema } from "./config/types.js";
 import { buildDocument, contentPath as documentContentPath } from "./document/document.js";
+import { collectionFromPath } from "./document/path-utils.js";
 import { extractPlaceholders } from "./document/template-engine.js";
 import { Manager } from "./manager.js";
 import {
@@ -186,7 +187,7 @@ program
 			const manager = await Manager.New(getWorkDir(program));
 			const updated = await withWriteLock(manager, async () => {
 				const existing = await manager.Documents().ReadByID(id);
-				const collection = existing.path.split("/")[0] ?? "";
+				const collection = collectionFromPath(existing.path);
 				const schema = manager.Schemas().get(collection);
 				if (!schema) {
 					throw new Error(`unknown collection: ${collection}`);
@@ -894,7 +895,7 @@ async function chooseDraftValidationAction(): Promise<DraftValidationAction> {
 }
 
 function openDraftPath(targetPath: string, id: string): string {
-	const collection = targetPath.split("/")[0] ?? "";
+	const collection = collectionFromPath(targetPath);
 	const base = basename(targetPath, ".md")
 		.toLowerCase()
 		.replace(/[^a-z0-9-]+/g, "-")
@@ -968,7 +969,7 @@ function listResultsToCsv(
 ): string {
 	const lines = ["path,collection,id,name"];
 	for (const row of results) {
-		const collection = row.path.split("/")[0] ?? "";
+		const collection = collectionFromPath(row.path);
 		const id = String(row.document.metadata._id ?? "");
 		const name = String(
 			row.document.metadata.name ??
@@ -985,7 +986,7 @@ function listResultsToTable(
 	results: Array<{ path: string; document: { metadata: Record<string, unknown> } }>,
 ): string {
 	const rows = results.map((row) => {
-		const collection = row.path.split("/")[0] ?? "";
+		const collection = collectionFromPath(row.path);
 		const id = String(row.document.metadata._id ?? "");
 		const name = String(
 			row.document.metadata.name ??

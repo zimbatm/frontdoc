@@ -1,7 +1,7 @@
 import { readFile as readHostFile } from "node:fs/promises";
 import { basename, dirname } from "node:path";
 import { ulid } from "ulidx";
-import { resolveAlias } from "../config/alias.js";
+import { resolveCollection } from "../config/collection-resolver.js";
 import { normalizeDateInput, normalizeDatetimeInput } from "../config/date-input.js";
 import type { CollectionSchema } from "../config/types.js";
 import {
@@ -11,12 +11,14 @@ import {
 import {
 	buildDocument,
 	type Document,
+	contentPath,
 	extractTitleFromContent,
 	parseDocument,
 	RESERVED_FIELD_PREFIX,
 	SYSTEM_FIELDS,
 } from "../document/document.js";
 import { extractPlaceholders, processTemplate } from "../document/template-engine.js";
+import { collectionFromPath } from "../document/path-utils.js";
 import {
 	byCollection,
 	type DocumentRecord,
@@ -67,7 +69,7 @@ export class DocumentService {
 	) {}
 
 	ResolveCollection(nameOrAlias: string): string {
-		return resolveAlias(nameOrAlias, this.aliases, new Set(this.schemas.keys()));
+		return resolveCollection(nameOrAlias, this.aliases, this.schemas);
 	}
 
 	async Create(options: CreateOptions): Promise<DocumentRecord> {
@@ -78,7 +80,7 @@ export class DocumentService {
 			options.templateContent,
 		);
 		const path = doc.path;
-		const collection = path.split("/")[0] ?? "";
+		const collection = collectionFromPath(path);
 
 		if (!options.overwrite && (await this.repository.fileSystem().exists(path))) {
 			throw new Error(`document already exists: ${path}`);
@@ -100,14 +102,13 @@ export class DocumentService {
 
 	async ReadRawByID(id: string): Promise<string> {
 		const record = await this.ReadByID(id);
-		const contentPath = record.document.isFolder ? `${record.path}/index.md` : record.path;
-		return await this.repository.fileSystem().readFile(contentPath);
+		return await this.repository.fileSystem().readFile(contentPath(record.document));
 	}
 
 	async UpdateByID(id: string, options: UpdateOptions): Promise<DocumentRecord> {
 		const record = await this.ReadByID(id);
 		const doc = record.document;
-		const collection = this.ResolveCollection(doc.path.split("/")[0]);
+		const collection = this.ResolveCollection(collectionFromPath(doc.path));
 		const schema = this.getCollectionSchema(collection);
 
 		const fields = options.fields ?? {};
@@ -131,7 +132,7 @@ export class DocumentService {
 		const updated = await this.loadByPath(renamedPath);
 		if (!options.skipValidation && this.validationService) {
 			await this.assertNoValidationErrors(
-				updated.path.split("/")[0] ?? "",
+				collectionFromPath(updated.path),
 				updated.path,
 				buildDocument(updated.document),
 			);
@@ -233,7 +234,7 @@ export class DocumentService {
 
 	async AutoRenamePath(path: string): Promise<string> {
 		const record = await this.loadByPath(path);
-		const collection = record.path.split("/")[0];
+		const collection = collectionFromPath(record.path);
 		const schema = this.getCollectionSchema(collection);
 		const id = String(record.document.metadata._id ?? "");
 		const templateValues = buildTemplateValues(record.document.metadata, schema, id, record.document.content);

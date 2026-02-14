@@ -1,4 +1,5 @@
 import { type Document, parseDocument } from "../document/document.js";
+import { collectionFromPath } from "../document/path-utils.js";
 import { BoundVFS } from "../storage/bound-vfs.js";
 import type { FileInfo, VFS } from "../storage/vfs.js";
 import { findByIDInRecords } from "./id-lookup.js";
@@ -12,7 +13,7 @@ export interface DocumentRecord {
 export type Filter = (record: DocumentRecord) => boolean;
 
 export function byCollection(collectionName: string): Filter {
-	return (record) => record.path.split("/")[0] === collectionName;
+	return (record) => collectionFromPath(record.path) === collectionName;
 }
 
 export function byField(field: string, value: unknown): Filter {

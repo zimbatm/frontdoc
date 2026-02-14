@@ -1,4 +1,5 @@
 import type { DocumentRecord } from "./repository.js";
+import { collectionFromPath } from "../document/path-utils.js";
 
 export function findByIDInRecords(records: DocumentRecord[], idInput: string): DocumentRecord {
 	const { collectionScope, partialID } = splitIDInput(idInput);
@@ -7,7 +8,7 @@ export function findByIDInRecords(records: DocumentRecord[], idInput: string): D
 
 	for (const record of records) {
 		if (collectionScope) {
-			const collection = record.path.split("/")[0];
+			const collection = collectionFromPath(record.path);
 			if (collection !== collectionScope) {
 				continue;
 			}

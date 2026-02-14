@@ -1,8 +1,9 @@
 import { readFile as readHostFile } from "node:fs/promises";
 import { basename, dirname } from "node:path";
-import { resolveAlias } from "../config/alias.js";
+import { resolveCollection } from "../config/collection-resolver.js";
 import type { CollectionSchema } from "../config/types.js";
 import { expectedPathForDocument } from "../document/path-policy.js";
+import { collectionFromPath } from "../document/path-utils.js";
 import {
 	buildDocument,
 	type Document,
@@ -122,7 +123,7 @@ export class ValidationService {
 		resolveByID: (id: string) => DocumentRecord,
 	): Promise<ValidationIssue[]> {
 		const issues: ValidationIssue[] = [];
-		const collection = record.path.split("/")[0];
+		const collection = collectionFromPath(record.path);
 		const schema = this.schemas.get(collection);
 
 		if (!schema) {
@@ -177,7 +178,7 @@ export class ValidationService {
 				});
 				continue;
 			}
-			if (target.path.split("/")[0] !== targetCollection) {
+			if (collectionFromPath(target.path) !== targetCollection) {
 				issues.push({
 					severity: "error",
 					path: record.path,
@@ -247,7 +248,7 @@ export class ValidationService {
 		}
 
 		const refreshed = await this.loadByPath(renamedPath);
-		const schema = this.schemas.get(refreshed.path.split("/")[0]);
+		const schema = this.schemas.get(collectionFromPath(refreshed.path));
 		if (!schema) {
 			return fixed;
 		}
@@ -287,7 +288,7 @@ export class ValidationService {
 	}
 
 	private async autoRenamePath(record: DocumentRecord): Promise<string> {
-		const collection = record.path.split("/")[0] ?? "";
+		const collection = collectionFromPath(record.path);
 		const schema = this.schemas.get(collection);
 		if (!schema) {
 			return record.path;
@@ -371,7 +372,7 @@ export class ValidationService {
 	}
 
 	private resolveCollection(input: string): string {
-		return resolveAlias(input, this.aliases, new Set(this.schemas.keys()));
+		return resolveCollection(input, this.aliases, this.schemas);
 	}
 
 	private async loadByPath(path: string): Promise<DocumentRecord> {
@@ -484,7 +485,7 @@ export class ValidationService {
 	}
 
 	private displayNameForRecord(record: DocumentRecord): string {
-		const collection = record.path.split("/")[0];
+		const collection = collectionFromPath(record.path);
 		const schema = this.schemas.get(collection);
 		return displayName(
 			record.document,

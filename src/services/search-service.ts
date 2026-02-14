@@ -4,6 +4,7 @@ import {
 	type Repository,
 } from "../repository/repository.js";
 import { extractTitleFromContent } from "../document/document.js";
+import { collectionFromPath } from "../document/path-utils.js";
 
 export interface SearchMatch {
 	field: string;
@@ -199,7 +200,7 @@ function evaluateExpression(
 
 function getFieldValue(record: DocumentRecord, field: string): unknown {
 	if (field === "collection") {
-		return record.path.split("/")[0];
+		return collectionFromPath(record.path);
 	}
 	return record.document.metadata[field];
 }

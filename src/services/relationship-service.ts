@@ -2,6 +2,7 @@ import { writeFile as writeHostFile } from "node:fs/promises";
 import type { CollectionSchema } from "../config/types.js";
 import { extractTitleFromContent } from "../document/document.js";
 import { parseWikiLinks } from "../document/wiki-link.js";
+import { collectionFromPath } from "../document/path-utils.js";
 import { findByIDInRecords } from "../repository/id-lookup.js";
 import {
 	type DocumentRecord,
@@ -46,7 +47,7 @@ export class RelationshipService {
 
 		const collectionNames = new Set(this.schemas.keys());
 		if (collectionNames.has(scope)) {
-			const scoped = all.filter((r) => r.path.split("/")[0] === scope);
+			const scoped = all.filter((r) => collectionFromPath(r.path) === scope);
 			return await this.extractAllEdges(scoped, all);
 		}
 
@@ -94,7 +95,7 @@ export class RelationshipService {
 		const docs = await this.repository.collectAll(excludeTemplatesFilter());
 		const byCollection: Record<string, number> = {};
 		for (const doc of docs) {
-			const collection = doc.path.split("/")[0];
+			const collection = collectionFromPath(doc.path);
 			byCollection[collection] = (byCollection[collection] ?? 0) + 1;
 		}
 		return { total: docs.length, byCollection };
@@ -125,7 +126,7 @@ export class RelationshipService {
 			edges.push({ from, to: idOf(target), type: "wiki" });
 		}
 
-		const collection = record.path.split("/")[0];
+		const collection = collectionFromPath(record.path);
 		const schema = this.schemas.get(collection);
 		if (!schema) return edges;
 		for (const [field, _targetCollection] of Object.entries(schema.references)) {
@@ -142,7 +143,7 @@ export class RelationshipService {
 	private extractIncoming(target: DocumentRecord, all: DocumentRecord[]): RelationshipEdge[] {
 		const targetID = String(target.document.metadata._id ?? "");
 		const shortID = shortIDOf(targetID);
-		const targetCollection = target.path.split("/")[0];
+		const targetCollection = collectionFromPath(target.path);
 		const targetName = String(
 			target.document.metadata.name ??
 				target.document.metadata._title ??
