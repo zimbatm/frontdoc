@@ -759,4 +759,68 @@ fi
 		expect(table).toContain("clients/");
 		expect(table).toContain("Acme");
 	});
+
+	test("date and datetime shorthand inputs are normalized", async () => {
+		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-date-input-"));
+		await runOk(["-C", root, "init"], root);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"create",
+				"tasks",
+				"--prefix",
+				"tsk",
+				"--slug",
+				"{{short_id}}-{{name}}",
+			],
+			root,
+		);
+		await runOk(["-C", root, "schema", "field", "create", "tasks", "name", "--required"], root);
+		await runOk(
+			["-C", root, "schema", "field", "create", "tasks", "due_date", "--type", "date"],
+			root,
+		);
+		await runOk(
+			["-C", root, "schema", "field", "create", "tasks", "starts_at", "--type", "datetime"],
+			root,
+		);
+
+		const created = JSON.parse(
+			await runOk(
+				[
+					"-C",
+					root,
+					"create",
+					"tsk",
+					"Release",
+					"-f",
+					"due_date=today",
+					"-f",
+					"starts_at=+1",
+					"-o",
+					"json",
+				],
+				root,
+			),
+		) as {
+			document: { metadata: { id: string } };
+		};
+		const id = created.document.metadata.id;
+		const raw = await runOk(["-C", root, "read", id, "-o", "raw"], root);
+		expect(raw).toContain(`due_date: "${dateOffsetISO(0)}"`);
+		expect(raw).toContain(`starts_at: "${dateOffsetISO(1)}T00:00:00Z"`);
+
+		await runOk(["-C", root, "update", id, "-f", "due_date=-2"], root);
+		const rawUpdated = await runOk(["-C", root, "read", id, "-o", "raw"], root);
+		expect(rawUpdated).toContain(`due_date: "${dateOffsetISO(-2)}"`);
+	});
 });
+
+function dateOffsetISO(offsetDays: number): string {
+	const now = new Date();
+	const utcMidnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+	const shifted = new Date(utcMidnight + offsetDays * 24 * 60 * 60 * 1000);
+	return shifted.toISOString().slice(0, 10);
+}

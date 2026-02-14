@@ -5,6 +5,7 @@ import { join, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { Command } from "commander";
 import { stringify } from "yaml";
+import type { CollectionSchema } from "./config/types.js";
 import { contentPath as documentContentPath } from "./document/document.js";
 import { extractPlaceholders } from "./document/template-engine.js";
 import { Manager } from "./manager.js";
@@ -96,6 +97,7 @@ program
 						fields[titleField] = title;
 					}
 				}
+				const normalizedFields = normalizeFieldInputs(fields, schema);
 
 				let templateContent: string | undefined;
 				const noTemplate = opts.template === false;
@@ -119,7 +121,7 @@ program
 
 				const created = await manager.Documents().Create({
 					collection: resolvedCollection,
-					fields,
+					fields: normalizedFields,
 					content: opts.content,
 					templateContent,
 				});
@@ -183,8 +185,15 @@ program
 			const content = opts.content === "-" ? await readFromStdin() : opts.content;
 			const manager = await Manager.New(getWorkDir(program));
 			const updated = await withWriteLock(manager, async () => {
+				const existing = await manager.Documents().ReadByID(id);
+				const collection = existing.path.split("/")[0] ?? "";
+				const schema = manager.Schemas().get(collection);
+				if (!schema) {
+					throw new Error(`unknown collection: ${collection}`);
+				}
+				const fields = normalizeFieldInputs(parseFields(opts.field), schema);
 				const updated = await manager.Documents().UpdateByID(id, {
-					fields: parseFields(opts.field),
+					fields,
 					unsetFields: opts.unset,
 					content,
 				});
@@ -315,7 +324,7 @@ program
 				if (value === undefined || value === null || String(value).length === 0) {
 					throw new Error(`missing argument for template variable '{{${name}}}'`);
 				}
-				return String(value);
+				return normalizeFieldValue(name, String(value), schema);
 			});
 			const upsert = await manager.Documents().UpsertBySlug(resolvedCollection, defaults);
 			return upsert.record;
@@ -896,6 +905,66 @@ function parseFloatArg(value: string): number {
 		throw new Error(`invalid number: ${value}`);
 	}
 	return parsed;
+}
+
+function normalizeFieldInputs(
+	fields: Record<string, string>,
+	schema: CollectionSchema,
+): Record<string, string> {
+	const out = { ...fields };
+	for (const [name, value] of Object.entries(fields)) {
+		out[name] = normalizeFieldValue(name, value, schema);
+	}
+	return out;
+}
+
+function normalizeFieldValue(name: string, value: string, schema: CollectionSchema): string {
+	const fieldType = schema.fields[name]?.type;
+	if (fieldType === "date") {
+		return normalizeDateInput(name, value);
+	}
+	if (fieldType === "datetime") {
+		return normalizeDatetimeInput(name, value);
+	}
+	return value;
+}
+
+function normalizeDateInput(name: string, value: string): string {
+	const trimmed = value.trim();
+	if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+		return trimmed;
+	}
+	const lower = trimmed.toLowerCase();
+	if (lower === "today") return dateOffsetISO(0);
+	if (lower === "yesterday") return dateOffsetISO(-1);
+	if (lower === "tomorrow") return dateOffsetISO(1);
+	if (/^[+-]\d+$/.test(lower)) {
+		return dateOffsetISO(Number.parseInt(lower, 10));
+	}
+	throw new Error(`invalid date input for '${name}': ${value}`);
+}
+
+function normalizeDatetimeInput(name: string, value: string): string {
+	const trimmed = value.trim();
+	if (isRFC3339(trimmed)) {
+		return trimmed;
+	}
+	const date = normalizeDateInput(name, trimmed);
+	return `${date}T00:00:00Z`;
+}
+
+function dateOffsetISO(offsetDays: number): string {
+	const now = new Date();
+	const utcMidnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+	const shifted = new Date(utcMidnight + offsetDays * 24 * 60 * 60 * 1000);
+	return shifted.toISOString().slice(0, 10);
+}
+
+function isRFC3339(value: string): boolean {
+	if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value)) {
+		return false;
+	}
+	return !Number.isNaN(Date.parse(value));
 }
 
 function parseBool(value: string): boolean {
