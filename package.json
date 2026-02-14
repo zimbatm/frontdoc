@@ -1,5 +1,5 @@
 {
-	"name": "tmdoc",
+	"name": "frontdoc",
 	"version": "0.1.0",
 	"description": "CLI tool for managing Markdown document collections",
 	"type": "module",
@@ -9,7 +9,7 @@
 		"test": "bun run web:build && bun test ./tests",
 		"lint": "biome check .",
 		"format": "biome format --write .",
-		"build": "bun run web:build && bun build --compile src/main.ts --outfile dist/tmdoc",
+		"build": "bun run web:build && bun build --compile src/main.ts --outfile dist/frontdoc",
 		"web:dev": "vite --config webapp/vite.config.ts",
 		"web:build": "vite build --config webapp/vite.config.ts",
 		"web:typecheck": "vue-tsc --project webapp/tsconfig.json --noEmit",

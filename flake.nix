@@ -1,5 +1,5 @@
 {
-  description = "tmdoc - CLI tool for managing Markdown document collections";
+  description = "frontdoc - CLI tool for managing Markdown document collections";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs?ref=nixos-unstable";

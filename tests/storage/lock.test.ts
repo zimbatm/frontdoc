@@ -6,10 +6,10 @@ import { join } from "node:path";
 import { FileLock } from "../../src/storage/lock.js";
 
 describe("FileLock", () => {
-	test("acquire/release locks and unlocks tmdoc.yaml", async () => {
-		const root = await mkdtemp(join(tmpdir(), "tmdoc-lock-"));
+	test("acquire/release locks and unlocks frontdoc.yaml", async () => {
+		const root = await mkdtemp(join(tmpdir(), "frontdoc-lock-"));
 		await mkdir(root, { recursive: true });
-		const marker = join(root, "tmdoc.yaml");
+		const marker = join(root, "frontdoc.yaml");
 		await writeFile(marker, "aliases: {}\n", "utf8");
 
 		const lock = new FileLock(root);
@@ -24,8 +24,8 @@ describe("FileLock", () => {
 	});
 
 	test("second lock waits until first is released", async () => {
-		const root = await mkdtemp(join(tmpdir(), "tmdoc-lock-wait-"));
-		await writeFile(join(root, "tmdoc.yaml"), "aliases: {}\n", "utf8");
+		const root = await mkdtemp(join(tmpdir(), "frontdoc-lock-wait-"));
+		await writeFile(join(root, "frontdoc.yaml"), "aliases: {}\n", "utf8");
 
 		const lock1 = new FileLock(root);
 		const lock2 = new FileLock(root);

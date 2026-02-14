@@ -21,7 +21,7 @@ async function waitForWebUrl(proc) {
 }
 
 test("web ui renders and lists documents", async ({ page }) => {
-	const root = mkdtempSync(join(tmpdir(), "tmdoc-web-e2e-"));
+	const root = mkdtempSync(join(tmpdir(), "frontdoc-web-e2e-"));
 	execFileSync("bun", ["run", "src/main.ts", "-C", root, "init"], { stdio: "pipe" });
 	execFileSync(
 		"bun",

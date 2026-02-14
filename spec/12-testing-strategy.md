@@ -1,4 +1,4 @@
-# tmdoc Specification: Testing Strategy
+# frontdoc Specification: Testing Strategy
 
 ## Approach
 
@@ -11,7 +11,7 @@ identically to the disk VFS.
 ```
 1. Create a MemoryVFS.
 2. Create a Repository with the MemoryVFS.
-3. Write test fixtures (`_schema.yaml` files, `tmdoc.yaml`, documents) directly into the MemoryVFS.
+3. Write test fixtures (`_schema.yaml` files, `frontdoc.yaml`, documents) directly into the MemoryVFS.
 4. Create services with the test config and repository.
 5. Exercise the service methods.
 6. Assert on return values and VFS state.
@@ -63,7 +63,7 @@ Cover:
 - Web UI shell render and route navigation in a real browser context
 - Core read/search interactions against the live `/api/*` server
 
-Browser E2E tests use Playwright and spawn `tmdoc web` against a temporary
+Browser E2E tests use Playwright and spawn `frontdoc web` against a temporary
 test repository initialized during the test.
 
 ## Key Test Invariants

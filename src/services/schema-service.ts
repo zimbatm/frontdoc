@@ -328,7 +328,7 @@ export class SchemaService {
 	private async persistRepoConfig(): Promise<void> {
 		await this.repository
 			.fileSystem()
-			.writeFile("tmdoc.yaml", serializeRepoConfig(this.repoConfig));
+			.writeFile("frontdoc.yaml", serializeRepoConfig(this.repoConfig));
 	}
 
 	private async removeTemplatesForCollection(collection: string): Promise<void> {

@@ -1,4 +1,4 @@
-# tmdoc Specification: Validation
+# frontdoc Specification: Validation
 
 ## Overview
 
@@ -222,7 +222,7 @@ alone).
 ### Folder Collapse
 
 After removing unreferenced attachments, if only `index.md` remains in a
-folder document (ignoring files in the `ignore` list from `tmdoc.yaml`,
+folder document (ignoring files in the `ignore` list from `frontdoc.yaml`,
 see 03-configuration.md), the folder is collapsed back to a single `.md`
 file. Ignored files are silently removed during collapse. Other non-ignored
 files block collapse.

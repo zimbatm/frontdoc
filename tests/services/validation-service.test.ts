@@ -70,7 +70,7 @@ describe("ValidationService", () => {
 	});
 
 	test("check can prune unreferenced attachments and collapse folder docs", async () => {
-		const hostDir = await mkdtemp(join(tmpdir(), "tmdoc-attach-"));
+		const hostDir = await mkdtemp(join(tmpdir(), "frontdoc-attach-"));
 		const source = join(hostDir, "asset.txt");
 		await writeFile(source, "asset", "utf8");
 

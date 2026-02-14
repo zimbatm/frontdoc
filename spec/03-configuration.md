@@ -1,10 +1,10 @@
-# tmdoc Specification: Configuration
+# frontdoc Specification: Configuration
 
 ## Overview
 
-tmdoc uses a distributed configuration model:
+frontdoc uses a distributed configuration model:
 
-- **`tmdoc.yaml`** at the repository root contains repository-wide
+- **`frontdoc.yaml`** at the repository root contains repository-wide
   configuration.
 - **`_schema.yaml`** inside each collection directory defines that
   collection's schema (slug, fields, references).
@@ -14,15 +14,15 @@ A directory is a collection if and only if it contains a `_schema.yaml` file.
 ## Repository Root Discovery
 
 The repository root is found by searching upward from the working directory
-(or the path given with `-C`) for a `tmdoc.yaml` file. If found, that
+(or the path given with `-C`) for a `frontdoc.yaml` file. If found, that
 directory is the root. If not found, return an error indicating the
-repository is not initialized (suggest running `tmdoc init`).
+repository is not initialized (suggest running `frontdoc init`).
 
 The `--directory` / `-C` flag overrides the starting directory: the upward
-search for `tmdoc.yaml` begins from the specified path instead of the
+search for `frontdoc.yaml` begins from the specified path instead of the
 current working directory.
 
-## `tmdoc.yaml` -- Repository Configuration
+## `frontdoc.yaml` -- Repository Configuration
 
 Located at the repository root. Unknown keys are preserved on read and
 re-serialized on write.
@@ -89,7 +89,7 @@ references:
 
 The collection name is the directory name -- it is not stored in
 `_schema.yaml`. The alias (prefix) is not stored here either; it lives in
-`tmdoc.yaml`.
+`frontdoc.yaml`.
 
 A minimal valid `_schema.yaml` needs only `slug`:
 
@@ -108,7 +108,7 @@ generated and persisted to `_schema.yaml`:
 3. If no matching field: `{{short_id}}`
 
 Slug templates do not need to include `{{short_id}}`. During filename
-generation, tmdoc automatically appends `-<short_id>` to the basename unless
+generation, frontdoc automatically appends `-<short_id>` to the basename unless
 the basename already ends with that short ID.
 
 The auto-generated slug is stored in `_schema.yaml` and can be edited by the
@@ -135,10 +135,10 @@ length of 6, the short ID is `9g5fav` (from the random portion
 A directory is a collection if and only if it contains `_schema.yaml`. There
 is no auto-discovery of schema-less directories. This means:
 
-- Before `tmdoc init`, tmdoc cannot operate (no collections recognized).
-- `tmdoc init` creates `tmdoc.yaml` to mark the repository root.
+- Before `frontdoc init`, frontdoc cannot operate (no collections recognized).
+- `frontdoc init` creates `frontdoc.yaml` to mark the repository root.
 - `schema create <name>` creates the directory, writes `_schema.yaml`, and
-  adds an alias entry to `tmdoc.yaml`.
+  adds an alias entry to `frontdoc.yaml`.
 
 ## Field Types
 
@@ -185,7 +185,7 @@ The templates collection follows the same rules as any other collection -- it
 requires `templates/_schema.yaml`. Its defaults are:
 
 - Collection name / directory: `templates`
-- Alias: `tpl` (in `tmdoc.yaml`)
+- Alias: `tpl` (in `frontdoc.yaml`)
 - `slug`: `{{name}}-{{short_id}}`
 - Required fields: `name` (string), `for` (string)
 
@@ -203,7 +203,7 @@ On load, each `_schema.yaml` is validated:
   reserved system namespace).
 - Invalid defaults produce a load error with field path and expected type.
 
-`tmdoc.yaml` is validated for alias uniqueness -- duplicate prefixes or
+`frontdoc.yaml` is validated for alias uniqueness -- duplicate prefixes or
 prefixes that collide with collection names produce a load error.
 
 ## Schema Persistence
@@ -213,7 +213,7 @@ When saving a `_schema.yaml`:
 1. Empty `fields` and `references` maps are omitted entirely.
 2. Uses standard YAML serialization.
 
-When saving `tmdoc.yaml`:
+When saving `frontdoc.yaml`:
 
 1. Prepends a header comment with a documentation link.
 2. Uses standard YAML serialization.

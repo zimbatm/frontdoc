@@ -1,10 +1,10 @@
 import { parse, stringify } from "yaml";
 import { DEFAULT_IGNORE, type RepoConfig } from "./types.js";
 
-const HEADER_COMMENT = "# tmdoc repository configuration\n# https://github.com/numtide/tmdoc\n";
+const HEADER_COMMENT = "# frontdoc repository configuration\n# https://github.com/numtide/frontdoc\n";
 
 /**
- * Parse tmdoc.yaml content into a RepoConfig.
+ * Parse frontdoc.yaml content into a RepoConfig.
  */
 export function parseRepoConfig(content: string): RepoConfig {
 	const data = parse(content) as Record<string, unknown> | null;
@@ -37,7 +37,7 @@ export function parseRepoConfig(content: string): RepoConfig {
 }
 
 /**
- * Serialize a RepoConfig to tmdoc.yaml content.
+ * Serialize a RepoConfig to frontdoc.yaml content.
  */
 export function serializeRepoConfig(config: RepoConfig): string {
 	const data: Record<string, unknown> = {
@@ -59,7 +59,7 @@ export function serializeRepoConfig(config: RepoConfig): string {
 }
 
 /**
- * Create a default tmdoc.yaml content with empty aliases.
+ * Create a default frontdoc.yaml content with empty aliases.
  */
 export function defaultRepoConfigContent(): string {
 	return serializeRepoConfig({ aliases: {}, ignore: [...DEFAULT_IGNORE], extra: {} });

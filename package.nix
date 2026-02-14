@@ -1,7 +1,7 @@
 { pkgs ? import <nixpkgs> { } }:
 
 pkgs.stdenvNoCC.mkDerivation (finalAttrs: {
-  pname = "tmdoc";
+  pname = "frontdoc";
   version = "0.1.0";
 
   # Keep source as-is so local `node_modules` can be used when present.
@@ -30,16 +30,16 @@ pkgs.stdenvNoCC.mkDerivation (finalAttrs: {
   installPhase = ''
     runHook preInstall
 
-    install -D -m755 dist/tmdoc "$out/bin/tmdoc"
+    install -D -m755 dist/frontdoc "$out/bin/frontdoc"
 
     runHook postInstall
   '';
 
   meta = {
     description = "CLI tool for managing Markdown document collections";
-    homepage = "https://git.numtide.com/numtide/tmdoc-ts";
+    homepage = "https://git.numtide.com/numtide/frontdoc-ts";
     license = pkgs.lib.licenses.mit;
-    mainProgram = "tmdoc";
+    mainProgram = "frontdoc";
     platforms = pkgs.lib.platforms.unix;
   };
 })

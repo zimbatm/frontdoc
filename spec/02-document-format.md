@@ -1,4 +1,4 @@
-# tmdoc Specification: Document Format
+# frontdoc Specification: Document Format
 
 ## File Structure
 
@@ -177,7 +177,7 @@ Target normalization before comparison:
 3. Strip fragment identifiers (`#...`).
 4. Compare by basename only (directory path is ignored).
 
-Files in the `ignore` list (see `tmdoc.yaml` in 03-configuration.md) do
+Files in the `ignore` list (see `frontdoc.yaml` in 03-configuration.md) do
 not prevent automatic collapse. Other non-`index.md` files do block
 collapse.
 

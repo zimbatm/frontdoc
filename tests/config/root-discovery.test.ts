@@ -6,8 +6,8 @@ import { findRepositoryRoot } from "../../src/config/root-discovery.js";
 
 describe("findRepositoryRoot", () => {
 	test("finds root from nested directory", async () => {
-		const root = await mkdtemp(join(tmpdir(), "tmdoc-root-"));
-		await writeFile(join(root, "tmdoc.yaml"), "aliases: {}\n", "utf8");
+		const root = await mkdtemp(join(tmpdir(), "frontdoc-root-"));
+		await writeFile(join(root, "frontdoc.yaml"), "aliases: {}\n", "utf8");
 		const nested = join(root, "a", "b", "c");
 		await mkdir(nested, { recursive: true });
 
@@ -16,7 +16,7 @@ describe("findRepositoryRoot", () => {
 	});
 
 	test("throws when repository is not initialized", async () => {
-		const root = await mkdtemp(join(tmpdir(), "tmdoc-missing-"));
+		const root = await mkdtemp(join(tmpdir(), "frontdoc-missing-"));
 		await expect(findRepositoryRoot(root)).rejects.toThrow("repository is not initialized");
 	});
 });

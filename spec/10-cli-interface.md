@@ -1,4 +1,4 @@
-# tmdoc Specification: CLI Interface
+# frontdoc Specification: CLI Interface
 
 ## Global Flags
 
@@ -6,9 +6,9 @@
 |-----------------|-------|------------------------------------------------|
 | `--directory`   | `-C`  | Run as if started in this path                 |
 
-The `-C` flag follows git convention: tmdoc runs as if started in the given
+The `-C` flag follows git convention: frontdoc runs as if started in the given
 path. The repository root is discovered by searching upward from that path
-for `tmdoc.yaml`, the same way it searches upward from the current working
+for `frontdoc.yaml`, the same way it searches upward from the current working
 directory. The process working directory is not changed.
 
 ## Document Identifiers
@@ -21,7 +21,7 @@ All commands that accept a document identifier use the `<id>` format:
   the search
 
 There is no implicit search fallback. If the ID does not match a document,
-the command returns an error. Use `tmdoc search` to find documents by name
+the command returns an error. Use `frontdoc search` to find documents by name
 or content, then use the ID from the results.
 
 ## Manager Initialization
@@ -31,7 +31,7 @@ Before any subcommand runs, the manager is created:
 1. Use `New(workDir)` where workDir is the resolved `-C` path or the current
    directory.
 2. The manager discovers the repository root (see Root Discovery in
-   03-configuration.md), loads `tmdoc.yaml` for aliases, and scans for
+   03-configuration.md), loads `frontdoc.yaml` for aliases, and scans for
    `_schema.yaml` files to identify collections.
 3. Creates VFS and initializes all services.
 
@@ -59,17 +59,17 @@ case. The full set of available formats:
 
 ### init
 
-**Usage**: `tmdoc init`
+**Usage**: `frontdoc init`
 
-Initialize a tmdoc repository in the current directory (or `-C` path).
+Initialize a frontdoc repository in the current directory (or `-C` path).
 
 **Behavior**:
-1. If `tmdoc.yaml` already exists, report "already initialized".
-2. Write `tmdoc.yaml` with an empty aliases section.
+1. If `frontdoc.yaml` already exists, report "already initialized".
+2. Write `frontdoc.yaml` with an empty aliases section.
 
 ### create (alias: new)
 
-**Usage**: `tmdoc create [collection] [title] [flags]`
+**Usage**: `frontdoc create [collection] [title] [flags]`
 
 Create a new document.
 
@@ -105,7 +105,7 @@ the `name` field. If the slug template does not reference a field (e.g.
 
 ### read (alias: get)
 
-**Usage**: `tmdoc read <id>`
+**Usage**: `frontdoc read <id>`
 
 Retrieve and display a document.
 
@@ -119,7 +119,7 @@ Retrieve and display a document.
 
 ### update (alias: modify)
 
-**Usage**: `tmdoc update <id> [flags]`
+**Usage**: `frontdoc update <id> [flags]`
 
 Update document fields and/or content programmatically.
 
@@ -148,7 +148,7 @@ Update document fields and/or content programmatically.
 
 ### delete (alias: rm)
 
-**Usage**: `tmdoc delete <id>`
+**Usage**: `frontdoc delete <id>`
 
 Delete a document.
 
@@ -163,7 +163,7 @@ Delete a document.
 
 ### list (alias: ls)
 
-**Usage**: `tmdoc list [collection] [query] [flags]`
+**Usage**: `frontdoc list [collection] [query] [flags]`
 
 List documents.
 
@@ -189,7 +189,7 @@ for simple `key=value` equality; both can be combined.
 
 ### search (alias: find)
 
-**Usage**: `tmdoc search <query>`
+**Usage**: `frontdoc search <query>`
 
 Search documents.
 
@@ -203,7 +203,7 @@ Search documents.
 
 ### open (alias: edit)
 
-**Usage**: `tmdoc open <collection|alias> [<id|arg>]`
+**Usage**: `frontdoc open <collection|alias> [<id|arg>]`
 
 Open a document in `$EDITOR`. The first argument is always a collection name
 or alias. The optional second argument identifies an existing document or
@@ -249,7 +249,7 @@ provides a slug template argument for find-or-create.
 
 ### web (alias: serve)
 
-**Usage**: `tmdoc web [flags]`
+**Usage**: `frontdoc web [flags]`
 
 Start a local Web UI server to visualize and manipulate the repository.
 
@@ -299,7 +299,7 @@ See `spec/13-web-ui-navigation.md`.
 
 ### attach
 
-**Usage**: `tmdoc attach <id> <file-path>`
+**Usage**: `frontdoc attach <id> <file-path>`
 
 Attach a file to a document.
 
@@ -314,7 +314,7 @@ Attach a file to a document.
 
 ### check
 
-**Usage**: `tmdoc check [collection] [flags]`
+**Usage**: `frontdoc check [collection] [flags]`
 
 Validate documents. If a collection name is provided, only documents in that
 collection are validated. Otherwise, all documents are validated.
@@ -347,34 +347,34 @@ collection are validated. Otherwise, all documents are validated.
    d. Remove unreferenced attachments from folder documents (only when
       `--prune-attachments` is passed).
    e. Collapse folder documents back to files when only `index.md` remains
-      (files in the `ignore` list from `tmdoc.yaml` are silently removed;
+      (files in the `ignore` list from `frontdoc.yaml` are silently removed;
       other files block collapse).
 
 ### schema
 
-**Usage**: `tmdoc schema <subcommand>`
+**Usage**: `frontdoc schema <subcommand>`
 
 Manage the schema.
 
 **Subcommands**:
-- `schema show` -- aggregate all `_schema.yaml` files and `tmdoc.yaml`
+- `schema show` -- aggregate all `_schema.yaml` files and `frontdoc.yaml`
   aliases into a unified view.
   - `--output`: text (default), json, yaml
 - `schema create <collection>` -- create directory, write `_schema.yaml`,
-  add alias to `tmdoc.yaml`.
+  add alias to `frontdoc.yaml`.
   - `--prefix` (maps to Alias), `--slug` (maps to Slug),
     `--title-field` (maps to `title_field`, used for display titles)
 - `schema read <collection>` -- read `<collection>/_schema.yaml` and show
-  the alias from `tmdoc.yaml`.
+  the alias from `frontdoc.yaml`.
   - `--output`: text (default), json, yaml
 - `schema update <collection>` -- modify `<collection>/_schema.yaml` and
-  optionally update the alias in `tmdoc.yaml`.
+  optionally update the alias in `frontdoc.yaml`.
   - `--title-field` updates `title_field` in collection schema.
 - `schema rename <old-name> <new-name>` -- rename cascade: move directory,
   update `_schema.yaml` files with references, update templates, update
-  alias target in `tmdoc.yaml` (see 08-schema-management.md).
+  alias target in `frontdoc.yaml` (see 08-schema-management.md).
 - `schema delete <collection>` -- remove documents, `_schema.yaml`,
-  directory, and alias from `tmdoc.yaml`.
+  directory, and alias from `frontdoc.yaml`.
   - `--remove-documents`, `--force`
 - `schema field create <collection> <field>` -- add a field to
   `<collection>/_schema.yaml`.
@@ -388,7 +388,7 @@ Manage the schema.
 
 ### relationships
 
-**Usage**: `tmdoc relationships <id>`
+**Usage**: `frontdoc relationships <id>`
 
 Show document relationships.
 
@@ -404,7 +404,7 @@ collection/name match, then plain name match.
 
 ### graph
 
-**Usage**: `tmdoc graph [collection|id]`
+**Usage**: `frontdoc graph [collection|id]`
 
 Generate a relationship graph. Edges are derived from both wiki links and
 field references (e.g. `client_id`). Wiki link edges and field reference
@@ -422,7 +422,7 @@ repository graph is generated.
 
 ### stats
 
-**Usage**: `tmdoc stats`
+**Usage**: `frontdoc stats`
 
 Show repository statistics: document counts grouped by collection and total
 count. No other statistics are computed.
@@ -432,7 +432,7 @@ count. No other statistics are computed.
 
 ### completion
 
-**Usage**: `tmdoc completion <shell>`
+**Usage**: `frontdoc completion <shell>`
 
 Generate shell completion scripts for bash, zsh, fish, or powershell.
 

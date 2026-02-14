@@ -7,13 +7,13 @@ Design and behavior specs are in `spec/` (numbered docs), and runnable examples 
 
 ## Build, Test, and Development Commands
 - `nix develop`: enter the pinned development shell (preferred).
-- In the dev shell, use the `tmdoc` wrapper (for example `tmdoc --help`, `tmdoc create ...`) instead of calling `bun run src/main.ts` directly.
+- In the dev shell, use the `frontdoc` wrapper (for example `frontdoc --help`, `frontdoc create ...`) instead of calling `bun run src/main.ts` directly.
 - `bun run dev` or `bun run src/main.ts --help`: run the CLI in development.
 - `bun run test`: run the full Bun test suite.
 - `bun test tests/cli/workflows.test.ts`: run a focused workflow test.
 - `bun run lint`: run Biome lint checks.
 - `bun run format`: format code with Biome.
-- `bun run build`: compile a standalone binary to `dist/tmdoc`.
+- `bun run build`: compile a standalone binary to `dist/frontdoc`.
 
 ## Coding Style & Naming Conventions
 TypeScript with ESM imports (`.js` extension in import paths).  

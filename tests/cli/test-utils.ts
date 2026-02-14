@@ -9,7 +9,7 @@ export async function runCli(
 ): Promise<{ stdout: string; stderr: string; code: number }> {
 	const env = {
 		...process.env,
-		TMDOC_SKIP_EDITOR: "1",
+		FRONTDOC_SKIP_EDITOR: "1",
 		...envOverride,
 	};
 	const proc = Bun.spawn([...CLI, ...args], {
@@ -68,7 +68,7 @@ export function spawnWebServer(root: string, extraArgs: string[] = []): Bun.Subp
 			stderr: "pipe",
 			env: {
 				...process.env,
-				TMDOC_SKIP_EDITOR: "1",
+				FRONTDOC_SKIP_EDITOR: "1",
 			},
 		},
 	);

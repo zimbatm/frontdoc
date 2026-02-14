@@ -68,7 +68,7 @@ export function registerOpenCommand(
 				const editor = process.env.EDITOR || "vi";
 				let reopen = true;
 				while (reopen) {
-					if (process.env.TMDOC_SKIP_EDITOR !== "1") {
+					if (process.env.FRONTDOC_SKIP_EDITOR !== "1") {
 						const result = spawnSync(editor, [absPath], { stdio: "inherit" });
 						if (result.error) {
 							throw result.error;
@@ -98,7 +98,7 @@ export function registerOpenCommand(
 						console.log(`${issue.severity.toUpperCase()} ${issue.path}: ${issue.message}`);
 					}
 
-					if (process.env.TMDOC_SKIP_EDITOR === "1") {
+					if (process.env.FRONTDOC_SKIP_EDITOR === "1") {
 						break;
 					}
 					reopen = await confirmReopen();
@@ -139,7 +139,7 @@ export function registerOpenCommand(
 			const absPath = join(manager.RootPath(), draftPath);
 			const editor = process.env.EDITOR || "vi";
 			while (true) {
-				if (process.env.TMDOC_SKIP_EDITOR !== "1") {
+				if (process.env.FRONTDOC_SKIP_EDITOR !== "1") {
 					const result = spawnSync(editor, [absPath], { stdio: "inherit" });
 					if (result.error) {
 						throw result.error;
@@ -174,7 +174,7 @@ export function registerOpenCommand(
 					console.log(`${issue.severity.toUpperCase()} ${issue.path}: ${issue.message}`);
 				}
 
-				if (process.env.TMDOC_SKIP_EDITOR === "1") {
+				if (process.env.FRONTDOC_SKIP_EDITOR === "1") {
 					console.log(draftPath);
 					return;
 				}

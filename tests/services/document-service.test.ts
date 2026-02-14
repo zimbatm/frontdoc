@@ -136,7 +136,7 @@ describe("DocumentService", () => {
 			fields: { name: "Acme Corp" },
 		});
 
-		const tempDir = await mkdtemp(join(tmpdir(), "tmdoc-attach-"));
+		const tempDir = await mkdtemp(join(tmpdir(), "frontdoc-attach-"));
 		const source = join(tempDir, "banner.bin");
 		const payload = new Uint8Array([0, 255, 16, 128, 65, 66, 67]);
 		await writeFile(source, payload);

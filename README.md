@@ -1,6 +1,6 @@
-# tmdoc-ts
+# frontdoc-ts
 
-TypeScript/Bun implementation of `tmdoc`, a CLI for managing Markdown documents with YAML frontmatter, collection schemas, references, templates, and validation.
+TypeScript/Bun implementation of `frontdoc`, a CLI for managing Markdown documents with YAML frontmatter, collection schemas, references, templates, and validation.
 
 ## Requirements
 
@@ -55,6 +55,6 @@ nix develop -c bun test tests/cli/workflows.test.ts
 
 ## Notes
 
-- Repository root is discovered by locating `tmdoc.yaml` upward from `cwd` (or `-C`).
+- Repository root is discovered by locating `frontdoc.yaml` upward from `cwd` (or `-C`).
 - Collection schemas are stored at `<collection>/_schema.yaml`.
-- Aliases and ignore patterns are stored in `tmdoc.yaml`.
+- Aliases and ignore patterns are stored in `frontdoc.yaml`.

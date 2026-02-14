@@ -1,8 +1,8 @@
-# tmdoc Specification: Overview
+# frontdoc Specification: Overview
 
 ## Purpose
 
-tmdoc is a CLI tool for managing collections of Markdown documents with YAML
+frontdoc is a CLI tool for managing collections of Markdown documents with YAML
 frontmatter. It eliminates the friction of choosing filenames when capturing
 information by auto-generating unique IDs, organizing documents into collections, and making everything searchable.
 
@@ -22,12 +22,12 @@ humans and LLM agents.
 
 This specification uses the following terms consistently:
 
-- **Repository**: The root directory containing `tmdoc.yaml` and collection
+- **Repository**: The root directory containing `frontdoc.yaml` and collection
   folders.
 - **Collection**: A top-level folder that contains `_schema.yaml`.
 - **Schema**: The `_schema.yaml` file defining slug, fields, and references
   for one collection.
-- **Alias**: A short prefix in `tmdoc.yaml` that maps to a collection name.
+- **Alias**: A short prefix in `frontdoc.yaml` that maps to a collection name.
 - **Document**: A YAML-frontmatter + Markdown record in a collection.
 - **File Document**: A single `.md` file document.
 - **Folder Document**: A directory document whose content file is `index.md`
@@ -47,13 +47,13 @@ The canonical term in the spec and code is **Repository**.
 1. **Zero lock-in** -- Documents are standard Markdown with YAML frontmatter.
    No proprietary format, no database. Works with any text editor and any VCS.
 
-2. **Convention over configuration** -- `tmdoc init` creates a `tmdoc.yaml`
+2. **Convention over configuration** -- `frontdoc init` creates a `frontdoc.yaml`
    file to mark the repository root. Collections are created explicitly with
    `schema create`, which generates `_schema.yaml` with sensible defaults
    (auto-generated alias and slug). A directory only becomes a collection when
    `_schema.yaml` exists.
 
-3. **Eliminate filename friction** -- `tmdoc add` generates a ULID, derives a
+3. **Eliminate filename friction** -- `frontdoc add` generates a ULID, derives a
    short ID, and produces a consistent filename. The user never has to think
    about naming.
 

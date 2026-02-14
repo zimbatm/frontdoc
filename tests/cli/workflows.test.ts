@@ -6,7 +6,7 @@ import { runFail, runOk } from "./test-utils.js";
 
 describe("CLI workflows", () => {
 	test("init + schema + create/read/update/delete lifecycle", async () => {
-		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-"));
+		const root = await mkdtemp(join(tmpdir(), "frontdoc-cli-"));
 
 		await runOk(["-C", root, "init"], root);
 		await runOk(
@@ -56,7 +56,7 @@ describe("CLI workflows", () => {
 	});
 
 	test("templates are applied by create flags", async () => {
-		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-template-"));
+		const root = await mkdtemp(join(tmpdir(), "frontdoc-cli-template-"));
 		await runOk(["-C", root, "init"], root);
 		await runOk(
 			[
@@ -135,7 +135,7 @@ describe("CLI workflows", () => {
 	});
 
 	test("open applies template on first create only", async () => {
-		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-open-template-"));
+		const root = await mkdtemp(join(tmpdir(), "frontdoc-cli-open-template-"));
 		await runOk(["-C", root, "init"], root);
 		await runOk(
 			[
@@ -210,7 +210,7 @@ echo "\\nseeded" >>"$1"
 		);
 		const createdPath = await runOk(["-C", root, "open", "cli", "Acme"], root, undefined, {
 			EDITOR: editorScript,
-			TMDOC_SKIP_EDITOR: "0",
+			FRONTDOC_SKIP_EDITOR: "0",
 		});
 		expect(createdPath).toContain("acme-");
 		expect(createdPath).toContain(".md");
@@ -232,7 +232,7 @@ echo "\\nseeded" >>"$1"
 	});
 
 	test("open does not create missing slug target when draft is unchanged", async () => {
-		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-open-unchanged-draft-"));
+		const root = await mkdtemp(join(tmpdir(), "frontdoc-cli-open-unchanged-draft-"));
 		await runOk(["-C", root, "init"], root);
 		await runOk(
 			[
@@ -275,7 +275,7 @@ echo "\\nseeded" >>"$1"
 	});
 
 	test("open without slug defaults stages draft instead of failing", async () => {
-		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-open-missing-defaults-"));
+		const root = await mkdtemp(join(tmpdir(), "frontdoc-cli-open-missing-defaults-"));
 		await runOk(["-C", root, "init"], root);
 		await runOk(
 			[
@@ -312,7 +312,7 @@ echo "\\nseeded" >>"$1"
 	});
 
 	test("open can keep invalid draft without creating target document", async () => {
-		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-open-keep-draft-"));
+		const root = await mkdtemp(join(tmpdir(), "frontdoc-cli-open-keep-draft-"));
 		await runOk(["-C", root, "init"], root);
 		await runOk(
 			[
@@ -365,7 +365,7 @@ EOF
 
 		const output = await runOk(["-C", root, "open", "cli", "Acme"], root, "2\n", {
 			EDITOR: editorScript,
-			TMDOC_SKIP_EDITOR: "0",
+			FRONTDOC_SKIP_EDITOR: "0",
 		});
 		expect(output).toContain(".tdo-");
 		const list = JSON.parse(
@@ -375,7 +375,7 @@ EOF
 	});
 
 	test("open does not prompt for template when slug match already exists", async () => {
-		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-open-existing-no-prompt-"));
+		const root = await mkdtemp(join(tmpdir(), "frontdoc-cli-open-existing-no-prompt-"));
 		await runOk(["-C", root, "init"], root);
 		await runOk(
 			[
@@ -465,7 +465,7 @@ EOF
 	});
 
 	test("create prompts for template selection when multiple templates exist", async () => {
-		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-template-prompt-"));
+		const root = await mkdtemp(join(tmpdir(), "frontdoc-cli-template-prompt-"));
 		await runOk(["-C", root, "init"], root);
 		await runOk(
 			[
@@ -556,7 +556,7 @@ EOF
 	});
 
 	test("attach + check --fix --prune-attachments collapses folder", async () => {
-		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-attach-"));
+		const root = await mkdtemp(join(tmpdir(), "frontdoc-cli-attach-"));
 		await runOk(["-C", root, "init"], root);
 		await runOk(
 			[
@@ -611,7 +611,7 @@ EOF
 	});
 
 	test("search/relationships/graph/stats produce outputs", async () => {
-		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-search-"));
+		const root = await mkdtemp(join(tmpdir(), "frontdoc-cli-search-"));
 		await runOk(["-C", root, "init"], root);
 		await runOk(
 			[
@@ -694,7 +694,7 @@ EOF
 		expect(relJSON.incoming.length).toBeGreaterThan(0);
 
 		const graph = await runOk(["-C", root, "graph", "-o", "dot"], root);
-		expect(graph).toContain("digraph tmdoc");
+		expect(graph).toContain("digraph frontdoc");
 
 		const stats = JSON.parse(await runOk(["-C", root, "stats", "-o", "json"], root)) as {
 			total: number;
@@ -703,7 +703,7 @@ EOF
 	});
 
 	test("schema rename and delete flow through CLI", async () => {
-		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-schema-"));
+		const root = await mkdtemp(join(tmpdir(), "frontdoc-cli-schema-"));
 		await runOk(["-C", root, "init"], root);
 		await runOk(["-C", root, "schema", "create", "clients", "--prefix", "cli"], root);
 		await runOk(["-C", root, "schema", "rename", "clients", "customers"], root);
@@ -712,12 +712,12 @@ EOF
 		expect(JSON.parse(schemaRead).collection).toBe("customers");
 
 		await runOk(["-C", root, "schema", "delete", "customers", "--force"], root);
-		const rootConfig = await readFile(join(root, "tmdoc.yaml"), "utf8");
+		const rootConfig = await readFile(join(root, "frontdoc.yaml"), "utf8");
 		expect(rootConfig).not.toContain("customers");
 	});
 
 	test("update can read replacement content from stdin", async () => {
-		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-stdin-"));
+		const root = await mkdtemp(join(tmpdir(), "frontdoc-cli-stdin-"));
 		await runOk(["-C", root, "init"], root);
 		await runOk(
 			[
@@ -747,7 +747,7 @@ EOF
 	});
 
 	test("delete prompts for confirmation unless --force", async () => {
-		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-delete-"));
+		const root = await mkdtemp(join(tmpdir(), "frontdoc-cli-delete-"));
 		await runOk(["-C", root, "init"], root);
 		await runOk(
 			[
@@ -788,7 +788,7 @@ EOF
 	});
 
 	test("open validates after edit and can re-open editor", async () => {
-		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-open-"));
+		const root = await mkdtemp(join(tmpdir(), "frontdoc-cli-open-"));
 		await runOk(["-C", root, "init"], root);
 		await runOk(
 			[
@@ -855,7 +855,7 @@ fi
 
 		const output = await runOk(["-C", root, "open", "cli", shortID], root, "y\n", {
 			EDITOR: editorScript,
-			TMDOC_SKIP_EDITOR: "0",
+			FRONTDOC_SKIP_EDITOR: "0",
 			COUNT_FILE: countFile,
 		});
 		expect(output).toContain("Validation issues found:");
@@ -865,7 +865,7 @@ fi
 	});
 
 	test("check prints details only with --verbose", async () => {
-		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-check-verbose-"));
+		const root = await mkdtemp(join(tmpdir(), "frontdoc-cli-check-verbose-"));
 		await runOk(["-C", root, "init"], root);
 		await runOk(
 			[
@@ -926,7 +926,7 @@ fi
 	});
 
 	test("create/update validate by default and support --skip-validation", async () => {
-		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-skip-validation-"));
+		const root = await mkdtemp(join(tmpdir(), "frontdoc-cli-skip-validation-"));
 		await runOk(["-C", root, "init"], root);
 		await runOk(
 			[
@@ -1001,7 +1001,7 @@ fi
 	});
 
 	test("list table output includes headers and fields", async () => {
-		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-list-table-"));
+		const root = await mkdtemp(join(tmpdir(), "frontdoc-cli-list-table-"));
 		await runOk(["-C", root, "init"], root);
 		await runOk(
 			[
@@ -1030,7 +1030,7 @@ fi
 	});
 
 	test("date and datetime shorthand inputs are normalized", async () => {
-		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-date-input-"));
+		const root = await mkdtemp(join(tmpdir(), "frontdoc-cli-date-input-"));
 		await runOk(["-C", root, "init"], root);
 		await runOk(
 			[
@@ -1087,7 +1087,7 @@ fi
 	});
 
 	test("create prompts to choose collection when omitted", async () => {
-		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-create-prompt-"));
+		const root = await mkdtemp(join(tmpdir(), "frontdoc-cli-create-prompt-"));
 		await runOk(["-C", root, "init"], root);
 		await runOk(
 			["-C", root, "schema", "create", "clients", "--prefix", "cli", "--slug", "{{short_id}}"],
@@ -1105,7 +1105,7 @@ fi
 	});
 
 	test("create prompts for missing required fields in weight order", async () => {
-		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-create-required-prompt-"));
+		const root = await mkdtemp(join(tmpdir(), "frontdoc-cli-create-required-prompt-"));
 		await runOk(["-C", root, "init"], root);
 		await runOk(
 			["-C", root, "schema", "create", "contacts", "--prefix", "ctc", "--slug", "{{short_id}}"],

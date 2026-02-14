@@ -2,14 +2,14 @@ import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { join } from "node:path";
 
 /**
- * Advisory file lock on tmdoc.yaml for write operations.
+ * Advisory file lock on frontdoc.yaml for write operations.
  */
 export class FileLock {
 	private readonly lockTargetPath: string;
 	private process: ChildProcessWithoutNullStreams | null = null;
 
 	constructor(private readonly rootPath: string) {
-		this.lockTargetPath = join(this.rootPath, "tmdoc.yaml");
+		this.lockTargetPath = join(this.rootPath, "frontdoc.yaml");
 	}
 
 	/**
@@ -27,7 +27,7 @@ export class FileLock {
 				this.lockTargetPath,
 				"sh",
 				"-c",
-				"printf '__TMDOC_LOCKED__\\n'; cat >/dev/null",
+				"printf '__FRONTDOC_LOCKED__\\n'; cat >/dev/null",
 			],
 			{ stdio: ["pipe", "pipe", "pipe"] },
 		);
@@ -59,7 +59,7 @@ async function waitForReady(proc: ChildProcessWithoutNullStreams): Promise<void>
 
 		const onStdout = (chunk: Buffer) => {
 			stdout += chunk.toString("utf8");
-			if (!settled && stdout.includes("__TMDOC_LOCKED__")) {
+			if (!settled && stdout.includes("__FRONTDOC_LOCKED__")) {
 				settled = true;
 				cleanup();
 				resolve();

@@ -1,7 +1,7 @@
-# tmdoc Specification: Web UI Navigation
+# frontdoc Specification: Web UI Navigation
 
 This document defines the information architecture and navigation model for
-the local Web UI served by `tmdoc web` / `tmdoc serve`.
+the local Web UI served by `frontdoc web` / `frontdoc serve`.
 
 ## Goals
 
@@ -97,7 +97,7 @@ document and redirect to the canonical slug URL.
 3. Create document:
    - Trigger new document action.
    - Use current collection context by default (route collection when present).
-   - Resolve slug variables using schema defaults, consistent with `tmdoc open <collection>`.
+   - Resolve slug variables using schema defaults, consistent with `frontdoc open <collection>`.
    - If a matching slug-target document already exists, open it in workspace.
    - Otherwise stage a temporary draft baseline (including template auto-apply rules when applicable), edit it in workspace, then validate and persist to final path on save.
 4. Validate and fix:

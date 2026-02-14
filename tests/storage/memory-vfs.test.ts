@@ -163,8 +163,8 @@ describe("MemoryVFS", () => {
 
 	test("writeFile to root-level file works", async () => {
 		const vfs = new MemoryVFS();
-		await vfs.writeFile("tmdoc.yaml", "aliases: {}");
-		const content = await vfs.readFile("tmdoc.yaml");
+		await vfs.writeFile("frontdoc.yaml", "aliases: {}");
+		const content = await vfs.readFile("frontdoc.yaml");
 		expect(content).toBe("aliases: {}");
 	});
 });

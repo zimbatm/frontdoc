@@ -13,7 +13,7 @@ async function setup(): Promise<{
 	repoConfig: RepoConfig;
 }> {
 	const vfs = new MemoryVFS();
-	await vfs.writeFile("tmdoc.yaml", "aliases:\n  cli: clients\n");
+	await vfs.writeFile("frontdoc.yaml", "aliases:\n  cli: clients\n");
 	await vfs.mkdirAll("clients");
 	await vfs.writeFile(
 		"clients/_schema.yaml",
@@ -28,7 +28,7 @@ async function setup(): Promise<{
 		"---\n_id: 01arz3ndektsv4rrffq6abc123\nname: Acme\n---\n\n# Acme\n",
 	);
 
-	const repoConfig = parseRepoConfig(await vfs.readFile("tmdoc.yaml"));
+	const repoConfig = parseRepoConfig(await vfs.readFile("frontdoc.yaml"));
 	const schemas = new Map();
 	schemas.set("clients", parseCollectionSchema(await vfs.readFile("clients/_schema.yaml")));
 	const service = new SchemaService(schemas, repoConfig, new Repository(vfs));
@@ -67,7 +67,7 @@ describe("SchemaService", () => {
 		expect(schemas.has("clients")).toBe(false);
 		expect(schemas.get("projects")?.references.client_id).toBe("customers");
 
-		const repoConfigRaw = await vfs.readFile("tmdoc.yaml");
+		const repoConfigRaw = await vfs.readFile("frontdoc.yaml");
 		expect(repoConfigRaw).toContain("customers");
 	});
 

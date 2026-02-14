@@ -1,4 +1,4 @@
-# tmdoc Specification: Document Operations
+# frontdoc Specification: Document Operations
 
 ## Document Model
 
@@ -176,7 +176,7 @@ relative path within the collection folder, not just the basename.
 `DocumentService.UpsertBySlug(collection, args, options)`:
 
 Used by the `open` command to resolve slug-target documents based on template
-variables (e.g. `tmdoc open journals 2024-03-22`), and by internal create
+variables (e.g. `frontdoc open journals 2024-03-22`), and by internal create
 paths that still need immediate upsert behavior.
 
 **Steps**:
@@ -257,7 +257,7 @@ Auto-rename is triggered by:
 **Folder collapse note**: The inverse operation (collapsing a folder document
 back to a file) is handled by `check --fix`. Collapse is blocked if any file
 other than `index.md` exists in the folder, excluding files in the `ignore`
-list (see `tmdoc.yaml` in 03-configuration.md). Ignored files are silently
+list (see `frontdoc.yaml` in 03-configuration.md). Ignored files are silently
 removed during collapse.
 
 ## List Operation

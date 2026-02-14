@@ -68,7 +68,7 @@ export class RelationshipService {
 	}
 
 	ToDot(edges: RelationshipEdge[]): string {
-		const lines = ["digraph tmdoc {"];
+		const lines = ["digraph frontdoc {"];
 		for (const edge of edges) {
 			const style = edge.type === "wiki" ? "solid" : "dashed";
 			const label = edge.field

@@ -1,4 +1,4 @@
-# tmdoc Specification: Storage Layer
+# frontdoc Specification: Storage Layer
 
 ## Virtual File System (VFS)
 
@@ -82,20 +82,20 @@ behaviors:
 
 ### Concurrent Access
 
-tmdoc assumes a single writer at all times. Commands that modify the
+frontdoc assumes a single writer at all times. Commands that modify the
 repository (create, update, delete, rename, attach, check --fix, schema
 mutations, init) acquire an exclusive advisory lock (`flock`) on
-`tmdoc.yaml` before performing any writes. If the lock is already held,
-tmdoc blocks until it becomes available. Read-only commands (read, list,
+`frontdoc.yaml` before performing any writes. If the lock is already held,
+frontdoc blocks until it becomes available. Read-only commands (read, list,
 search, graph, stats, schema show) do not acquire the lock.
 
 No further synchronization is performed beyond this lock.
 
 ### Recovery Model
 
-tmdoc assumes the repository is under version control (git or similar).
+frontdoc assumes the repository is under version control (git or similar).
 Multi-file operations (e.g. collection rename) do not attempt rollback on
-partial failure. Instead, tmdoc logs which steps succeeded and which failed,
+partial failure. Instead, frontdoc logs which steps succeeded and which failed,
 and the user recovers by reverting to the last committed state
 (`git checkout`).
 

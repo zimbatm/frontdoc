@@ -590,7 +590,7 @@ async function handleUploadAttachment(
 				throw new Error(`collection not served: ${collection}`);
 			}
 
-			tempDir = await mkdtemp(join(tmpdir(), "tmdoc-web-upload-"));
+			tempDir = await mkdtemp(join(tmpdir(), "frontdoc-web-upload-"));
 			const tempPath = join(tempDir, name);
 			await writeFile(tempPath, bytes);
 

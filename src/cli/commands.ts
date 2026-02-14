@@ -32,18 +32,18 @@ type SearchOutputFormat = "detail" | "table" | "json" | "csv";
 const program = new Command();
 
 program
-	.name("tmdoc")
+	.name("frontdoc")
 	.description("CLI tool for managing Markdown document collections")
 	.option("-C, --directory <path>", "Run as if started in this path");
 
 program
 	.command("init")
-	.description("Initialize a tmdoc repository")
+	.description("Initialize a frontdoc repository")
 	.action(async () => {
 		const workDir = getWorkDir(program);
 		try {
 			await Manager.Init(workDir);
-			console.log("Initialized tmdoc repository");
+			console.log("Initialized frontdoc repository");
 		} catch (err) {
 			if (err instanceof Error && err.message.includes("already initialized")) {
 				console.log("already initialized");
@@ -529,7 +529,7 @@ export async function runCli(argv: string[] = process.argv): Promise<void> {
 		await program.parseAsync(argv);
 	} catch (err) {
 		if (err instanceof Error) {
-			if (process.env.TMDOC_DEBUG === "1" && err.stack) {
+			if (process.env.FRONTDOC_DEBUG === "1" && err.stack) {
 				console.error(err.stack);
 			} else {
 				console.error(`Error: ${err.message}`);
@@ -778,23 +778,23 @@ function completionScript(shell: string): string {
 	switch (shell) {
 		case "bash":
 			return (
-				"# bash completion for tmdoc\n" +
-				"_tmdoc_complete() {\n" +
+				"# bash completion for frontdoc\n" +
+				"_frontdoc_complete() {\n" +
 				'  local cur="${' +
 				'COMP_WORDS[COMP_CWORD]}"\n' +
 				`  COMPREPLY=( $(compgen -W "${commands}" -- "$cur") )\n` +
 				"}\n" +
-				"complete -F _tmdoc_complete tmdoc"
+				"complete -F _frontdoc_complete frontdoc"
 			);
 		case "zsh":
-			return `#compdef tmdoc\n_arguments "1: :(${commands})"`;
+			return `#compdef frontdoc\n_arguments "1: :(${commands})"`;
 		case "fish":
 			return commands
 				.split(" ")
-				.map((cmd) => `complete -c tmdoc -f -a "${cmd}"`)
+				.map((cmd) => `complete -c frontdoc -f -a "${cmd}"`)
 				.join("\n");
 		case "powershell":
-			return `Register-ArgumentCompleter -CommandName tmdoc -ScriptBlock {\n  param($wordToComplete)\n  '${commands}'.Split(' ') | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {\n    [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)\n  }\n}`;
+			return `Register-ArgumentCompleter -CommandName frontdoc -ScriptBlock {\n  param($wordToComplete)\n  '${commands}'.Split(' ') | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {\n    [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)\n  }\n}`;
 		default:
 			throw new Error(`unsupported shell: ${shell}`);
 	}

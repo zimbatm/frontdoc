@@ -1,10 +1,10 @@
-# tmdoc Specification: Schema Management
+# frontdoc Specification: Schema Management
 
 ## Schema Service
 
 The SchemaService manages collection definitions at runtime. Changes are
 persisted to per-collection `_schema.yaml` files and to the aliases section
-of `tmdoc.yaml`.
+of `frontdoc.yaml`.
 
 ## Collection Operations
 
@@ -20,14 +20,14 @@ of `tmdoc.yaml`.
 2. Verify collection doesn't already exist (no `<name>/_schema.yaml`).
 3. If Alias is empty, auto-generate from name (see Alias Auto-Generation in
    03-configuration.md).
-4. Verify Alias is not already used by another collection in `tmdoc.yaml`.
+4. Verify Alias is not already used by another collection in `frontdoc.yaml`.
 5. If Slug is empty, auto-generate from the collection's field definitions
    (see Slug Auto-Generation in 03-configuration.md).
 6. Create the directory on disk via VFS (directory name = collection name).
 7. Write `<name>/_schema.yaml` with slug, optional `title_field`, fields,
    and references.
-8. Add the alias entry to `tmdoc.yaml`.
-9. Save `tmdoc.yaml`. On failure, log what succeeded and what failed.
+8. Add the alias entry to `frontdoc.yaml`.
+9. Save `frontdoc.yaml`. On failure, log what succeeded and what failed.
    Recovery is via version control (see Recovery Model in
    04-storage-layer.md).
 
@@ -46,9 +46,9 @@ of `tmdoc.yaml`.
    and removing each one individually -- does NOT remove the entire directory,
    only matching documents). Also remove templates that target this collection.
 4. Remove `<name>/_schema.yaml`.
-5. Remove the alias entry from `tmdoc.yaml`.
+5. Remove the alias entry from `frontdoc.yaml`.
 6. Remove the directory if empty.
-7. Save `tmdoc.yaml`. On failure, log what succeeded and what failed.
+7. Save `frontdoc.yaml`. On failure, log what succeeded and what failed.
    Recovery is via version control (see Recovery Model in
    04-storage-layer.md).
 
@@ -65,12 +65,12 @@ collection, use `RenameCollection` (see below).
 
 1. Verify collection exists (`<name>/_schema.yaml` present).
 2. If Alias is being changed, verify no conflict with other aliases in
-   `tmdoc.yaml`.
+   `frontdoc.yaml`.
 3. Apply all non-nil updates to the in-memory schema.
    `title_field` controls display label selection (see Display Name
    Resolution in 02-document-format.md).
 4. Write updated `<name>/_schema.yaml`.
-5. If Alias changed, update `tmdoc.yaml`.
+5. If Alias changed, update `frontdoc.yaml`.
 
 ### Rename Collection
 
@@ -89,7 +89,7 @@ collection, use `RenameCollection` (see below).
    target the old collection (e.g. `oldName` becomes `newName`).
 8. Update template `for` fields: for every template whose `for` value equals
    `oldName`, change it to `newName`.
-9. Update `tmdoc.yaml`: change the alias target from `oldName` to `newName`.
+9. Update `frontdoc.yaml`: change the alias target from `oldName` to `newName`.
 10. Remove `<oldName>/_schema.yaml`.
 11. Remove the old directory if empty.
 12. Save all modified files. On failure, log which steps succeeded and
@@ -140,17 +140,17 @@ type, required, description, default, enum_values, pattern, min, max, weight.
 
 Changing a field's type in `_schema.yaml` (e.g. from `string` to `number`)
 does not automatically migrate existing documents. Documents with values
-incompatible with the new type will fail validation on the next `tmdoc check`
+incompatible with the new type will fail validation on the next `frontdoc check`
 run.
 
 Recommended migration workflow:
 
 1. Update the field type in `_schema.yaml` via `schema field update`.
-2. Run `tmdoc check` to identify all documents with incompatible values.
+2. Run `frontdoc check` to identify all documents with incompatible values.
 3. For types with auto-fix support (e.g. currency/country case), run
-   `tmdoc check --fix` to correct them automatically.
+   `frontdoc check --fix` to correct them automatically.
 4. For other type changes, update affected documents manually via
-   `tmdoc update` or edit the files directly.
+   `frontdoc update` or edit the files directly.
 
 ## Collection Alias Resolution
 
@@ -158,13 +158,13 @@ Recommended migration workflow:
 
 1. If the input matches an existing collection name (a directory with
    `_schema.yaml`), return it.
-2. If it matches any alias key in `tmdoc.yaml`, return the alias target.
+2. If it matches any alias key in `frontdoc.yaml`, return the alias target.
 3. Otherwise, return the input as-is (let the caller decide).
 
 This allows users to type `cli` instead of `clients` in any command.
 
 ## Pre-Init State
 
-Without `tmdoc.yaml` or any `_schema.yaml` files, tmdoc cannot identify
+Without `frontdoc.yaml` or any `_schema.yaml` files, frontdoc cannot identify
 collections. Most commands will report that the repository is not initialized
-and suggest running `tmdoc init`.
+and suggest running `frontdoc init`.

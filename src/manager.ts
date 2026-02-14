@@ -58,7 +58,7 @@ export class Manager {
 		const vfs = new BoundVFS(rootPath);
 		const repository = new Repository(vfs);
 
-		const configRaw = await vfs.readFile("tmdoc.yaml");
+		const configRaw = await vfs.readFile("frontdoc.yaml");
 		const repoConfig = parseRepoConfig(configRaw);
 		const schemas = await discoverCollections(vfs);
 
@@ -70,7 +70,7 @@ export class Manager {
 	static async Init(path: string): Promise<Manager> {
 		const initPath = resolve(path);
 		await mkdir(initPath, { recursive: true });
-		const markerPath = resolve(initPath, "tmdoc.yaml");
+		const markerPath = resolve(initPath, "frontdoc.yaml");
 
 		if (await exists(markerPath)) {
 			throw new Error("already initialized");

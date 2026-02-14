@@ -1,5 +1,5 @@
 /**
- * Field types supported by tmdoc.
+ * Field types supported by frontdoc.
  */
 export type FieldType =
 	| "string"
@@ -40,7 +40,7 @@ export interface CollectionSchema {
 }
 
 /**
- * Repository configuration from `tmdoc.yaml`.
+ * Repository configuration from `frontdoc.yaml`.
  */
 export interface RepoConfig {
 	aliases: Record<string, string>;

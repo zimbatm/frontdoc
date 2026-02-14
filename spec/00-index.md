@@ -1,6 +1,6 @@
-# tmdoc Specification Index
+# frontdoc Specification Index
 
-This specification describes the architecture and design of tmdoc, a CLI tool
+This specification describes the architecture and design of frontdoc, a CLI tool
 for managing YAML+Markdown document collections. It is intended to provide
 enough detail to re-implement the project in any programming language.
 
@@ -16,7 +16,7 @@ architecture -- not on language-specific implementation details.
    frontmatter parsing, filename conventions, file vs. folder documents,
    wiki-style links, templates.
 
-3. [Configuration](03-configuration.md) -- `tmdoc.yaml` alias file,
+3. [Configuration](03-configuration.md) -- `frontdoc.yaml` alias file,
    `_schema.yaml` collection schemas, field types, collection
    identification, date input parsing.
 

@@ -6,7 +6,7 @@ import { runOk, slugFromPath, spawnWebServer, waitForWebUrl } from "./test-utils
 
 describe("CLI web workflows", () => {
 	test("web server serves API and honors -C", async () => {
-		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-web-"));
+		const root = await mkdtemp(join(tmpdir(), "frontdoc-cli-web-"));
 		await runOk(["-C", root, "init"], root);
 		await runOk(
 			["-C", root, "schema", "create", "clients", "--prefix", "cli", "--slug", "{{name}}-{{short_id}}"],
@@ -40,7 +40,7 @@ describe("CLI web workflows", () => {
 	});
 
 	test("web attachment API uploads dropped files and appends markdown reference", async () => {
-		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-web-attachments-"));
+		const root = await mkdtemp(join(tmpdir(), "frontdoc-cli-web-attachments-"));
 		await runOk(["-C", root, "init"], root);
 		await runOk(
 			["-C", root, "schema", "create", "clients", "--prefix", "cli", "--slug", "{{name}}-{{short_id}}"],
@@ -84,7 +84,7 @@ describe("CLI web workflows", () => {
 	});
 
 	test("web server serves SPA shell and static UI bundle", async () => {
-		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-web-ui-shell-"));
+		const root = await mkdtemp(join(tmpdir(), "frontdoc-cli-web-ui-shell-"));
 		await runOk(["-C", root, "init"], root);
 		await runOk(
 			["-C", root, "schema", "create", "clients", "--prefix", "cli", "--slug", "{{name}}-{{short_id}}"],
@@ -116,7 +116,7 @@ describe("CLI web workflows", () => {
 	});
 
 	test("web server redirects legacy id document routes to canonical slug routes", async () => {
-		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-web-slug-route-"));
+		const root = await mkdtemp(join(tmpdir(), "frontdoc-cli-web-slug-route-"));
 		await runOk(["-C", root, "init"], root);
 		await runOk(
 			["-C", root, "schema", "create", "contacts", "--prefix", "con", "--slug", "{{name}}-{{short_id}}"],
@@ -156,7 +156,7 @@ describe("CLI web workflows", () => {
 	});
 
 	test("web create API uses open-style draft lifecycle and reopens existing slug target", async () => {
-		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-web-open-defaults-"));
+		const root = await mkdtemp(join(tmpdir(), "frontdoc-cli-web-open-defaults-"));
 		await runOk(["-C", root, "init"], root);
 		await runOk(
 			["-C", root, "schema", "create", "clients", "--prefix", "cli", "--slug", "{{name}}-{{short_id}}"],
@@ -225,7 +225,7 @@ describe("CLI web workflows", () => {
 	});
 
 	test("web create API stages draft when slug variables have no defaults", async () => {
-		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-web-open-missing-defaults-"));
+		const root = await mkdtemp(join(tmpdir(), "frontdoc-cli-web-open-missing-defaults-"));
 		await runOk(["-C", root, "init"], root);
 		await runOk(
 			["-C", root, "schema", "create", "contacts", "--prefix", "con", "--slug", "{{name}}-{{short_id}}"],
@@ -255,7 +255,7 @@ describe("CLI web workflows", () => {
 	});
 
 	test("web server supports multiple --collection flags as allowlist", async () => {
-		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-web-scope-"));
+		const root = await mkdtemp(join(tmpdir(), "frontdoc-cli-web-scope-"));
 		await runOk(["-C", root, "init"], root);
 		await runOk(
 			["-C", root, "schema", "create", "clients", "--prefix", "cli", "--slug", "{{name}}-{{short_id}}"],

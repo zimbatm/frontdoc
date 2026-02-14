@@ -54,7 +54,7 @@ describe("RelationshipService", () => {
 		const edges = await service.BuildGraph();
 		const dot = service.ToDot(edges);
 		const mermaid = service.ToMermaid(edges);
-		expect(dot).toContain("digraph tmdoc");
+		expect(dot).toContain("digraph frontdoc");
 		expect(mermaid).toContain("graph TD");
 	});
 
