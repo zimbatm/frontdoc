@@ -816,6 +816,24 @@ fi
 		const rawUpdated = await runOk(["-C", root, "read", id, "-o", "raw"], root);
 		expect(rawUpdated).toContain(`due_date: "${dateOffsetISO(-2)}"`);
 	});
+
+	test("create prompts to choose collection when omitted", async () => {
+		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-create-prompt-"));
+		await runOk(["-C", root, "init"], root);
+		await runOk(
+			["-C", root, "schema", "create", "clients", "--prefix", "cli", "--slug", "{{short_id}}"],
+			root,
+		);
+		await runOk(
+			["-C", root, "schema", "create", "projects", "--prefix", "prj", "--slug", "{{short_id}}"],
+			root,
+		);
+
+		const out = await runOk(["-C", root, "create", "-o", "path"], root, "2\n");
+		const pathMatch = out.match(/([a-z0-9_/-]+\.md)\s*$/);
+		expect(pathMatch).not.toBeNull();
+		expect(pathMatch?.[1].startsWith("projects/")).toBe(true);
+	});
 });
 
 function dateOffsetISO(offsetDays: number): string {

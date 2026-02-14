@@ -80,11 +80,12 @@ program
 			const manager = await Manager.New(getWorkDir(program));
 			const created = await withWriteLock(manager, async () => {
 				const collection = opts.collection ?? argCollection;
-				if (!collection) {
-					throw new Error("collection is required");
-				}
+				const chosenCollection =
+					collection && collection.length > 0
+						? collection
+						: await chooseCollection(Array.from(manager.Schemas().keys()));
 
-				const resolvedCollection = manager.Documents().ResolveCollection(collection);
+				const resolvedCollection = manager.Documents().ResolveCollection(chosenCollection);
 				const schema = manager.Schemas().get(resolvedCollection);
 				if (!schema) {
 					throw new Error(`unknown collection: ${collection}`);
@@ -1048,6 +1049,31 @@ async function chooseTemplateContent(
 			throw new Error(`invalid template selection: ${answer.trim()}`);
 		}
 		return templates[selection - 1].content;
+	} finally {
+		rl.close();
+	}
+}
+
+async function chooseCollection(collections: string[]): Promise<string> {
+	if (collections.length === 0) {
+		throw new Error("no collections available");
+	}
+	const sorted = [...collections].sort((a, b) => a.localeCompare(b));
+	const rl = createInterface({
+		input: process.stdin,
+		output: process.stdout,
+	});
+	try {
+		console.log("Select collection:");
+		for (const [index, collection] of sorted.entries()) {
+			console.log(`${index + 1}. ${collection}`);
+		}
+		const answer = await rl.question("Collection number: ");
+		const selection = Number.parseInt(answer.trim(), 10);
+		if (Number.isNaN(selection) || selection < 1 || selection > sorted.length) {
+			throw new Error(`invalid collection selection: ${answer.trim()}`);
+		}
+		return sorted[selection - 1];
 	} finally {
 		rl.close();
 	}
