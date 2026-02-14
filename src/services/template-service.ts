@@ -1,4 +1,5 @@
 import { resolveAlias } from "../config/alias.js";
+import type { CollectionSchema } from "../config/types.js";
 import { processTemplate } from "../document/template-engine.js";
 import { byCollection, type Repository } from "../repository/repository.js";
 
@@ -11,13 +12,13 @@ export interface TemplateRecord {
 
 export class TemplateService {
 	constructor(
-		private readonly collections: Set<string>,
+		private readonly schemas: Map<string, CollectionSchema>,
 		private readonly aliases: Record<string, string>,
 		private readonly repository: Repository,
 	) {}
 
 	async GetTemplatesForCollection(collectionInput: string): Promise<TemplateRecord[]> {
-		if (!this.collections.has("templates")) {
+		if (!this.schemas.has("templates")) {
 			return [];
 		}
 		const collection = this.resolveCollection(collectionInput);
@@ -52,6 +53,6 @@ export class TemplateService {
 	}
 
 	private resolveCollection(nameOrAlias: string): string {
-		return resolveAlias(nameOrAlias, this.aliases, this.collections);
+		return resolveAlias(nameOrAlias, this.aliases, new Set(this.schemas.keys()));
 	}
 }

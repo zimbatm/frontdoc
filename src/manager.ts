@@ -28,7 +28,7 @@ export class Manager {
 		private readonly schemas: Map<string, CollectionSchema>,
 	) {
 		this.templateService = new TemplateService(
-			new Set(this.schemas.keys()),
+			this.schemas,
 			this.repoConfig.aliases,
 			this.repository,
 		);
