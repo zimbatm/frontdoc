@@ -1,6 +1,7 @@
 import { writeFile as writeHostFile } from "node:fs/promises";
 import type { CollectionSchema } from "../config/types.js";
 import { extractTitleFromContent } from "../document/document.js";
+import { parseWikiLinks } from "../document/wiki-link.js";
 import { findByIDInRecords } from "../repository/id-lookup.js";
 import {
 	type DocumentRecord,
@@ -171,31 +172,6 @@ export class RelationshipService {
 
 		return dedupeEdges(edges);
 	}
-}
-
-interface WikiLinkToken {
-	idToken: string;
-	title?: string;
-}
-
-function parseWikiLinks(content: string): WikiLinkToken[] {
-	const out: WikiLinkToken[] = [];
-	const re = /\[\[([^\]]+)\]\]/g;
-	let match = re.exec(content);
-	while (match !== null) {
-		const raw = match[1].trim();
-		if (raw.length === 0 || raw.length > 200 || raw.includes("[[") || raw.includes("]]")) {
-			match = re.exec(content);
-			continue;
-		}
-		const [lhs, rhs] = raw.split(":", 2);
-		const token = lhs.includes("/") ? (lhs.split("/").pop() ?? lhs) : lhs;
-		if (token.length > 0) {
-			out.push({ idToken: token, title: rhs });
-		}
-		match = re.exec(content);
-	}
-	return out;
 }
 
 function findByIDToken(records: DocumentRecord[], token: string): DocumentRecord | null {
