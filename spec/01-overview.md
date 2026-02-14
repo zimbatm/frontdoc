@@ -18,6 +18,30 @@ humans and LLM agents.
 - Any structured document collection stored in version control
 - LLM-friendly document stores (structured metadata + natural language content)
 
+## Terminology
+
+This specification uses the following terms consistently:
+
+- **Repository**: The root directory containing `tmdoc.yaml` and collection
+  folders.
+- **Collection**: A top-level folder that contains `_schema.yaml`.
+- **Schema**: The `_schema.yaml` file defining slug, fields, and references
+  for one collection.
+- **Alias**: A short prefix in `tmdoc.yaml` that maps to a collection name.
+- **Document**: A YAML-frontmatter + Markdown record in a collection.
+- **File Document**: A single `.md` file document.
+- **Folder Document**: A directory document whose content file is `index.md`
+  (used for attachments).
+- **ID**: The full ULID stored in frontmatter (`id` field).
+- **Short ID**: The last N characters of the ULID (default N=6, configurable
+  per collection).
+- **Reference**: A metadata field value that points to another document by ID.
+- **Wiki Link**: A content link in `[[...]]` form that resolves to a document.
+- **Template**: A document in the `templates` collection used to generate
+  initial content for new documents.
+
+The canonical term in the spec and code is **Repository**.
+
 ## Design Principles
 
 1. **Zero lock-in** -- Documents are standard Markdown with YAML frontmatter.
