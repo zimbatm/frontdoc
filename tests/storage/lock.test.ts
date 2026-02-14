@@ -1,20 +1,26 @@
 import { describe, expect, test } from "bun:test";
+import { spawnSync } from "node:child_process";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { FileLock } from "../../src/storage/lock.js";
 
 describe("FileLock", () => {
-	test("acquire/release creates and removes lock file", async () => {
+	test("acquire/release locks and unlocks tmdoc.yaml", async () => {
 		const root = await mkdtemp(join(tmpdir(), "tmdoc-lock-"));
 		await mkdir(root, { recursive: true });
-		await writeFile(join(root, "tmdoc.yaml"), "aliases: {}\n", "utf8");
+		const marker = join(root, "tmdoc.yaml");
+		await writeFile(marker, "aliases: {}\n", "utf8");
 
 		const lock = new FileLock(root);
 		await lock.acquire();
-		expect(await Bun.file(join(root, ".tmdoc.lock")).exists()).toBe(true);
+
+		const whileHeld = spawnSync("flock", ["-n", marker, "true"]);
+		expect(whileHeld.status).not.toBe(0);
+
 		await lock.release();
-		expect(await Bun.file(join(root, ".tmdoc.lock")).exists()).toBe(false);
+		const afterRelease = spawnSync("flock", ["-n", marker, "true"]);
+		expect(afterRelease.status).toBe(0);
 	});
 
 	test("second lock waits until first is released", async () => {
