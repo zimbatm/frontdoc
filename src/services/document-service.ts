@@ -1,13 +1,10 @@
 import { readFile as readHostFile } from "node:fs/promises";
-import { basename, dirname } from "node:path";
+import { basename } from "node:path";
 import { ulid } from "ulidx";
 import { resolveCollection } from "../config/collection-resolver.js";
 import { normalizeFieldDefaultValue } from "../config/field-rules.js";
 import type { CollectionSchema } from "../config/types.js";
-import {
-	buildTemplateValues,
-	generateDocumentFilename,
-} from "../document/path-policy.js";
+import { expectedPathForDocument, buildTemplateValues, generateDocumentFilename } from "../document/path-policy.js";
 import {
 	buildDocument,
 	type Document,
@@ -25,6 +22,7 @@ import {
 	type Filter,
 	type Repository,
 } from "../repository/repository.js";
+import { renamePathIfNeeded } from "./path-rename.js";
 import type { TemplateRecord, TemplateService } from "./template-service.js";
 import type { ValidationIssue, ValidationService } from "./validation-service.js";
 
@@ -236,23 +234,8 @@ export class DocumentService {
 		const record = await loadDocumentRecordByPath(this.repository.fileSystem(), path);
 		const collection = collectionFromPath(record.path);
 		const schema = this.getCollectionSchema(collection);
-		const id = String(record.document.metadata._id ?? "");
-		const templateValues = buildTemplateValues(record.document.metadata, schema, id, record.document.content);
-		const expectedFilePath = `${collection}/${generateDocumentFilename(schema, templateValues)}`;
-		const targetPath = record.document.isFolder
-			? stripMdExtension(expectedFilePath)
-			: expectedFilePath;
-
-		if (targetPath === record.path) {
-			return record.path;
-		}
-
-		const parent = dirname(targetPath);
-		if (parent !== ".") {
-			await this.repository.fileSystem().mkdirAll(parent);
-		}
-		await this.repository.fileSystem().rename(record.path, targetPath);
-		return targetPath;
+		const targetPath = expectedPathForDocument(record.document, schema, collection);
+		return await renamePathIfNeeded(this.repository.fileSystem(), record.path, targetPath);
 	}
 
 	private getCollectionSchema(collection: string): CollectionSchema {

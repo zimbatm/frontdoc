@@ -1,5 +1,5 @@
 import { readFile as readHostFile } from "node:fs/promises";
-import { basename, dirname } from "node:path";
+import { basename } from "node:path";
 import { resolveCollection } from "../config/collection-resolver.js";
 import { validateFieldValue } from "../config/field-rules.js";
 import type { CollectionSchema } from "../config/types.js";
@@ -16,6 +16,7 @@ import { parseSingleWikiLink, parseWikiLinks } from "../document/wiki-link.js";
 import { byCollection, type DocumentRecord, type Repository } from "../repository/repository.js";
 import { findByIDInRecords } from "../repository/id-lookup.js";
 import type { FileInfo } from "../storage/vfs.js";
+import { renamePathIfNeeded } from "./path-rename.js";
 
 export type ValidationSeverity = "error" | "warning";
 
@@ -295,15 +296,7 @@ export class ValidationService {
 			return record.path;
 		}
 		const expected = expectedPathForDocument(record.document, schema, collection);
-		if (expected === record.path) {
-			return record.path;
-		}
-		const parent = dirname(expected);
-		if (parent !== ".") {
-			await this.repository.fileSystem().mkdirAll(parent);
-		}
-		await this.repository.fileSystem().rename(record.path, expected);
-		return expected;
+		return await renamePathIfNeeded(this.repository.fileSystem(), record.path, expected);
 	}
 
 	private async unreferencedAttachmentIssues(record: DocumentRecord): Promise<ValidationIssue[]> {
