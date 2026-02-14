@@ -6,6 +6,7 @@ import { discoverCollections } from "./config/schema.js";
 import type { CollectionSchema, RepoConfig } from "./config/types.js";
 import { Repository } from "./repository/repository.js";
 import { DocumentService } from "./services/document-service.js";
+import { DraftService } from "./services/draft-service.js";
 import { RelationshipService } from "./services/relationship-service.js";
 import { SchemaService } from "./services/schema-service.js";
 import { SearchService } from "./services/search-service.js";
@@ -20,6 +21,7 @@ export class Manager {
 	private readonly searchService: SearchService;
 	private readonly templateService: TemplateService;
 	private readonly validationService: ValidationService;
+	private readonly draftService: DraftService;
 
 	private constructor(
 		private readonly rootPath: string,
@@ -48,6 +50,7 @@ export class Manager {
 		this.schemaService = new SchemaService(this.schemas, this.repoConfig, this.repository);
 		this.searchService = new SearchService(this.repository);
 		this.relationshipService = new RelationshipService(this.schemas, this.repository);
+		this.draftService = new DraftService(this.repository);
 	}
 
 	static async New(workDir: string): Promise<Manager> {
@@ -111,6 +114,10 @@ export class Manager {
 
 	Validation(): ValidationService {
 		return this.validationService;
+	}
+
+	Drafts(): DraftService {
+		return this.draftService;
 	}
 
 	RootPath(): string {

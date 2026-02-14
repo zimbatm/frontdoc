@@ -359,7 +359,7 @@ async function handleCreateDocument(
 			const draftPath = openDraftPath(targetPath, String(planned.draft.metadata._id ?? ""));
 			const baselineRaw = buildDocument(planned.draft);
 			const draftRecord = await withWriteLock(manager, async () => {
-				await manager.Repository().fileSystem().writeFile(draftPath, baselineRaw);
+				await manager.Drafts().Write(draftPath, baselineRaw);
 				drafts.set(draftPath, { targetPath, baselineRaw });
 				return await loadByPath(manager, draftPath);
 			});
@@ -458,7 +458,7 @@ async function handleUpdateDocument(
 			const raw = buildDocument(existing.document);
 			if (raw === draft.baselineRaw) {
 				await withWriteLock(manager, async () => {
-					await removeIfExists(manager, draftPath);
+					await manager.Drafts().RemoveIfExists(draftPath);
 					drafts.delete(draftPath);
 				});
 				return json(200, { discarded: true });
@@ -471,8 +471,8 @@ async function handleUpdateDocument(
 				return json(400, { error: `validation failed: ${details}` });
 			}
 			const updated = await withWriteLock(manager, async () => {
-				await manager.Repository().fileSystem().writeFile(draft.targetPath, raw);
-				await removeIfExists(manager, draftPath);
+				await manager.Drafts().Write(draft.targetPath, raw);
+				await manager.Drafts().RemoveIfExists(draftPath);
 				drafts.delete(draftPath);
 				const renamed = await manager.Documents().AutoRenamePath(draft.targetPath);
 				return await loadByPath(manager, renamed);
@@ -534,7 +534,7 @@ async function handleDeleteDocument(
 				return json(404, { error: `collection not served: ${collection}` });
 			}
 			await withWriteLock(manager, async () => {
-				await removeIfExists(manager, draftPath);
+				await manager.Drafts().RemoveIfExists(draftPath);
 				drafts.delete(draftPath);
 			});
 			return json(200, { deleted: true, draft: true });
@@ -732,12 +732,6 @@ async function loadByPath(manager: Manager, path: string): Promise<DocumentRecor
 	const document = parseDocument(raw, path, false);
 	const info = await manager.Repository().fileSystem().stat(path);
 	return { document, path, info };
-}
-
-async function removeIfExists(manager: Manager, path: string): Promise<void> {
-	if (await manager.Repository().fileSystem().exists(path)) {
-		await manager.Repository().fileSystem().remove(path);
-	}
 }
 
 function json(status: number, body: unknown): Response {

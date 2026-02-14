@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { spawnSync } from "node:child_process";
 import { writeFile } from "node:fs/promises";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { Command } from "commander";
 import { createDocumentUseCase, updateDocumentUseCase } from "./app/document-use-cases.js";
@@ -20,7 +20,6 @@ import {
 	not,
 } from "./repository/repository.js";
 import type { TemplateRecord } from "./services/template-service.js";
-import type { VFS } from "./storage/vfs.js";
 import { runWebServer } from "./web/server.js";
 
 type ReadOutputFormat = "markdown" | "json" | "raw";
@@ -302,11 +301,10 @@ program
 	.description("Open a document in $EDITOR")
 	.argument("<collection>", "Collection name or alias")
 	.argument("[idOrArg]", "Document id or slug value")
-	.action(async (collection: string, idOrArg: string | undefined) => {
-		const manager = await Manager.New(getWorkDir(program));
-		const resolvedCollection = manager.Documents().ResolveCollection(collection);
-		const vfs = manager.Repository().fileSystem();
-		let templateResolved = false;
+		.action(async (collection: string, idOrArg: string | undefined) => {
+			const manager = await Manager.New(getWorkDir(program));
+			const resolvedCollection = manager.Documents().ResolveCollection(collection);
+			let templateResolved = false;
 		let templateContent: string | undefined;
 		const resolveTemplateContent = async (): Promise<string | undefined> => {
 			if (templateResolved) {
@@ -430,11 +428,10 @@ program
 		}
 		const targetPath = planned.draft.path;
 		const draftPath = openDraftPath(targetPath, String(planned.draft.metadata._id ?? ""));
-		const baselineRaw = buildDocument(planned.draft);
-		await withWriteLock(manager, async () => {
-			await ensureParentDir(vfs, draftPath);
-			await vfs.writeFile(draftPath, baselineRaw);
-		});
+			const baselineRaw = buildDocument(planned.draft);
+			await withWriteLock(manager, async () => {
+				await manager.Drafts().Write(draftPath, baselineRaw);
+			});
 
 		const absPath = join(manager.RootPath(), draftPath);
 		const editor = process.env.EDITOR || "vi";
@@ -448,24 +445,23 @@ program
 					throw new Error(`editor exited with status ${result.status}`);
 				}
 			}
-			const raw = await vfs.readFile(draftPath);
-			if (raw === baselineRaw) {
-				await withWriteLock(manager, async () => {
-					await removeIfExists(vfs, draftPath);
-				});
-				return;
-			}
+				const raw = await manager.Drafts().Read(draftPath);
+				if (raw === baselineRaw) {
+					await withWriteLock(manager, async () => {
+						await manager.Drafts().RemoveIfExists(draftPath);
+					});
+					return;
+				}
 
 			const issues = (
 				await manager.Validation().ValidateRaw(resolvedCollection, targetPath, raw)
 			).filter((issue) => issue.code !== "filename.mismatch" && issue.code !== "filename.invalid");
-			if (issues.length === 0) {
-				const renamedPath = await withWriteLock(manager, async () => {
-					await ensureParentDir(vfs, targetPath);
-					await vfs.writeFile(targetPath, raw);
-					await removeIfExists(vfs, draftPath);
-					return await manager.Documents().AutoRenamePath(targetPath);
-				});
+				if (issues.length === 0) {
+					const renamedPath = await withWriteLock(manager, async () => {
+						await manager.Drafts().Write(targetPath, raw);
+						await manager.Drafts().RemoveIfExists(draftPath);
+						return await manager.Documents().AutoRenamePath(targetPath);
+					});
 				console.log(renamedPath);
 				return;
 			}
@@ -485,13 +481,13 @@ program
 			if (action === "keep") {
 				console.log(draftPath);
 				return;
+				}
+				await withWriteLock(manager, async () => {
+					await manager.Drafts().RemoveIfExists(draftPath);
+				});
+				return;
 			}
-			await withWriteLock(manager, async () => {
-				await removeIfExists(vfs, draftPath);
-			});
-			return;
-		}
-	});
+		});
 
 program
 	.command("web")
@@ -906,20 +902,6 @@ function openDraftPath(targetPath: string, id: string): string {
 	const suffix = base.length > 0 ? base : "draft";
 	const shortID = id.length >= 6 ? id.slice(-6) : "draft";
 	return `${collection}/.tdo-${shortID}-${suffix}.md`;
-}
-
-async function ensureParentDir(vfs: VFS, path: string): Promise<void> {
-	const parent = dirname(path);
-	if (parent === ".") {
-		return;
-	}
-	await vfs.mkdirAll(parent);
-}
-
-async function removeIfExists(vfs: VFS, path: string): Promise<void> {
-	if (await vfs.exists(path)) {
-		await vfs.remove(path);
-	}
 }
 
 async function chooseTemplateContent(
