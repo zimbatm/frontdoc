@@ -2,3 +2,5 @@ node_modules/
 dist/
 .bun/
 examples/
+src/web/static/
+webapp/tsconfig.tsbuildinfo

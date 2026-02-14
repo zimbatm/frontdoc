@@ -6,7 +6,7 @@
 	"main": "src/main.ts",
 	"scripts": {
 		"dev": "bun run src/main.ts",
-		"test": "bun test",
+		"test": "bun run web:build && bun test ./tests",
 		"lint": "biome check .",
 		"format": "biome format --write .",
 		"build": "bun run web:build && bun build --compile src/main.ts --outfile dist/tmdoc",
