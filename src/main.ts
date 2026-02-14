@@ -281,10 +281,7 @@ program
 				console.log(listResultsToCsv(docs));
 				return;
 			}
-
-			for (const doc of docs) {
-				console.log(doc.path);
-			}
+			console.log(listResultsToTable(docs));
 		},
 	);
 
@@ -1023,6 +1020,32 @@ function listResultsToCsv(
 		const id = String(row.document.metadata.id ?? "");
 		const name = String(row.document.metadata.name ?? row.document.metadata.title ?? "");
 		lines.push(`${csv(row.path)},${csv(collection)},${csv(id)},${csv(name)}`);
+	}
+	return lines.join("\n");
+}
+
+function listResultsToTable(
+	results: Array<{ path: string; document: { metadata: Record<string, unknown> } }>,
+): string {
+	const rows = results.map((row) => {
+		const collection = row.path.split("/")[0] ?? "";
+		const id = String(row.document.metadata.id ?? "");
+		const name = String(row.document.metadata.name ?? row.document.metadata.title ?? "");
+		return { path: row.path, collection, id, name };
+	});
+
+	const pathWidth = Math.max("PATH".length, ...rows.map((r) => r.path.length));
+	const collectionWidth = Math.max("COLLECTION".length, ...rows.map((r) => r.collection.length));
+	const idWidth = Math.max("ID".length, ...rows.map((r) => r.id.length));
+	const nameWidth = Math.max("NAME".length, ...rows.map((r) => r.name.length));
+
+	const lines = [
+		`${"PATH".padEnd(pathWidth)}  ${"COLLECTION".padEnd(collectionWidth)}  ${"ID".padEnd(idWidth)}  ${"NAME".padEnd(nameWidth)}`,
+	];
+	for (const row of rows) {
+		lines.push(
+			`${row.path.padEnd(pathWidth)}  ${row.collection.padEnd(collectionWidth)}  ${row.id.padEnd(idWidth)}  ${row.name.padEnd(nameWidth)}`,
+		);
 	}
 	return lines.join("\n");
 }

@@ -730,4 +730,33 @@ fi
 		const raw = await runOk(["-C", root, "read", id, "-o", "raw"], root);
 		expect(raw).toContain("currency: eur");
 	});
+
+	test("list table output includes headers and fields", async () => {
+		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-list-table-"));
+		await runOk(["-C", root, "init"], root);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"create",
+				"clients",
+				"--prefix",
+				"cli",
+				"--slug",
+				"{{short_id}}-{{name}}",
+			],
+			root,
+		);
+		await runOk(["-C", root, "schema", "field", "create", "clients", "name", "--required"], root);
+		await runOk(["-C", root, "create", "cli", "Acme"], root);
+
+		const table = await runOk(["-C", root, "list", "cli", "-o", "table"], root);
+		expect(table).toContain("PATH");
+		expect(table).toContain("COLLECTION");
+		expect(table).toContain("ID");
+		expect(table).toContain("NAME");
+		expect(table).toContain("clients/");
+		expect(table).toContain("Acme");
+	});
 });
