@@ -16,6 +16,7 @@ import {
 	not,
 } from "./repository/repository.js";
 import { formatSchemaReadText, formatSchemaShowText } from "./services/schema-service.js";
+import type { TemplateRecord } from "./services/template-service.js";
 import { FileLock } from "./storage/lock.js";
 
 type SchemaOutputFormat = "text" | "json" | "yaml";
@@ -110,9 +111,7 @@ program
 					} else if (templates.length === 1) {
 						templateContent = templates[0].content;
 					} else if (templates.length > 1) {
-						throw new Error(
-							`multiple templates found for '${resolvedCollection}', use --template or --no-template`,
-						);
+						templateContent = await chooseTemplateContent(templates, resolvedCollection);
 					}
 				}
 
@@ -874,6 +873,30 @@ async function confirmDelete(id: string): Promise<boolean> {
 		const answer = await rl.question(`Delete ${id}? [y/N] `);
 		const normalized = answer.trim().toLowerCase();
 		return normalized === "y" || normalized === "yes";
+	} finally {
+		rl.close();
+	}
+}
+
+async function chooseTemplateContent(
+	templates: TemplateRecord[],
+	collection: string,
+): Promise<string> {
+	const rl = createInterface({
+		input: process.stdin,
+		output: process.stdout,
+	});
+	try {
+		console.log(`Multiple templates found for '${collection}':`);
+		for (const [index, template] of templates.entries()) {
+			console.log(`${index + 1}. ${template.name}`);
+		}
+		const answer = await rl.question("Select template number: ");
+		const selection = Number.parseInt(answer.trim(), 10);
+		if (Number.isNaN(selection) || selection < 1 || selection > templates.length) {
+			throw new Error(`invalid template selection: ${answer.trim()}`);
+		}
+		return templates[selection - 1].content;
 	} finally {
 		rl.close();
 	}

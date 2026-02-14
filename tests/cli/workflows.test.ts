@@ -172,6 +172,101 @@ describe("CLI workflows", () => {
 		expect(noTemplate.document.content).not.toContain("Welcome");
 	});
 
+	test("create prompts for template selection when multiple templates exist", async () => {
+		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-template-prompt-"));
+		await runOk(["-C", root, "init"], root);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"create",
+				"clients",
+				"--prefix",
+				"cli",
+				"--slug",
+				"{{short_id}}-{{name}}",
+			],
+			root,
+		);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"field",
+				"create",
+				"clients",
+				"name",
+				"--type",
+				"string",
+				"--required",
+			],
+			root,
+		);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"create",
+				"templates",
+				"--prefix",
+				"tpl",
+				"--slug",
+				"{{short_id}}-{{name}}",
+			],
+			root,
+		);
+		await runOk(
+			[
+				"-C",
+				root,
+				"create",
+				"templates",
+				"Template One",
+				"-f",
+				"id=01arz3ndektsv4rrffq6tmp001",
+				"-f",
+				"name=Template One",
+				"-f",
+				"for=clients",
+				"--content",
+				"# ONE {{name}}",
+				"-o",
+				"path",
+			],
+			root,
+		);
+		await runOk(
+			[
+				"-C",
+				root,
+				"create",
+				"templates",
+				"Template Two",
+				"-f",
+				"id=01arz3ndektsv4rrffq6tmp002",
+				"-f",
+				"name=Template Two",
+				"-f",
+				"for=clients",
+				"--content",
+				"# TWO {{name}}",
+				"-o",
+				"path",
+			],
+			root,
+		);
+
+		const createOut = await runOk(["-C", root, "create", "cli", "Acme", "-o", "path"], root, "2\n");
+		const pathMatch = createOut.match(/([a-z0-9_/-]+\.md)\s*$/);
+		expect(pathMatch).not.toBeNull();
+		const createdPath = pathMatch?.[1] ?? "";
+		const rawCreated = await readFile(join(root, createdPath), "utf8");
+		expect(rawCreated).toContain("# TWO Acme");
+	});
+
 	test("attach + check --fix --prune-attachments collapses folder", async () => {
 		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-attach-"));
 		await runOk(["-C", root, "init"], root);
