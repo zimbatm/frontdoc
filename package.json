@@ -1,0 +1,23 @@
+{
+	"name": "tmdoc",
+	"version": "0.1.0",
+	"description": "CLI tool for managing Markdown document collections",
+	"type": "module",
+	"main": "src/main.ts",
+	"scripts": {
+		"dev": "bun run src/main.ts",
+		"test": "bun test",
+		"lint": "biome check .",
+		"format": "biome format --write .",
+		"build": "bun build --compile src/main.ts --outfile dist/tmdoc"
+	},
+	"dependencies": {
+		"yaml": "^2.7.0",
+		"commander": "^12.1.0",
+		"ulidx": "^2.4.1",
+		"@inquirer/prompts": "^7.3.2"
+	},
+	"devDependencies": {
+		"@types/bun": "^1.2.4"
+	}
+}
