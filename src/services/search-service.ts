@@ -35,6 +35,17 @@ export class SearchService {
 		return await this.ScoredFullTextSearch(query);
 	}
 
+	MatchesQuery(record: DocumentRecord, query: string): boolean {
+		const expressions = parseQuery(query);
+		const matches: SearchMatch[] = [];
+		for (const expr of expressions) {
+			if (!evaluateExpression(record, expr, matches)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
 	async QuerySearch(expressionsOrQuery: QueryExpression[] | string): Promise<SearchResult[]> {
 		const expressions =
 			typeof expressionsOrQuery === "string" ? parseQuery(expressionsOrQuery) : expressionsOrQuery;

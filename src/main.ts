@@ -19,7 +19,7 @@ import { FileLock } from "./storage/lock.js";
 
 type SchemaOutputFormat = "text" | "json" | "yaml";
 type ReadOutputFormat = "markdown" | "json" | "raw";
-type ListOutputFormat = "table" | "json";
+type ListOutputFormat = "table" | "json" | "csv";
 type WriteOutputFormat = "default" | "json" | "path";
 type CheckOutputFormat = "text" | "json";
 type SearchOutputFormat = "detail" | "table" | "json" | "csv";
@@ -204,14 +204,23 @@ program
 	.alias("ls")
 	.description("List documents")
 	.argument("[collection]", "Collection name")
+	.argument("[query]", "Optional query expression")
 	.option("-f, --filter <key=value>", "Metadata equality filter", collectRepeated, [])
 	.option("--has <key>", "Field existence filter", collectRepeated, [])
 	.option("--lacks <key>", "Field absence filter", collectRepeated, [])
-	.option("-o, --output <format>", "Output format: table|json", "table")
+	.option("-n, --limit <n>", "Limit results", parseIntArg)
+	.option("-o, --output <format>", "Output format: table|json|csv", "table")
 	.action(
 		async (
 			collection: string | undefined,
-			opts: { filter: string[]; has: string[]; lacks: string[]; output: ListOutputFormat },
+			query: string | undefined,
+			opts: {
+				filter: string[];
+				has: string[];
+				lacks: string[];
+				limit?: number;
+				output: ListOutputFormat;
+			},
 		) => {
 			const manager = await Manager.New(getWorkDir(program));
 			const filters = [];
@@ -230,9 +239,19 @@ program
 				filters.push(not(hasField(key)));
 			}
 
-			const docs = await manager.Documents().List(filters);
+			let docs = await manager.Documents().List(filters);
+			if (query) {
+				docs = docs.filter((doc) => manager.Search().MatchesQuery(doc, query));
+			}
+			if (opts.limit !== undefined) {
+				docs = docs.slice(0, Math.max(0, opts.limit));
+			}
 			if (opts.output === "json") {
 				console.log(JSON.stringify(docs, null, 2));
+				return;
+			}
+			if (opts.output === "csv") {
+				console.log(listResultsToCsv(docs));
 				return;
 			}
 
@@ -379,10 +398,14 @@ program
 	.alias("find")
 	.description("Search documents")
 	.argument("<query>", "Search query")
+	.option("-n, --limit <n>", "Limit results", parseIntArg)
 	.option("-o, --output <format>", "Output format: detail|table|json|csv", "detail")
-	.action(async (query: string, opts: { output: SearchOutputFormat }) => {
+	.action(async (query: string, opts: { output: SearchOutputFormat; limit?: number }) => {
 		const manager = await Manager.New(getWorkDir(program));
-		const results = await manager.Search().UnifiedSearch(query);
+		let results = await manager.Search().UnifiedSearch(query);
+		if (opts.limit !== undefined) {
+			results = results.slice(0, Math.max(0, opts.limit));
+		}
 		switch (opts.output) {
 			case "json":
 				console.log(JSON.stringify(results, null, 2));
@@ -845,6 +868,19 @@ function searchResultsToCsv(
 	const lines = ["path,tier,score,match_count"];
 	for (const row of results) {
 		lines.push(`${csv(row.document.path)},${row.tier},${row.score},${row.matchCount}`);
+	}
+	return lines.join("\n");
+}
+
+function listResultsToCsv(
+	results: Array<{ path: string; document: { metadata: Record<string, unknown> } }>,
+): string {
+	const lines = ["path,collection,id,name"];
+	for (const row of results) {
+		const collection = row.path.split("/")[0] ?? "";
+		const id = String(row.document.metadata.id ?? "");
+		const name = String(row.document.metadata.name ?? row.document.metadata.title ?? "");
+		lines.push(`${csv(row.path)},${csv(collection)},${csv(id)},${csv(name)}`);
 	}
 	return lines.join("\n");
 }

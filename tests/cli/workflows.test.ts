@@ -290,8 +290,13 @@ describe("CLI workflows", () => {
 			root,
 		);
 
-		const search = await runOk(["-C", root, "search", "acme", "-o", "json"], root);
-		expect(JSON.parse(search).length).toBeGreaterThan(0);
+		const search = await runOk(["-C", root, "search", "acme", "-n", "1", "-o", "json"], root);
+		expect(JSON.parse(search).length).toBe(1);
+
+		const listed = await runOk(["-C", root, "list", "clients", "name:Acme", "-o", "json"], root);
+		const listedJson = JSON.parse(listed) as Array<{ path: string }>;
+		expect(listedJson).toHaveLength(1);
+		expect(listedJson[0].path).toContain("clients/");
 
 		const rel = await runOk(["-C", root, "relationships", short, "-o", "json"], root);
 		const relJSON = JSON.parse(rel) as { incoming: unknown[] };
