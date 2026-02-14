@@ -10,7 +10,7 @@ TypeScript/Bun implementation of `tmdoc`, a CLI for managing Markdown documents 
 ## Quickstart
 
 ```bash
-# Enter dev shell (Bun + tooling)
+# Enter dev shell (Bun + Node.js + tooling)
 nix develop
 
 # Initialize repo

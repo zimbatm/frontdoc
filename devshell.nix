@@ -2,6 +2,7 @@
 pkgs.mkShell {
   packages = [
     pkgs.bun
+    pkgs.nodejs
     pkgs.biome
     (pkgs.writeShellScriptBin "tmdoc" ''
       root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"

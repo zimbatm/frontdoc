@@ -1,0 +1,22 @@
+:root {
+	--ui-bg: #f4f6ef;
+	--ui-ink: #102218;
+	--ui-muted: #536059;
+	--ui-line: #d3dccf;
+	--ui-accent: #0e8d6f;
+	--ui-accent-soft: #e1f6ee;
+	--ui-accent-strong: #0a745b;
+	--ui-focus: #f08a47;
+	--ui-card: #fcfdf8;
+	--ui-gap: 14px;
+	--ui-radius: 14px;
+	--ui-radius-lg: 18px;
+	--ui-font: "Avenir Next", "Avenir", "IBM Plex Sans", "Segoe UI", sans-serif;
+	--ui-font-display: "DIN Condensed", "Franklin Gothic Medium", "Arial Narrow", sans-serif;
+	--ui-surface-glow:
+		radial-gradient(circle at 6% 4%, #fdf9de 0%, rgb(253 249 222 / 0%) 38%),
+		radial-gradient(circle at 88% 0%, #dff5eb 0%, rgb(223 245 235 / 0%) 36%),
+		linear-gradient(140deg, #eff3e8 0%, #f4f6ef 48%, #ebf4ef 100%);
+	--ui-motion-fast: 140ms ease;
+	--ui-motion-slow: 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}

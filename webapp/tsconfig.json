@@ -1,0 +1,10 @@
+{
+	"extends": "../tsconfig.json",
+	"compilerOptions": {
+		"rootDir": "./src",
+		"outDir": "./dist",
+		"types": ["vite/client"],
+		"composite": true
+	},
+	"include": ["src/**/*.ts", "src/**/*.vue", "src/**/*.d.ts"]
+}
