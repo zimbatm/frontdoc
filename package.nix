@@ -1,28 +1,24 @@
-{ pkgs ? import <nixpkgs> { } }:
-
-pkgs.stdenvNoCC.mkDerivation (finalAttrs: {
-  pname = "frontdoc";
-  version = "0.1.0";
-
-  # Keep source as-is so local `node_modules` can be used when present.
+{ pkgs, ... }:
+let
+  bun2nix = pkgs.bun2nix;
+in
+bun2nix.mkDerivation {
+  packageJson = ./package.json;
   src = ./.;
 
-  nativeBuildInputs = [
-    pkgs.bun
-    pkgs.makeWrapper
-  ];
+  # Bun --compile embeds JS in the binary; strip would corrupt it
+  dontStrip = true;
 
-  dontConfigure = true;
+  bunDeps = bun2nix.fetchBunDeps {
+    bunNix = ./bun.nix;
+  };
 
+  # Custom build: compile the webapp then create a standalone binary
   buildPhase = ''
     runHook preBuild
 
-    export HOME="$TMPDIR"
-    if [ ! -d node_modules ]; then
-      bun install --frozen-lockfile
-    fi
-
-    bun run build
+    bun run web:build
+    bun build --compile src/main.ts --outfile dist/frontdoc
 
     runHook postBuild
   '';
@@ -38,8 +34,6 @@ pkgs.stdenvNoCC.mkDerivation (finalAttrs: {
   meta = {
     description = "CLI tool for managing Markdown document collections";
     homepage = "https://git.numtide.com/numtide/frontdoc-ts";
-    license = pkgs.lib.licenses.mit;
     mainProgram = "frontdoc";
-    platforms = pkgs.lib.platforms.unix;
   };
-})
+}
