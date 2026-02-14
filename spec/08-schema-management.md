@@ -12,7 +12,7 @@ of `tmdoc.yaml`.
 
 `SchemaService.AddCollection(options)`:
 
-**Options**: Name, Alias, Slug, Fields
+**Options**: Name, Alias, Slug, TitleField, Fields
 
 **Steps**:
 
@@ -24,7 +24,8 @@ of `tmdoc.yaml`.
 5. If Slug is empty, auto-generate from the collection's field definitions
    (see Slug Auto-Generation in 03-configuration.md).
 6. Create the directory on disk via VFS (directory name = collection name).
-7. Write `<name>/_schema.yaml` with slug, fields, and references.
+7. Write `<name>/_schema.yaml` with slug, optional `title_field`, fields,
+   and references.
 8. Add the alias entry to `tmdoc.yaml`.
 9. Save `tmdoc.yaml`. On failure, log what succeeded and what failed.
    Recovery is via version control (see Recovery Model in
@@ -55,7 +56,7 @@ of `tmdoc.yaml`.
 
 `SchemaService.UpdateCollection(options)`:
 
-**Options**: Name, Alias*, Slug*, Fields* (pointer/optional)
+**Options**: Name, Alias*, Slug*, TitleField*, Fields* (pointer/optional)
 
 The collection name is immutable in an update operation. To rename a
 collection, use `RenameCollection` (see below).
@@ -66,6 +67,8 @@ collection, use `RenameCollection` (see below).
 2. If Alias is being changed, verify no conflict with other aliases in
    `tmdoc.yaml`.
 3. Apply all non-nil updates to the in-memory schema.
+   `title_field` controls display label selection (see Display Name
+   Resolution in 02-document-format.md).
 4. Write updated `<name>/_schema.yaml`.
 5. If Alias changed, update `tmdoc.yaml`.
 

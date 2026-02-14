@@ -26,7 +26,7 @@ aliases section. Prerequisite for all other operations.
 
 ```
 tmdoc schema create clients
-tmdoc schema create clients --prefix cli --slug "{{short_id}}-{{name}}"
+tmdoc schema create clients --prefix cli --slug "{{name}}-{{short_id}}"
 ```
 
 Creates `clients/` directory, `clients/_schema.yaml`, and adds alias to
@@ -52,7 +52,7 @@ Aliases work everywhere a collection name is accepted.
 ### 2d. Update a collection's schema
 
 ```
-tmdoc schema update clients --slug "{{short_id}}-{{name}}" --prefix cl
+tmdoc schema update clients --slug "{{name}}-{{short_id}}" --prefix cl
 ```
 
 ### 2e. Rename a collection
@@ -109,7 +109,7 @@ tmdoc create clients "Acme Corporation"
 ```
 
 The positional title is mapped to the field referenced in the collection's
-slug template. If slug is `{{short_id}}-{{name}}`, this sets `name`.
+slug template. If slug is `{{name}}-{{short_id}}`, this sets `name`.
 
 ### 3b. Create with flags
 
@@ -388,12 +388,12 @@ tmdoc open journals 2024-03-22
 tmdoc open journals today
 ```
 
-If `journals` has slug `journal-{{date}}`, this opens the existing
+If `journals` has slug `journal-{{date}}-{{short_id}}`, this opens the existing
 `journal-2024-03-22.md` or creates it.
 When creation is needed, `open` applies the collection template selection
 rules (single template auto-applies, multiple templates prompt, none uses
 empty content). The initial content is edited through a temporary draft file
-in `journal/` with reserved prefix `.tmdoc-open-`, and only persisted to
+in `journal/` with reserved prefix `.tdo-`, and only persisted to
 `journal-YYYY-MM-DD.md` if edited content changed and passes validation.
 
 ### 9c. Open with default slug values
@@ -404,7 +404,8 @@ tmdoc open journals
 
 If the `date` field has `default: today` in the schema, the date is filled
 automatically. If any template variable has no default and no argument,
-returns an error.
+the draft is staged with empty values for those fields so they can be filled
+in during edit.
 If this path creates a document, the selected template content is applied to
 the draft baseline before editing.
 
@@ -417,10 +418,41 @@ After the editor closes:
 2. For new documents opened via slug/default resolution, unchanged draft
    content is discarded and no file is created.
 3. If draft content changed and validation fails, the user can:
-   re-open the draft, keep the draft file under `.tmdoc-open-*`, or discard.
+   re-open the draft, keep the draft file under `.tdo-*`, or discard.
 4. If draft content changed and validation passes, the final document is
    created from the draft and the draft is removed.
 5. If a slug-relevant field changed, the file is automatically renamed.
+
+### 9e. Web UI (local server)
+
+```
+tmdoc web
+tmdoc serve
+tmdoc web --host 127.0.0.1 --port 8080 --no-open
+tmdoc -C /path/to/repo web
+tmdoc -C ~/documents serve --collection clients
+tmdoc serve --collection clients --collection journal
+```
+
+Starts a local HTTP server and serves a Web UI for:
+- visualizing collections and documents
+- searching/filtering documents
+- creating/updating/deleting documents
+- running validation checks and viewing issues
+
+Startup behavior:
+1. Resolve repository root from current directory or global `-C` path.
+2. Bind server to host/port and print the resolved URL.
+3. If one or more `--collection` flags are passed, serve only that resolved
+   collection set (aliases allowed).
+4. Serve the Web UI shell for SPA routes and static bundle assets from
+   `/ui/*`.
+5. If browser auto-open is enabled, attempt to open the URL best-effort.
+   If no browser is available, continue serving without failing.
+6. Run until interrupted.
+
+Navigation behavior and UX details:
+See `spec/13-web-ui-navigation.md`.
 
 ---
 
@@ -562,7 +594,7 @@ Templates are documents in the `templates` collection.
 tmdoc schema create templates
 ```
 
-Gets default schema: alias `tpl`, slug `{{short_id}}-{{name}}`, required
+Gets default schema: alias `tpl`, slug `{{name}}-{{short_id}}`, required
 fields `name` and `for`.
 
 ### 16b. Create a template document (single step)
@@ -639,12 +671,12 @@ tmdoc -C ~/documents create clients "Acme Corp"
 ```
 tmdoc init
 
-tmdoc schema create clients --slug "{{short_id}}-{{name}}"
+tmdoc schema create clients --slug "{{name}}-{{short_id}}"
 tmdoc schema field create clients name --type string --required
 tmdoc schema field create clients email --type email
 tmdoc schema field create clients status --type enum --enum-values "active,inactive,lead"
 
-tmdoc schema create projects --slug "{{short_id}}-{{name}}"
+tmdoc schema create projects --slug "{{name}}-{{short_id}}"
 tmdoc schema field create projects name --type string --required
 tmdoc schema field create projects client_id --type reference --target clients
 

@@ -85,7 +85,7 @@ Create a new document.
 
 **Positional title**: The second positional argument is the document title.
 It is mapped to the field referenced in the collection's slug template. For
-example, if the slug is `{{short_id}}-{{name}}`, the positional title sets
+example, if the slug is `{{name}}-{{short_id}}`, the positional title sets
 the `name` field. If the slug template does not reference a field (e.g.
 `{{short_id}}` only), the positional title is ignored.
 
@@ -183,7 +183,7 @@ for simple `key=value` equality; both can be combined.
 **Behavior**:
 1. Build filters from collection, query, --filter, --has, --lacks.
 2. Collect documents via Repository. Temporary open drafts with basename
-   prefix `.tmdoc-open-` are excluded.
+   prefix `.tdo-` are excluded.
 3. Sort results alphabetically by path.
 4. Format and display.
 
@@ -222,14 +222,14 @@ provides a slug template argument for find-or-create.
       field has a `default` value in the schema. If so, use it (processing
       through date parsing etc., so `default: today` becomes the current
       date).
-   b. If any template variable has no default and no argument, return an
-      error: "missing argument for template variable `{{field}}`".
-   c. Resolve the slug-target candidate from the resolved values.
+   b. If any template variable has no default and no argument, stage it in the
+      draft baseline as an empty value (to be filled by the user during edit).
+   c. Resolve the initial slug-target candidate from these staged values.
 4. If the target already exists, open its real content path in `$EDITOR`
    (falls back to `vi`).
 5. If the target does not exist, create a temporary draft file inside the same
    collection folder using a reserved filename prefix
-   (`.tmdoc-open-<nonce>-<target>.md`), then open that draft in `$EDITOR`.
+   (`.tdo-<short_id>-<target>.md`), then open that draft in `$EDITOR`.
 6. For draft opens, compare edited draft content to the initial draft content:
    if unchanged, discard the draft and exit without creating a document.
 7. If the edited content changed, validate it as the target collection
@@ -245,7 +245,57 @@ provides a slug template argument for find-or-create.
 10. If a slug-relevant field changed, automatically rename the file to match
    the new expected filename.
 11. Persisted document basenames must not start with `.`. Dot-prefixed names
-   are reserved for system staging files such as `.tmdoc-open-*`.
+   are reserved for system staging files such as `.tdo-*`.
+
+### web (alias: serve)
+
+**Usage**: `tmdoc web [flags]`
+
+Start a local Web UI server to visualize and manipulate the repository.
+
+**Flags**:
+- `--host` -- bind host (default `127.0.0.1`)
+- `--port` -- bind port (default `0`, meaning choose an available port)
+- `--open` / `--no-open` -- auto-open browser on startup (default `--open`)
+- `--collection` -- optional collection allowlist entry (repeatable). When
+  provided, only documents from these collections are served by the API/UI.
+
+**Behavior**:
+1. Initialize manager using the resolved global `-C`/`--directory` path (or
+   current directory when omitted), the same as all other commands.
+2. Start an HTTP server bound to `host:port`.
+3. Serve a local single-page Web UI and JSON API endpoints.
+   - The HTML shell is served from `/` and all non-API SPA routes
+     (`/c/:collection`, `/c/:collection/:slug-or-id`, `/recent`,
+     `/validation`).
+   - Static frontend assets are served under `/ui/*` (JavaScript/CSS/images).
+4. Print the resolved URL to stdout.
+5. If `--open` is enabled, attempt to open the URL in the system browser as
+   a best-effort action. Failure to open a browser must not fail startup.
+6. Keep serving until interrupted (SIGINT/SIGTERM), then shut down cleanly.
+
+When one or more `--collection` flags are provided:
+- Collection names/aliases are resolved to canonical collection names.
+- The server serves only the resolved collection set.
+- If no explicit initial route is given, UI startup route defaults to the
+  first collection in the resolved set.
+
+**API surface (v1)**:
+- `GET /api/collections`
+- `GET /api/documents?collection=&query=`
+- `GET /api/documents/:id`
+- `POST /api/documents`
+- `PUT /api/documents/:id`
+- `DELETE /api/documents/:id`
+- `POST /api/documents/:id/attachments` (multipart upload with `file`, optional `reference`, `force`)
+- `POST /api/check`
+
+**Frontend asset surface (v1.1)**:
+- `GET /` and SPA routes -- Web UI HTML shell
+- `GET /ui/*` -- static frontend bundle assets
+
+**Navigation and interaction model**:
+See `spec/13-web-ui-navigation.md`.
 
 ### attach
 
@@ -312,12 +362,14 @@ Manage the schema.
   - `--output`: text (default), json, yaml
 - `schema create <collection>` -- create directory, write `_schema.yaml`,
   add alias to `tmdoc.yaml`.
-  - `--prefix` (maps to Alias), `--slug` (maps to Slug)
+  - `--prefix` (maps to Alias), `--slug` (maps to Slug),
+    `--title-field` (maps to `title_field`, used for display titles)
 - `schema read <collection>` -- read `<collection>/_schema.yaml` and show
   the alias from `tmdoc.yaml`.
   - `--output`: text (default), json, yaml
 - `schema update <collection>` -- modify `<collection>/_schema.yaml` and
   optionally update the alias in `tmdoc.yaml`.
+  - `--title-field` updates `title_field` in collection schema.
 - `schema rename <old-name> <new-name>` -- rename cascade: move directory,
   update `_schema.yaml` files with references, update templates, update
   alias target in `tmdoc.yaml` (see 08-schema-management.md).

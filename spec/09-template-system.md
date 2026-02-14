@@ -109,7 +109,7 @@ document (find-or-create by slug/defaults):
    field values before being set as the new document's content.
 5. For `open` missing-target path, rendered content is first written to a
    temporary draft file under the target collection with reserved prefix
-   `.tmdoc-open-`. The real document is created only if edited draft content
+   `.tdo-`. The real document is created only if edited draft content
    changed and passes validation.
 6. Template metadata fields (`_id`, `_created_at`, `_title`, `name`, `for`)
    are NOT carried

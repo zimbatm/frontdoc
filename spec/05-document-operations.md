@@ -24,7 +24,7 @@ A Document has four properties:
 - `GetShortID()` -- last N characters of the full ULID (the random portion),
   where N is the collection's `short_id_length` (default 6)
 - `DisplayName()` -- first checks the collection's slug template for a
-  field reference (e.g. if slug is `{{short_id}}-{{name}}`, uses `name`);
+  field reference (e.g. if slug is `{{name}}-{{short_id}}`, uses `name`);
   then falls back to `name`, `_title`, `title`, `subject`, `summary` in
   order; then to filename (without extension), then short ID, then
   `"Untitled"`
@@ -202,7 +202,7 @@ path inside the same collection before creating the real document.
 
 **Rules**:
 
-1. Draft filename must use reserved prefix `.tmdoc-open-`.
+1. Draft filename must use reserved prefix `.tdo-`.
 2. Draft lives under the same collection root as the final target.
 3. Draft files are excluded from normal document collection/listing and are
    not considered real documents.

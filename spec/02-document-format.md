@@ -57,7 +57,7 @@ schemas (`fields` and `references`) MUST NOT declare keys with `_` prefix.
 
 A document's collection membership is determined by its location in the
 filesystem: the top-level folder containing the document is its collection.
-For example, a document at `clients/9g5fav-acme-corp.md` belongs to the
+For example, a document at `clients/acme-corp-9g5fav.md` belongs to the
 `clients` collection. There is no `type` field in metadata -- the collection
 is always derived from the path.
 
@@ -100,10 +100,10 @@ Examples:
 
 | Slug template | Produced filename |
 |---|---|
-| `{{short_id}}-{{name}}` | `9g5fav-acme-corp.md` |
-| `journal-{{date}}` | `journal-2024-03-22.md` |
+| `{{name}}` | `acme-corp-9g5fav.md` |
+| `journal-{{date}}` | `journal-2024-03-22-9g5fav.md` |
 | `{{short_id}}` | `9g5fav.md` |
-| `{{date | year}}/{{short_id}}-{{name}}` | `2024/9g5fav-acme-corp.md` (see Subdirectory Slugs) |
+| `{{date | year}}/{{name}}` | `2024/acme-corp-9g5fav.md` (see Subdirectory Slugs) |
 
 Slugification: field values are lowercased, `/` is replaced, non-alphanumerics
 are replaced with hyphens, consecutive hyphens are collapsed, trailing hyphens
@@ -116,8 +116,8 @@ the operation must fail with a filename error.
 
 Slug templates may contain `/` to place documents in subdirectories within
 the collection folder. Only `/` that appears literally in the slug template
-creates subdirectories. For example, `{{date | year}}/{{short_id}}-{{name}}`
-produces `clients/2024/9g5fav-acme-corp.md`. The subdirectory is created
+creates subdirectories. For example, `{{date | year}}/{{name}}`
+produces `clients/2024/acme-corp-9g5fav.md`. The subdirectory is created
 automatically. The document still belongs to the `clients` collection
 (collection membership is determined by the top-level folder).
 
@@ -129,7 +129,7 @@ A document is a single `.md` file:
 
 ```
 clients/
-  9g5fav-acme-corp.md
+  acme-corp-9g5fav.md
 ```
 
 ### Folder Documents
@@ -207,6 +207,22 @@ without looking it up.
 
 These are "soft references" -- they appear in content, not in metadata
 fields.
+
+## Display Name Resolution
+
+`DisplayName()` is used by Web UI lists and wiki link title checks/fixes.
+
+Resolution order:
+
+1. If collection schema has `title_field`, use that metadata field when
+   present and non-empty.
+2. Otherwise, from the collection slug template, use the first template
+   variable that is not `short_id` (for example `{{date}}` in
+   `journal-{{date}}-{{short_id}}`).
+3. Fallback metadata keys: `name`, `_title`, `title`, `subject`, `summary`.
+4. Filename basename (without `.md`, excluding `index.md`).
+5. Short ID from `_id`.
+6. `Untitled`.
 
 ## Templates
 

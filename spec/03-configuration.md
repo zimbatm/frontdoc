@@ -65,7 +65,7 @@ Located at `<collection_dir>/_schema.yaml`. Defines the schema for that
 collection:
 
 ```yaml
-slug: "{{short_id}}-{{name}}"
+slug: "{{name}}-{{short_id}}"
 fields:
   name:
     type: string
@@ -104,8 +104,12 @@ generated and persisted to `_schema.yaml`:
 
 1. Check the collection's field definitions for `title`, `name`, or
    `subject` (in that priority order).
-2. If a matching field is found: `{{short_id}}-{{field_name}}`
+2. If a matching field is found: `{{field_name}}`
 3. If no matching field: `{{short_id}}`
+
+Slug templates do not need to include `{{short_id}}`. During filename
+generation, tmdoc automatically appends `-<short_id>` to the basename unless
+the basename already ends with that short ID.
 
 The auto-generated slug is stored in `_schema.yaml` and can be edited by the
 user at any time. There is no hidden default -- `schema show` always
@@ -182,7 +186,7 @@ requires `templates/_schema.yaml`. Its defaults are:
 
 - Collection name / directory: `templates`
 - Alias: `tpl` (in `tmdoc.yaml`)
-- `slug`: `{{short_id}}-{{name}}`
+- `slug`: `{{name}}-{{short_id}}`
 - Required fields: `name` (string), `for` (string)
 
 The `for` field references a target collection name.

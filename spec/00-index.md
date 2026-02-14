@@ -49,3 +49,9 @@ architecture -- not on language-specific implementation details.
 
 12. [Testing Strategy](12-testing-strategy.md) -- In-memory VFS testing, test
     categories, key invariants.
+
+13. [Web UI Navigation](13-web-ui-navigation.md) -- Navigation architecture,
+    route model, primary workflows, keyboard and mobile behavior.
+
+14. [CLI Workflows](14-cli-workflows.md) -- End-to-end command workflows and
+    practical invocation patterns.

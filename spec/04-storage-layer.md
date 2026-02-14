@@ -132,7 +132,7 @@ Walks the entire VFS from root, collecting all documents:
 
 1. For each entry encountered during the walk:
    - Skip `_schema.yaml` files (reserved metadata, not documents).
-   - Skip temporary open drafts with basename prefix `.tmdoc-open-`
+   - Skip temporary open drafts with basename prefix `.tdo-`
      (reserved staging files, not documents).
    - If it is a directory containing `index.md`, treat as a folder document.
    - If it is a `.md` file (not `README.md`, not `index.md`, not hidden),
@@ -157,13 +157,14 @@ collection and will fail collection membership validation.
 Finds a document by full or partial ID:
 
 1. Walk all entries as in CollectAll.
-2. For each markdown file/folder, extract the ID portion from the filename
-   (the segment before the first `-` in the basename, or the entire basename
-   if no `-` exists) and check if it starts with the partial ID
-   (case-insensitive prefix match). Substring matches in the middle of slugs
-   are not considered.
-3. If the filename matches, parse the document and check if the metadata `_id`
-   field starts with the partial ID or equals it exactly.
+2. For each markdown file/folder, parse the document and compare the metadata
+   `_id` against `partialID` (case-insensitive). A match is any of:
+   - exact full ID match,
+   - full ID prefix match,
+   - short-ID prefix match (where short ID is the trailing N chars of `_id`,
+     with N in `[4,16]`).
+3. Filename prefixes MAY be used as an optimization hint, but MUST NOT be
+   required for a match because many slug templates do not include an ID.
 4. If exactly one match: return it.
 5. If multiple matches: return an error ("multiple documents match").
 6. If no matches: return an error ("no document found").

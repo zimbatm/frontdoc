@@ -35,8 +35,14 @@ Cover:
 - Template processing
 - Schema operations
 - Collection membership derivation from path
+- Web UI route/state helpers (URL parsing, canonical route keys)
 
 Style: table-driven tests where multiple input/output scenarios apply.
+
+For the Vue Web UI, unit and component tests use:
+- Vitest as test runner
+- Vue Test Utils for component rendering and interaction
+- JSDOM for browser-like DOM APIs
 
 ### Integration Tests
 
@@ -46,9 +52,19 @@ Cover:
 - Config override behavior
 - Attachment workflows
 - Relationship detection
+- Web server shell and static bundle surface (`/`, `/ui/*`)
 
 These tests may use the full Manager and exercise multiple services in
 sequence.
+
+### Browser E2E Tests
+
+Cover:
+- Web UI shell render and route navigation in a real browser context
+- Core read/search interactions against the live `/api/*` server
+
+Browser E2E tests use Playwright and spawn `tmdoc web` against a temporary
+test repository initialized during the test.
 
 ## Key Test Invariants
 
