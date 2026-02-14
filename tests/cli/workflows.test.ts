@@ -1104,6 +1104,60 @@ fi
 		expect(pathMatch?.[1].startsWith("projects/")).toBe(true);
 	});
 
+	test("create prompts for missing required fields in weight order", async () => {
+		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-create-required-prompt-"));
+		await runOk(["-C", root, "init"], root);
+		await runOk(
+			["-C", root, "schema", "create", "contacts", "--prefix", "ctc", "--slug", "{{short_id}}"],
+			root,
+		);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"field",
+				"create",
+				"contacts",
+				"email",
+				"--type",
+				"email",
+				"--required",
+				"--weight",
+				"30",
+			],
+			root,
+		);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"field",
+				"create",
+				"contacts",
+				"name",
+				"--required",
+				"--weight",
+				"10",
+			],
+			root,
+		);
+
+		const out = await runOk(
+			["-C", root, "create", "ctc", "-o", "json"],
+			root,
+			"Alice Example\nalice@example.com\n",
+		);
+
+		const created = JSON.parse(out) as {
+			document: { metadata: { _id: string } };
+		};
+		const raw = await runOk(["-C", root, "read", created.document.metadata._id, "-o", "raw"], root);
+		expect(raw).toContain("name: Alice Example");
+		expect(raw).toContain("email: alice@example.com");
+	});
+
 });
 
 function dateOffsetISO(offsetDays: number): string {

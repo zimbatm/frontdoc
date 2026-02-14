@@ -11,6 +11,7 @@ import { withWriteLock } from "../app/write-lock.js";
 import { listResultsToCsv, listResultsToTable, searchResultsToCsv } from "./output-format.js";
 import { registerOpenCommand } from "./open-command.js";
 import { registerSchemaCommands } from "./schema-commands.js";
+import type { CollectionSchema } from "../config/types.js";
 import { collectionFromPath } from "../document/path-utils.js";
 import { extractPlaceholders } from "../document/template-engine.js";
 import { Manager } from "../manager.js";
@@ -99,7 +100,8 @@ program
 						fields[titleField] = title;
 					}
 				}
-					const normalizedFields = normalizeFieldsForSchema(fields, schema);
+					const promptedFields = await promptRequiredFields(schema, fields);
+					const normalizedFields = normalizeFieldsForSchema(promptedFields, schema);
 
 				let templateContent: string | undefined;
 				const noTemplate = opts.template === false;
@@ -572,6 +574,93 @@ function parseFields(values: string[]): Record<string, string> {
 		fields[key] = value;
 	}
 	return fields;
+}
+
+async function promptRequiredFields(
+	schema: CollectionSchema,
+	initialFields: Record<string, string>,
+): Promise<Record<string, string>> {
+	const fields = { ...initialFields };
+	const required = Object.entries(schema.fields)
+		.filter(([, field]) => field.required)
+		.filter(
+			([name, field]) =>
+				!hasProvidedValue(fields[name]) && !hasProvidedValue(field.default),
+		)
+		.sort(([aName, aField], [bName, bField]) => {
+			const aWeight = fieldPromptWeight(aName, aField.weight);
+			const bWeight = fieldPromptWeight(bName, bField.weight);
+			if (aWeight !== bWeight) return aWeight - bWeight;
+			return aName.localeCompare(bName);
+		});
+
+	if (required.length === 0) {
+		return fields;
+	}
+
+	if (!process.stdin.isTTY) {
+		const pendingLines = await readRemainingStdinLines();
+		for (const [name] of required) {
+			if (hasProvidedValue(fields[name])) {
+				continue;
+			}
+			const value = pendingLines.shift();
+			if (!hasProvidedValue(value)) {
+				throw new Error(`missing required field '${name}'`);
+			}
+			fields[name] = String(value);
+		}
+		return fields;
+	}
+
+	const rl = createInterface({
+		input: process.stdin,
+		output: process.stdout,
+	});
+	try {
+		for (const [name] of required) {
+			while (!hasProvidedValue(fields[name])) {
+				const answer = await rl.question(`${name}: `);
+				if (!hasProvidedValue(answer)) {
+					console.log(`${name} is required`);
+					continue;
+				}
+				fields[name] = answer;
+			}
+		}
+		return fields;
+	} finally {
+		rl.close();
+	}
+}
+
+async function readRemainingStdinLines(): Promise<string[]> {
+	let data = "";
+	for await (const chunk of process.stdin) {
+		data += String(chunk);
+	}
+	return data
+		.split(/\r?\n/)
+		.map((line) => line.trim())
+		.filter((line) => line.length > 0);
+}
+
+function hasProvidedValue(value: unknown): boolean {
+	return value !== undefined && value !== null && String(value).length > 0;
+}
+
+function fieldPromptWeight(name: string, explicitWeight: number | undefined): number {
+	if (explicitWeight !== undefined) {
+		return explicitWeight;
+	}
+	const key = name.toLowerCase();
+	if (key === "name" || key === "title" || key === "subject" || key === "_id") return 10;
+	if (key === "email" || key === "contact_email" || key === "username") return 30;
+	if (key === "status" || key === "priority") return 40;
+	if (key === "date" || key === "due_date" || key === "_created_at") return 50;
+	if (key === "description" || key === "notes" || key === "content") return 70;
+	if (key === "tags" || key === "categories" || key === "labels") return 90;
+	return 60;
 }
 
 function splitFieldArg(entry: string): [string, string] {
