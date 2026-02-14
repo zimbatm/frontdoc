@@ -1,8 +1,8 @@
 import { writeFile as writeHostFile } from "node:fs/promises";
 import type { CollectionSchema } from "../config/types.js";
 import { extractTitleFromContent } from "../document/document.js";
-import { parseWikiLinks } from "../document/wiki-link.js";
 import { collectionFromPath } from "../document/path-utils.js";
+import { parseWikiLinks } from "../document/wiki-link.js";
 import { findByIDInRecords } from "../repository/id-lookup.js";
 import {
 	type DocumentRecord,

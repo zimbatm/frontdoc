@@ -2,26 +2,23 @@ import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { Command } from "commander";
-import { createDocumentUseCase, updateDocumentUseCase } from "../app/document-use-cases.js";
 import {
+	createDocumentUseCase,
 	listDocumentsUseCase,
 	normalizeFieldsForSchema,
+	updateDocumentUseCase,
 } from "../app/document-use-cases.js";
 import { withWriteLock } from "../app/write-lock.js";
-import { listResultsToCsv, listResultsToTable, searchResultsToCsv } from "./output-format.js";
-import { registerOpenCommand } from "./open-command.js";
-import { registerSchemaCommands } from "./schema-commands.js";
 import type { CollectionSchema } from "../config/types.js";
 import { collectionFromPath } from "../document/path-utils.js";
 import { extractPlaceholders } from "../document/template-engine.js";
 import { Manager } from "../manager.js";
-import {
-	byField,
-	hasField,
-	not,
-} from "../repository/repository.js";
+import { byField, hasField, not } from "../repository/repository.js";
 import type { TemplateRecord } from "../services/template-service.js";
 import { runWebServer } from "../web/server.js";
+import { registerOpenCommand } from "./open-command.js";
+import { listResultsToCsv, listResultsToTable, searchResultsToCsv } from "./output-format.js";
+import { registerSchemaCommands } from "./schema-commands.js";
 
 type ReadOutputFormat = "markdown" | "json" | "raw";
 type ListOutputFormat = "table" | "json" | "csv";
@@ -93,15 +90,15 @@ program
 					throw new Error(`unknown collection: ${collection}`);
 				}
 
-					const fields = parseFields(opts.field);
+				const fields = parseFields(opts.field);
 				if (title) {
 					const titleField = firstSlugField(schema.slug);
 					if (titleField) {
 						fields[titleField] = title;
 					}
 				}
-					const promptedFields = await promptRequiredFields(schema, fields);
-					const normalizedFields = normalizeFieldsForSchema(promptedFields, schema);
+				const promptedFields = await promptRequiredFields(schema, fields);
+				const normalizedFields = normalizeFieldsForSchema(promptedFields, schema);
 
 				let templateContent: string | undefined;
 				const noTemplate = opts.template === false;
@@ -193,7 +190,7 @@ program
 				if (!schema) {
 					throw new Error(`unknown collection: ${collection}`);
 				}
-					const fields = normalizeFieldsForSchema(parseFields(opts.field), schema);
+				const fields = normalizeFieldsForSchema(parseFields(opts.field), schema);
 				for (const key of opts.unset) {
 					assertUserFieldInput(key);
 				}
@@ -264,9 +261,9 @@ program
 			const manager = await Manager.New(getWorkDir(program));
 			const filters = [];
 
-				for (const entry of opts.filter) {
-					const [key, value] = splitFieldArg(entry);
-					filters.push(byField(key, value));
+			for (const entry of opts.filter) {
+				const [key, value] = splitFieldArg(entry);
+				filters.push(byField(key, value));
 			}
 			for (const key of opts.has) {
 				filters.push(hasField(key));
@@ -275,12 +272,12 @@ program
 				filters.push(not(hasField(key)));
 			}
 
-				const docs = await listDocumentsUseCase(manager, {
-					collection,
-					query,
-					filters,
-					limit: opts.limit,
-				});
+			const docs = await listDocumentsUseCase(manager, {
+				collection,
+				query,
+				filters,
+				limit: opts.limit,
+			});
 			if (opts.output === "json") {
 				console.log(JSON.stringify(docs, null, 2));
 				return;
@@ -293,7 +290,7 @@ program
 		},
 	);
 
-program
+program;
 registerOpenCommand(program, getWorkDir, chooseTemplateContent);
 
 program
@@ -583,10 +580,7 @@ async function promptRequiredFields(
 	const fields = { ...initialFields };
 	const required = Object.entries(schema.fields)
 		.filter(([, field]) => field.required)
-		.filter(
-			([name, field]) =>
-				!hasProvidedValue(fields[name]) && !hasProvidedValue(field.default),
-		)
+		.filter(([name, field]) => !hasProvidedValue(fields[name]) && !hasProvidedValue(field.default))
 		.sort(([aName, aField], [bName, bField]) => {
 			const aWeight = fieldPromptWeight(aName, aField.weight);
 			const bWeight = fieldPromptWeight(bName, bField.weight);

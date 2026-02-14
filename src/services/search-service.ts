@@ -1,10 +1,10 @@
+import { extractTitleFromContent } from "../document/document.js";
+import { collectionFromPath } from "../document/path-utils.js";
 import {
 	type DocumentRecord,
 	excludeTemplatesFilter,
 	type Repository,
 } from "../repository/repository.js";
-import { extractTitleFromContent } from "../document/document.js";
-import { collectionFromPath } from "../document/path-utils.js";
 
 export interface SearchMatch {
 	field: string;

@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import AppShell from "./features/app-shell/AppShell.vue";
-import DocumentListPane from "./features/doc-list/DocumentListPane.vue";
 import { collectFieldErrors } from "./features/editor/field-validation";
 import {
 	buildUiSchemaFields,
@@ -10,15 +8,19 @@ import {
 	payloadValue,
 	type UiSchemaField,
 } from "./features/editor/schema-form-model";
-import LeftRail from "./features/navigation/LeftRail.vue";
-import type { CollectionInfo, EditorMode, ListDoc, ReadDoc, ValidationIssue } from "./features/types";
-import WorkspacePane from "./features/workspace/WorkspacePane.vue";
+import type {
+	CollectionInfo,
+	EditorMode,
+	ListDoc,
+	ReadDoc,
+	ValidationIssue,
+} from "./features/types";
 import { buildDocRoute, parseRoutePath, routeKeyFromPath } from "./web-ui-model";
 
 const router = useRouter();
 const route = useRoute();
 
-const modeOptions: Array<{ label: string; value: EditorMode }> = [
+const _modeOptions: Array<{ label: string; value: EditorMode }> = [
 	{ label: "Edit", value: "edit" },
 	{ label: "Preview", value: "preview" },
 	{ label: "Split", value: "split" },
@@ -30,7 +32,7 @@ const issues = ref<ValidationIssue[]>([]);
 const selectedDoc = ref<ReadDoc | null>(null);
 const selectedIndex = ref(0);
 const query = ref("");
-const mode = ref<EditorMode>("split");
+const _mode = ref<EditorMode>("split");
 const errorMessage = ref("");
 const statusMessage = ref("");
 const checkSummary = ref("");
@@ -56,14 +58,14 @@ const routeCollection = computed(() => {
 	return "";
 });
 
-const listEmptyLabel = computed(() => {
+const _listEmptyLabel = computed(() => {
 	if (routeInfo.value.kind === "validation") {
 		return "No validation issues.";
 	}
 	return "No documents.";
 });
 
-const workspaceOpen = computed(() => routeInfo.value.kind === "doc");
+const _workspaceOpen = computed(() => routeInfo.value.kind === "doc");
 
 function docRouteKey(doc: ListDoc | ReadDoc): string {
 	return routeKeyFromPath(doc.collection, doc.path);
@@ -170,18 +172,18 @@ async function refresh(): Promise<void> {
 	}
 }
 
-async function openDoc(doc: ListDoc, index: number): Promise<void> {
+async function _openDoc(doc: ListDoc, index: number): Promise<void> {
 	selectedIndex.value = index;
 	await router.push(buildDocRoute(doc));
 }
 
-async function runSearch(): Promise<void> {
+async function _runSearch(): Promise<void> {
 	await refresh().catch((error: unknown) => {
 		errorMessage.value = error instanceof Error ? error.message : String(error);
 	});
 }
 
-async function createDocument(): Promise<void> {
+async function _createDocument(): Promise<void> {
 	const preferredCollection = routeCollection.value || collections.value[0]?.name || "";
 	if (!preferredCollection) return;
 	try {
@@ -196,7 +198,7 @@ async function createDocument(): Promise<void> {
 	}
 }
 
-async function saveDocument(): Promise<void> {
+async function _saveDocument(): Promise<void> {
 	if (!selectedDoc.value) return;
 	if (hasFieldErrors.value) {
 		errorMessage.value = "Please fix field validation errors.";
@@ -242,7 +244,7 @@ async function saveDocument(): Promise<void> {
 	}
 }
 
-async function deleteDocument(): Promise<void> {
+async function _deleteDocument(): Promise<void> {
 	if (!selectedDoc.value) return;
 	if (!confirm("Delete this document?")) return;
 	try {
@@ -256,7 +258,7 @@ async function deleteDocument(): Promise<void> {
 	}
 }
 
-async function checkCollection(): Promise<void> {
+async function _checkCollection(): Promise<void> {
 	if (!selectedDoc.value) return;
 	try {
 		const result = await api<{ scanned: number; issues: ValidationIssue[] }>("/api/check", {
@@ -270,7 +272,7 @@ async function checkCollection(): Promise<void> {
 	}
 }
 
-async function backToBrowse(): Promise<void> {
+async function _backToBrowse(): Promise<void> {
 	if (selectedDoc.value) {
 		await router.push(`/c/${encodeURIComponent(selectedDoc.value.collection)}`);
 		return;
@@ -290,7 +292,7 @@ function buildAttachmentSnippet(file: File, attachmentPath: string): string {
 	return `[${name}](${name})`;
 }
 
-async function attachFile(payload: { file: File; from: number }): Promise<void> {
+async function _attachFile(payload: { file: File; from: number }): Promise<void> {
 	if (!selectedDoc.value) return;
 	if (selectedDoc.value.id.startsWith("draft:")) {
 		errorMessage.value = "Attachments are only available after the draft is saved.";
@@ -330,7 +332,7 @@ async function attachFile(payload: { file: File; from: number }): Promise<void> 
 	}
 }
 
-function updateField(name: string, value: string): void {
+function _updateField(name: string, value: string): void {
 	fieldValues[name] = value;
 }
 

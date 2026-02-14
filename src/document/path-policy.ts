@@ -1,8 +1,8 @@
 import type { CollectionSchema } from "../config/types.js";
 import type { Document } from "./document.js";
+import { extractTitleFromContent } from "./document.js";
 import { generateFilename, slugify } from "./slug.js";
 import { processTemplate } from "./template-engine.js";
-import { extractTitleFromContent } from "./document.js";
 
 export function buildTemplateValues(
 	fields: Record<string, unknown>,

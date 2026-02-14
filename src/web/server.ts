@@ -243,10 +243,16 @@ async function handleDocumentsList(
 	const collection = url.searchParams.get("collection");
 	const query = url.searchParams.get("query");
 	const scope = collectionScopeSet(allowedCollections);
-	if (collection && !isCollectionAllowed(manager.Documents().ResolveCollection(collection), scope)) {
+	if (
+		collection &&
+		!isCollectionAllowed(manager.Documents().ResolveCollection(collection), scope)
+	) {
 		return json(200, { documents: [] });
 	}
-	let docs = await listDocumentsUseCase(manager, { collection: collection ?? undefined, query: query ?? undefined });
+	let docs = await listDocumentsUseCase(manager, {
+		collection: collection ?? undefined,
+		query: query ?? undefined,
+	});
 	docs = docs.filter((record) => isCollectionAllowed(collectionFromPath(record.path), scope));
 	const documents = docs.map((record) => listItemFromRecord(record, manager.Schemas()));
 	return json(200, { documents });
@@ -555,7 +561,7 @@ async function handleCheck(
 					return await runChecks(manager, checks, true, pruneAttachments);
 				})
 			: await runChecks(manager, checks, false, false);
-	return json(200, result);
+		return json(200, result);
 	} catch (error) {
 		return json(400, { error: message(error) });
 	}
@@ -594,12 +600,9 @@ async function handleUploadAttachment(
 			const tempPath = join(tempDir, name);
 			await writeFile(tempPath, bytes);
 
-			const attachmentPath = await manager.Documents().AttachFileByID(
-				id,
-				tempPath,
-				addReference,
-				force,
-			);
+			const attachmentPath = await manager
+				.Documents()
+				.AttachFileByID(id, tempPath, addReference, force);
 			const updated = await manager.Documents().ReadByID(id);
 			return { attachmentPath, updated };
 		});

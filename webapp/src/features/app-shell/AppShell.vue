@@ -7,7 +7,7 @@ const props = defineProps<{
 	workspaceOpen: boolean;
 }>();
 
-const shellClass = computed(() => ({
+const _shellClass = computed(() => ({
 	"workspace-open": props.workspaceOpen,
 	"workspace-closed": !props.workspaceOpen,
 	"validation-focus": props.routeKind === "validation",

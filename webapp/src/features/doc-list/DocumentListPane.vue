@@ -1,7 +1,4 @@
 <script setup lang="ts">
-import Button from "primevue/button";
-import Card from "primevue/card";
-import InputText from "primevue/inputtext";
 import type { ParsedRoute } from "../../web-ui-model";
 import type { ListDoc, ValidationIssue } from "../types";
 
@@ -16,25 +13,25 @@ const props = defineProps<{
 	selectedDocId: string;
 }>();
 
-const emit = defineEmits<{
+const _emit = defineEmits<{
 	"update:query": [value: string];
 	search: [];
 	create: [];
 	open: [doc: ListDoc, index: number];
 }>();
 
-function prettyDate(value: string): string {
+function _prettyDate(value: string): string {
 	if (!value) return "";
 	const date = new Date(value);
 	if (Number.isNaN(date.getTime())) return value;
 	return date.toLocaleString();
 }
 
-function issueClass(issue: ValidationIssue): string {
+function _issueClass(issue: ValidationIssue): string {
 	return issue.severity === "error" ? "issue error" : "issue";
 }
 
-function isDocActive(doc: ListDoc, index: number): boolean {
+function _isDocActive(doc: ListDoc, index: number): boolean {
 	if (props.selectedDocId.length > 0 && props.selectedDocId === doc.id) return true;
 	return index === props.selectedIndex;
 }

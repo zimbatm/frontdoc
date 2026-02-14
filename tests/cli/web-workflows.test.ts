@@ -9,11 +9,32 @@ describe("CLI web workflows", () => {
 		const root = await mkdtemp(join(tmpdir(), "frontdoc-cli-web-"));
 		await runOk(["-C", root, "init"], root);
 		await runOk(
-			["-C", root, "schema", "create", "clients", "--prefix", "cli", "--slug", "{{name}}-{{short_id}}"],
+			[
+				"-C",
+				root,
+				"schema",
+				"create",
+				"clients",
+				"--prefix",
+				"cli",
+				"--slug",
+				"{{name}}-{{short_id}}",
+			],
 			root,
 		);
 		await runOk(
-			["-C", root, "schema", "field", "create", "clients", "name", "--type", "string", "--required"],
+			[
+				"-C",
+				root,
+				"schema",
+				"field",
+				"create",
+				"clients",
+				"name",
+				"--type",
+				"string",
+				"--required",
+			],
 			root,
 		);
 		await runOk(["-C", root, "create", "cli", "Acme"], root);
@@ -43,11 +64,32 @@ describe("CLI web workflows", () => {
 		const root = await mkdtemp(join(tmpdir(), "frontdoc-cli-web-attachments-"));
 		await runOk(["-C", root, "init"], root);
 		await runOk(
-			["-C", root, "schema", "create", "clients", "--prefix", "cli", "--slug", "{{name}}-{{short_id}}"],
+			[
+				"-C",
+				root,
+				"schema",
+				"create",
+				"clients",
+				"--prefix",
+				"cli",
+				"--slug",
+				"{{name}}-{{short_id}}",
+			],
 			root,
 		);
 		await runOk(
-			["-C", root, "schema", "field", "create", "clients", "name", "--type", "string", "--required"],
+			[
+				"-C",
+				root,
+				"schema",
+				"field",
+				"create",
+				"clients",
+				"name",
+				"--type",
+				"string",
+				"--required",
+			],
 			root,
 		);
 		await runOk(["-C", root, "create", "cli", "Acme"], root);
@@ -64,10 +106,13 @@ describe("CLI web workflows", () => {
 			const payload = new FormData();
 			payload.set("file", new File(["Attachment body"], "notes.txt", { type: "text/plain" }));
 			payload.set("reference", "true");
-			const uploadResp = await fetch(new URL(`/api/documents/${encodeURIComponent(id)}/attachments`, url), {
-				method: "POST",
-				body: payload,
-			});
+			const uploadResp = await fetch(
+				new URL(`/api/documents/${encodeURIComponent(id)}/attachments`, url),
+				{
+					method: "POST",
+					body: payload,
+				},
+			);
 			expect(uploadResp.status).toBe(201);
 			const uploaded = (await uploadResp.json()) as { path: string };
 			expect(uploaded.path.endsWith("/notes.txt")).toBe(true);
@@ -87,11 +132,32 @@ describe("CLI web workflows", () => {
 		const root = await mkdtemp(join(tmpdir(), "frontdoc-cli-web-ui-shell-"));
 		await runOk(["-C", root, "init"], root);
 		await runOk(
-			["-C", root, "schema", "create", "clients", "--prefix", "cli", "--slug", "{{name}}-{{short_id}}"],
+			[
+				"-C",
+				root,
+				"schema",
+				"create",
+				"clients",
+				"--prefix",
+				"cli",
+				"--slug",
+				"{{name}}-{{short_id}}",
+			],
 			root,
 		);
 		await runOk(
-			["-C", root, "schema", "field", "create", "clients", "name", "--type", "string", "--required"],
+			[
+				"-C",
+				root,
+				"schema",
+				"field",
+				"create",
+				"clients",
+				"name",
+				"--type",
+				"string",
+				"--required",
+			],
 			root,
 		);
 		await runOk(["-C", root, "create", "cli", "Acme"], root);
@@ -119,11 +185,32 @@ describe("CLI web workflows", () => {
 		const root = await mkdtemp(join(tmpdir(), "frontdoc-cli-web-slug-route-"));
 		await runOk(["-C", root, "init"], root);
 		await runOk(
-			["-C", root, "schema", "create", "contacts", "--prefix", "con", "--slug", "{{name}}-{{short_id}}"],
+			[
+				"-C",
+				root,
+				"schema",
+				"create",
+				"contacts",
+				"--prefix",
+				"con",
+				"--slug",
+				"{{name}}-{{short_id}}",
+			],
 			root,
 		);
 		await runOk(
-			["-C", root, "schema", "field", "create", "contacts", "name", "--type", "string", "--required"],
+			[
+				"-C",
+				root,
+				"schema",
+				"field",
+				"create",
+				"contacts",
+				"name",
+				"--type",
+				"string",
+				"--required",
+			],
 			root,
 		);
 		await runOk(["-C", root, "create", "con", "Alice Example"], root);
@@ -159,7 +246,17 @@ describe("CLI web workflows", () => {
 		const root = await mkdtemp(join(tmpdir(), "frontdoc-cli-web-open-defaults-"));
 		await runOk(["-C", root, "init"], root);
 		await runOk(
-			["-C", root, "schema", "create", "clients", "--prefix", "cli", "--slug", "{{name}}-{{short_id}}"],
+			[
+				"-C",
+				root,
+				"schema",
+				"create",
+				"clients",
+				"--prefix",
+				"cli",
+				"--slug",
+				"{{name}}-{{short_id}}",
+			],
 			root,
 		);
 		await runOk(
@@ -197,14 +294,22 @@ describe("CLI web workflows", () => {
 
 			const docsBeforeSaveResp = await fetch(new URL("/api/documents?collection=cli", url));
 			expect(docsBeforeSaveResp.status).toBe(200);
-			const docsBeforeSave = (await docsBeforeSaveResp.json()) as { documents: Array<{ id: string }> };
+			const docsBeforeSave = (await docsBeforeSaveResp.json()) as {
+				documents: Array<{ id: string }>;
+			};
 			expect(docsBeforeSave.documents).toHaveLength(0);
 
-			const saveResp = await fetch(new URL(`/api/documents/${encodeURIComponent(created.document.id)}`, url), {
-				method: "PUT",
-				headers: { "content-type": "application/json" },
-				body: JSON.stringify({ fields: { name: "Untitled Client" }, content: "Created from draft.\n" }),
-			});
+			const saveResp = await fetch(
+				new URL(`/api/documents/${encodeURIComponent(created.document.id)}`, url),
+				{
+					method: "PUT",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({
+						fields: { name: "Untitled Client" },
+						content: "Created from draft.\n",
+					}),
+				},
+			);
 			expect(saveResp.status).toBe(200);
 			const saved = (await saveResp.json()) as { document: { id: string; path: string } };
 			expect(saved.document.path.startsWith("clients/")).toBe(true);
@@ -228,11 +333,32 @@ describe("CLI web workflows", () => {
 		const root = await mkdtemp(join(tmpdir(), "frontdoc-cli-web-open-missing-defaults-"));
 		await runOk(["-C", root, "init"], root);
 		await runOk(
-			["-C", root, "schema", "create", "contacts", "--prefix", "con", "--slug", "{{name}}-{{short_id}}"],
+			[
+				"-C",
+				root,
+				"schema",
+				"create",
+				"contacts",
+				"--prefix",
+				"con",
+				"--slug",
+				"{{name}}-{{short_id}}",
+			],
 			root,
 		);
 		await runOk(
-			["-C", root, "schema", "field", "create", "contacts", "name", "--type", "string", "--required"],
+			[
+				"-C",
+				root,
+				"schema",
+				"field",
+				"create",
+				"contacts",
+				"name",
+				"--type",
+				"string",
+				"--required",
+			],
 			root,
 		);
 
@@ -258,11 +384,32 @@ describe("CLI web workflows", () => {
 		const root = await mkdtemp(join(tmpdir(), "frontdoc-cli-web-scope-"));
 		await runOk(["-C", root, "init"], root);
 		await runOk(
-			["-C", root, "schema", "create", "clients", "--prefix", "cli", "--slug", "{{name}}-{{short_id}}"],
+			[
+				"-C",
+				root,
+				"schema",
+				"create",
+				"clients",
+				"--prefix",
+				"cli",
+				"--slug",
+				"{{name}}-{{short_id}}",
+			],
 			root,
 		);
 		await runOk(
-			["-C", root, "schema", "field", "create", "clients", "name", "--type", "string", "--required"],
+			[
+				"-C",
+				root,
+				"schema",
+				"field",
+				"create",
+				"clients",
+				"name",
+				"--type",
+				"string",
+				"--required",
+			],
 			root,
 		);
 		await runOk(
@@ -291,7 +438,9 @@ describe("CLI web workflows", () => {
 			const url = await waitForWebUrl(proc.stdout);
 			const collectionsResp = await fetch(new URL("/api/collections", url));
 			expect(collectionsResp.status).toBe(200);
-			const collections = (await collectionsResp.json()) as { collections: Array<{ name: string }> };
+			const collections = (await collectionsResp.json()) as {
+				collections: Array<{ name: string }>;
+			};
 			expect(collections.collections.map((c) => c.name).sort()).toEqual(["clients", "journal"]);
 
 			const disallowedResp = await fetch(new URL("/api/documents?collection=templates", url));

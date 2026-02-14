@@ -1,9 +1,9 @@
 import { resolve } from "node:path";
-import { Command } from "commander";
+import type { Command } from "commander";
 import { stringify } from "yaml";
+import { withWriteLock } from "../app/write-lock.js";
 import { Manager } from "../manager.js";
 import { formatSchemaReadText, formatSchemaShowText } from "../services/schema-service.js";
-import { withWriteLock } from "../app/write-lock.js";
 
 type SchemaOutputFormat = "text" | "json" | "yaml";
 

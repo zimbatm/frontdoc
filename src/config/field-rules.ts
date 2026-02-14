@@ -52,10 +52,7 @@ export function validateFieldValue(
 	}
 }
 
-export function validateFieldDefaultDefinition(
-	name: string,
-	def: FieldDefinition,
-): string | null {
+export function validateFieldDefaultDefinition(name: string, def: FieldDefinition): string | null {
 	if (def.default === undefined) return null;
 	const value = def.default;
 

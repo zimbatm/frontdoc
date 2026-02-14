@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import Card from "primevue/card";
-import Tag from "primevue/tag";
 import type { ParsedRoute } from "../../web-ui-model";
 import type { CollectionInfo } from "../types";
 

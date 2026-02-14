@@ -1,7 +1,8 @@
 import { parse, stringify } from "yaml";
 import { DEFAULT_IGNORE, type RepoConfig } from "./types.js";
 
-const HEADER_COMMENT = "# frontdoc repository configuration\n# https://github.com/numtide/frontdoc\n";
+const HEADER_COMMENT =
+	"# frontdoc repository configuration\n# https://github.com/numtide/frontdoc\n";
 
 /**
  * Parse frontdoc.yaml content into a RepoConfig.

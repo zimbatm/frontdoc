@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import InputText from "primevue/inputtext";
-import Textarea from "primevue/textarea";
 import type { UiSchemaField } from "./schema-form-model";
 
 const props = defineProps<{
@@ -9,11 +7,11 @@ const props = defineProps<{
 	error?: string;
 }>();
 
-const emit = defineEmits<{
+const _emit = defineEmits<{
 	"update:modelValue": [value: string];
 }>();
 
-const inputId = `field-${props.field.name}`;
+const _inputId = `field-${props.field.name}`;
 </script>
 
 <template>

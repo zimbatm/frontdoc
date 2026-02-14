@@ -1,10 +1,10 @@
+import { normalizeFieldInputValue } from "../config/field-rules.js";
+import type { CollectionSchema } from "../config/types.js";
+import { SYSTEM_FIELDS } from "../document/document.js";
+import { collectionFromPath as pathCollectionFromPath } from "../document/path-utils.js";
+import { extractPlaceholders } from "../document/template-engine.js";
 import type { DocumentRecord } from "../repository/repository.js";
 import { byCollection, type Filter } from "../repository/repository.js";
-import { collectionFromPath as pathCollectionFromPath } from "../document/path-utils.js";
-import type { CollectionSchema } from "../config/types.js";
-import { normalizeFieldInputValue } from "../config/field-rules.js";
-import { extractPlaceholders } from "../document/template-engine.js";
-import { SYSTEM_FIELDS } from "../document/document.js";
 
 interface WriteDocumentsPort {
 	Create(options: {

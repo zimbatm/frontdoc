@@ -1,9 +1,20 @@
 <script setup lang="ts">
-import { autocompletion, type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
+import {
+	autocompletion,
+	type CompletionContext,
+	type CompletionResult,
+} from "@codemirror/autocomplete";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { Compartment, EditorSelection, EditorState } from "@codemirror/state";
-import { drawSelection, dropCursor, EditorView, keymap, lineNumbers, placeholder } from "@codemirror/view";
+import {
+	drawSelection,
+	dropCursor,
+	EditorView,
+	keymap,
+	lineNumbers,
+	placeholder,
+} from "@codemirror/view";
 import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { ListDoc } from "../types";
 
@@ -114,7 +125,7 @@ onMounted(() => {
 						emit("cursor-change", update.state.selection.main.head);
 					}
 				}),
-				readOnlyCompartment.of(EditorView.editable.of(!Boolean(props.readOnly))),
+				readOnlyCompartment.of(EditorView.editable.of(!props.readOnly)),
 			],
 		}),
 	});
@@ -145,7 +156,7 @@ watch(
 	(readOnly) => {
 		if (!view) return;
 		view.dispatch({
-			effects: readOnlyCompartment.reconfigure(EditorView.editable.of(!Boolean(readOnly))),
+			effects: readOnlyCompartment.reconfigure(EditorView.editable.of(!readOnly)),
 		});
 	},
 );

@@ -15,7 +15,9 @@ export async function findRepositoryRoot(startDir: string): Promise<string> {
 
 		const parent = dirname(current);
 		if (parent === current) {
-			throw new Error("repository is not initialized (missing frontdoc.yaml). Run `frontdoc init`.");
+			throw new Error(
+				"repository is not initialized (missing frontdoc.yaml). Run `frontdoc init`.",
+			);
 		}
 		current = parent;
 	}

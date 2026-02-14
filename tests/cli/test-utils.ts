@@ -59,7 +59,10 @@ export async function runFail(
 	return { stdout: res.stdout, stderr: res.stderr };
 }
 
-export function spawnWebServer(root: string, extraArgs: string[] = []): Bun.Subprocess<"ignore", "pipe", "pipe"> {
+export function spawnWebServer(
+	root: string,
+	extraArgs: string[] = [],
+): Bun.Subprocess<"ignore", "pipe", "pipe"> {
 	return Bun.spawn(
 		[...CLI, "-C", root, "web", "--host", "127.0.0.1", "--port", "0", "--no-open", ...extraArgs],
 		{

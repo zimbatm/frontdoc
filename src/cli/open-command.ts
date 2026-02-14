@@ -1,14 +1,14 @@
 import { spawnSync } from "node:child_process";
 import { basename, join } from "node:path";
 import { createInterface } from "node:readline/promises";
-import { Command } from "commander";
+import type { Command } from "commander";
 import { defaultSlugArgsForSchema } from "../app/document-use-cases.js";
 import { withWriteLock } from "../app/write-lock.js";
 import { buildDocument, contentPath as documentContentPath } from "../document/document.js";
 import { collectionFromPath } from "../document/path-utils.js";
-import { type DocumentRecord } from "../repository/repository.js";
-import type { TemplateRecord } from "../services/template-service.js";
 import { Manager } from "../manager.js";
+import type { DocumentRecord } from "../repository/repository.js";
+import type { TemplateRecord } from "../services/template-service.js";
 
 export function registerOpenCommand(
 	program: Command,
@@ -159,7 +159,9 @@ export function registerOpenCommand(
 
 				const issues = (
 					await manager.Validation().ValidateRaw(resolvedCollection, targetPath, raw)
-				).filter((issue) => issue.code !== "filename.mismatch" && issue.code !== "filename.invalid");
+				).filter(
+					(issue) => issue.code !== "filename.mismatch" && issue.code !== "filename.invalid",
+				);
 				if (issues.length === 0) {
 					const renamedPath = await withWriteLock(manager, async () => {
 						await manager.Drafts().Write(targetPath, raw);

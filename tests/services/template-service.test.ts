@@ -53,11 +53,7 @@ describe("TemplateService", () => {
 		const schemas = new Map<string, CollectionSchema>([
 			["clients", { slug: "{{name}}-{{short_id}}", fields: {}, references: {} }],
 		]);
-		const service = new TemplateService(
-			schemas,
-			{ cli: "clients" },
-			new Repository(vfs),
-		);
+		const service = new TemplateService(schemas, { cli: "clients" }, new Repository(vfs));
 		const templates = await service.GetTemplatesForCollection("clients");
 		expect(templates).toHaveLength(0);
 	});

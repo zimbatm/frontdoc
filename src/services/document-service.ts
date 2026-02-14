@@ -4,18 +4,22 @@ import { ulid } from "ulidx";
 import { resolveCollection } from "../config/collection-resolver.js";
 import { normalizeFieldDefaultValue } from "../config/field-rules.js";
 import type { CollectionSchema } from "../config/types.js";
-import { expectedPathForDocument, buildTemplateValues, generateDocumentFilename } from "../document/path-policy.js";
 import {
 	buildDocument,
-	type Document,
 	contentPath,
+	type Document,
 	extractTitleFromContent,
 	RESERVED_FIELD_PREFIX,
 	SYSTEM_FIELDS,
 } from "../document/document.js";
+import {
+	buildTemplateValues,
+	expectedPathForDocument,
+	generateDocumentFilename,
+} from "../document/path-policy.js";
+import { collectionFromPath } from "../document/path-utils.js";
 import { loadDocumentRecordByPath, saveDocument } from "../document/persistence.js";
 import { extractPlaceholders, processTemplate } from "../document/template-engine.js";
-import { collectionFromPath } from "../document/path-utils.js";
 import {
 	byCollection,
 	type DocumentRecord,
@@ -256,19 +260,19 @@ export class DocumentService {
 		const docs = await this.repository.collectAll(byCollection(collection));
 		for (const record of docs) {
 			let allMatch = true;
-				for (const [key, value] of Object.entries(fields)) {
-					if (key === "short_id") continue;
-					if (key === "_title") {
-						const title = extractTitleFromContent(record.document.content);
-						if (title !== value) {
-							allMatch = false;
-							break;
-						}
-						continue;
-					}
-					if (record.document.metadata[key] !== value) {
+			for (const [key, value] of Object.entries(fields)) {
+				if (key === "short_id") continue;
+				if (key === "_title") {
+					const title = extractTitleFromContent(record.document.content);
+					if (title !== value) {
 						allMatch = false;
 						break;
+					}
+					continue;
+				}
+				if (record.document.metadata[key] !== value) {
+					allMatch = false;
+					break;
 				}
 			}
 			if (allMatch) return record;
@@ -323,9 +327,8 @@ export class DocumentService {
 		if (!this.templateService) {
 			return undefined;
 		}
-		const templates: TemplateRecord[] = await this.templateService.GetTemplatesForCollection(
-			collection,
-		);
+		const templates: TemplateRecord[] =
+			await this.templateService.GetTemplatesForCollection(collection);
 		if (templates.length === 1) {
 			return templates[0].content;
 		}

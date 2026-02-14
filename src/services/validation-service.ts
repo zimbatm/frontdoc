@@ -3,18 +3,13 @@ import { basename } from "node:path";
 import { resolveCollection } from "../config/collection-resolver.js";
 import { validateFieldValue } from "../config/field-rules.js";
 import type { CollectionSchema } from "../config/types.js";
+import { type Document, displayName, parseDocument } from "../document/document.js";
 import { expectedPathForDocument } from "../document/path-policy.js";
 import { collectionFromPath } from "../document/path-utils.js";
-import {
-	type Document,
-	displayName,
-	extractTitleFromContent,
-	parseDocument,
-} from "../document/document.js";
 import { loadDocumentRecordByPath, saveDocument } from "../document/persistence.js";
 import { parseSingleWikiLink, parseWikiLinks } from "../document/wiki-link.js";
-import { byCollection, type DocumentRecord, type Repository } from "../repository/repository.js";
 import { findByIDInRecords } from "../repository/id-lookup.js";
+import { byCollection, type DocumentRecord, type Repository } from "../repository/repository.js";
 import type { FileInfo } from "../storage/vfs.js";
 import { renamePathIfNeeded } from "./path-rename.js";
 

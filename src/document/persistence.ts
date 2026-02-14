@@ -1,6 +1,6 @@
 import { dirname } from "node:path";
-import { buildDocument, type Document, parseDocument } from "./document.js";
 import type { FileInfo, VFS } from "../storage/vfs.js";
+import { buildDocument, type Document, parseDocument } from "./document.js";
 
 export interface LoadedDocumentRecord {
 	document: Document;

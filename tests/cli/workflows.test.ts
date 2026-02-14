@@ -1129,18 +1129,7 @@ fi
 			root,
 		);
 		await runOk(
-			[
-				"-C",
-				root,
-				"schema",
-				"field",
-				"create",
-				"contacts",
-				"name",
-				"--required",
-				"--weight",
-				"10",
-			],
+			["-C", root, "schema", "field", "create", "contacts", "name", "--required", "--weight", "10"],
 			root,
 		);
 
@@ -1157,7 +1146,6 @@ fi
 		expect(raw).toContain("name: Alice Example");
 		expect(raw).toContain("email: alice@example.com");
 	});
-
 });
 
 function dateOffsetISO(offsetDays: number): string {

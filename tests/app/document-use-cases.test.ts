@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import type { DocumentRecord } from "../../src/repository/repository.js";
 import {
 	collectionFromPath,
 	createDocumentUseCase,
 	updateDocumentUseCase,
 } from "../../src/app/document-use-cases.js";
+import type { DocumentRecord } from "../../src/repository/repository.js";
 
 function record(path: string): DocumentRecord {
 	return {
