@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { DocumentRecord } from "../../src/repository/repository.js";
 import {
-	assertNoValidationErrorsForPath,
 	collectionFromPath,
 	createDocumentUseCase,
 	updateDocumentUseCase,
@@ -29,73 +28,66 @@ function record(path: string): DocumentRecord {
 }
 
 describe("document use cases", () => {
-	test("create validates written path by default", async () => {
-		let validated = false;
+	test("create delegates to document service", async () => {
+		let called = false;
 		const manager = {
 			Documents: () => ({
-				Create: async () => record("clients/acme.md"),
-				UpdateByID: async () => record("clients/acme.md"),
-			}),
-			Validation: () => ({
-				Check: async () => {
-					validated = true;
-					return { issues: [] };
+				Create: async () => {
+					called = true;
+					return record("clients/acme.md");
 				},
+				UpdateByID: async () => record("clients/acme.md"),
 			}),
 		};
 
 		await createDocumentUseCase(manager, { collection: "clients" });
-		expect(validated).toBe(true);
+		expect(called).toBe(true);
 	});
 
-	test("update skips validation when requested", async () => {
-		let validated = false;
+	test("update forwards arguments to document service", async () => {
+		let received: {
+			id: string;
+			options: {
+				fields?: Record<string, unknown>;
+				unsetFields?: string[];
+				content?: string;
+				skipValidation?: boolean;
+			};
+		} | null = null;
 		const manager = {
 			Documents: () => ({
 				Create: async () => record("clients/acme.md"),
-				UpdateByID: async () => record("clients/acme.md"),
-			}),
-			Validation: () => ({
-				Check: async () => {
-					validated = true;
-					return { issues: [] };
+				UpdateByID: async (
+					id: string,
+					options: {
+						fields?: Record<string, unknown>;
+						unsetFields?: string[];
+						content?: string;
+						skipValidation?: boolean;
+					},
+				) => {
+					received = { id, options };
+					return record("clients/acme.md");
 				},
 			}),
 		};
 
-		await updateDocumentUseCase(manager, { id: "id", skipValidation: true });
-		expect(validated).toBe(false);
-	});
-
-	test("assert helper reports errors for target path only", async () => {
-		const manager = {
-			Documents: () => ({
-				Create: async () => record("clients/acme.md"),
-				UpdateByID: async () => record("clients/acme.md"),
-			}),
-			Validation: () => ({
-				Check: async () => ({
-					issues: [
-						{
-							severity: "error" as const,
-							path: "clients/acme.md",
-							code: "field.required",
-							message: "missing required field",
-						},
-						{
-							severity: "error" as const,
-							path: "clients/other.md",
-							code: "field.required",
-							message: "other",
-						},
-					],
-				}),
-			}),
-		};
-
-		await expect(assertNoValidationErrorsForPath(manager, "clients/acme.md")).rejects.toThrow(
-			"field.required: missing required field",
-		);
+		await updateDocumentUseCase(manager, {
+			id: "id",
+			fields: { name: "Acme" },
+			unsetFields: ["status"],
+			content: "Hello",
+			skipValidation: true,
+		});
+		expect(received).toEqual({
+			id: "id",
+			options: {
+				fields: { name: "Acme" },
+				unsetFields: ["status"],
+				content: "Hello",
+				skipValidation: true,
+			},
+		});
 	});
 
 	test("extracts collection from path", () => {

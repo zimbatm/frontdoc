@@ -20,19 +20,8 @@ interface DocumentsPort {
 	): Promise<DocumentRecord>;
 }
 
-interface ValidationPort {
-	Check(options: {
-		collection?: string;
-		fix?: boolean;
-		pruneAttachments?: boolean;
-	}): Promise<{
-		issues: Array<{ severity: "error" | "warning"; path: string; code: string; message: string }>;
-	}>;
-}
-
 interface ManagerPort {
 	Documents(): DocumentsPort;
-	Validation(): ValidationPort;
 }
 
 export async function createDocumentUseCase(
@@ -45,11 +34,7 @@ export async function createDocumentUseCase(
 		skipValidation?: boolean;
 	},
 ): Promise<DocumentRecord> {
-	const record = await manager.Documents().Create(options);
-	if (!options.skipValidation) {
-		await assertNoValidationErrorsForPath(manager, record.path);
-	}
-	return record;
+	return await manager.Documents().Create(options);
 }
 
 export async function updateDocumentUseCase(
@@ -62,36 +47,14 @@ export async function updateDocumentUseCase(
 		skipValidation?: boolean;
 	},
 ): Promise<DocumentRecord> {
-	const record = await manager.Documents().UpdateByID(options.id, {
+	return await manager.Documents().UpdateByID(options.id, {
 		fields: options.fields,
 		unsetFields: options.unsetFields,
 		content: options.content,
 		skipValidation: options.skipValidation,
 	});
-	if (!options.skipValidation) {
-		await assertNoValidationErrorsForPath(manager, record.path);
-	}
-	return record;
 }
 
 export function collectionFromPath(path: string): string {
 	return pathCollectionFromPath(path);
-}
-
-export async function assertNoValidationErrorsForPath(
-	manager: ManagerPort,
-	path: string,
-): Promise<void> {
-	const collection = collectionFromPath(path);
-	const result = await manager.Validation().Check({
-		collection,
-		fix: false,
-		pruneAttachments: false,
-	});
-	const errors = result.issues.filter((issue) => issue.path === path && issue.severity === "error");
-	if (errors.length === 0) {
-		return;
-	}
-	const details = errors.map((issue) => `${issue.code}: ${issue.message}`).join("; ");
-	throw new Error(`validation failed: ${details}`);
 }
