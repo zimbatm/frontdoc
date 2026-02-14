@@ -44,7 +44,6 @@ function makeServices(vfs: MemoryVFS): {
 		aliases,
 		[".DS_Store", "Thumbs.db"],
 		repo,
-		documents,
 	);
 	return { documents, validation };
 }

@@ -13,7 +13,6 @@ import { generateFilename, slugify } from "../document/slug.js";
 import { processTemplate } from "../document/template-engine.js";
 import { byCollection, type DocumentRecord, type Repository } from "../repository/repository.js";
 import type { FileInfo } from "../storage/vfs.js";
-import type { DocumentService } from "./document-service.js";
 
 export type ValidationSeverity = "error" | "warning";
 
@@ -36,7 +35,6 @@ export class ValidationService {
 		private readonly aliases: Record<string, string>,
 		private readonly ignoreFiles: string[],
 		private readonly repository: Repository,
-		private readonly documents: DocumentService,
 	) {}
 
 	async Check(options: {
@@ -234,7 +232,7 @@ export class ValidationService {
 	private async fixRecord(record: DocumentRecord, pruneAttachments: boolean): Promise<number> {
 		let fixed = 0;
 
-		const renamedPath = await this.documents.AutoRenamePath(record.path);
+		const renamedPath = await this.autoRenamePath(record);
 		if (renamedPath !== record.path) {
 			fixed++;
 		}
@@ -277,6 +275,24 @@ export class ValidationService {
 		}
 
 		return fixed;
+	}
+
+	private async autoRenamePath(record: DocumentRecord): Promise<string> {
+		const collection = record.path.split("/")[0] ?? "";
+		const schema = this.schemas.get(collection);
+		if (!schema) {
+			return record.path;
+		}
+		const expected = this.expectedPath(record.document, schema, collection);
+		if (expected === record.path) {
+			return record.path;
+		}
+		const parent = dirname(expected);
+		if (parent !== ".") {
+			await this.repository.fileSystem().mkdirAll(parent);
+		}
+		await this.repository.fileSystem().rename(record.path, expected);
+		return expected;
 	}
 
 	private async unreferencedAttachmentIssues(record: DocumentRecord): Promise<ValidationIssue[]> {

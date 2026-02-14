@@ -27,14 +27,6 @@ export class Manager {
 		private readonly repoConfig: RepoConfig,
 		private readonly schemas: Map<string, CollectionSchema>,
 	) {
-		this.documentService = new DocumentService(
-			this.schemas,
-			this.repoConfig.aliases,
-			this.repository,
-		);
-		this.schemaService = new SchemaService(this.schemas, this.repoConfig, this.repository);
-		this.searchService = new SearchService(this.repository);
-		this.relationshipService = new RelationshipService(this.schemas, this.repository);
 		this.templateService = new TemplateService(
 			new Set(this.schemas.keys()),
 			this.repoConfig.aliases,
@@ -45,8 +37,17 @@ export class Manager {
 			this.repoConfig.aliases,
 			this.repoConfig.ignore,
 			this.repository,
-			this.documentService,
 		);
+		this.documentService = new DocumentService(
+			this.schemas,
+			this.repoConfig.aliases,
+			this.repository,
+			this.validationService,
+			this.templateService,
+		);
+		this.schemaService = new SchemaService(this.schemas, this.repoConfig, this.repository);
+		this.searchService = new SearchService(this.repository);
+		this.relationshipService = new RelationshipService(this.schemas, this.repository);
 	}
 
 	static async New(workDir: string): Promise<Manager> {

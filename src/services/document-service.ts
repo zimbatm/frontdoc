@@ -20,6 +20,8 @@ import {
 	type Filter,
 	type Repository,
 } from "../repository/repository.js";
+import type { TemplateRecord, TemplateService } from "./template-service.js";
+import type { ValidationIssue, ValidationService } from "./validation-service.js";
 
 export interface CreateOptions {
 	collection: string;
@@ -27,12 +29,14 @@ export interface CreateOptions {
 	content?: string;
 	templateContent?: string;
 	overwrite?: boolean;
+	skipValidation?: boolean;
 }
 
 export interface UpdateOptions {
 	fields?: Record<string, unknown>;
 	unsetFields?: string[];
 	content?: string;
+	skipValidation?: boolean;
 }
 
 export interface UpsertResult {
@@ -55,6 +59,8 @@ export class DocumentService {
 		private readonly schemas: Map<string, CollectionSchema>,
 		private readonly aliases: Record<string, string>,
 		private readonly repository: Repository,
+		private readonly validationService?: ValidationService,
+		private readonly templateService?: TemplateService,
 	) {}
 
 	ResolveCollection(nameOrAlias: string): string {
@@ -69,9 +75,14 @@ export class DocumentService {
 			options.templateContent,
 		);
 		const path = doc.path;
+		const collection = path.split("/")[0] ?? "";
 
 		if (!options.overwrite && (await this.repository.fileSystem().exists(path))) {
 			throw new Error(`document already exists: ${path}`);
+		}
+
+		if (!options.skipValidation && this.validationService) {
+			await this.assertNoValidationErrors(collection, path, buildDocument(doc));
 		}
 
 		await this.save(doc);
@@ -115,6 +126,13 @@ export class DocumentService {
 		await this.save(doc);
 		const renamedPath = await this.AutoRenamePath(doc.path);
 		const updated = await this.loadByPath(renamedPath);
+		if (!options.skipValidation && this.validationService) {
+			await this.assertNoValidationErrors(
+				updated.path.split("/")[0] ?? "",
+				updated.path,
+				buildDocument(updated.document),
+			);
+		}
 		return updated;
 	}
 
@@ -185,10 +203,7 @@ export class DocumentService {
 		if (existing) {
 			return { record: existing, draft: null };
 		}
-		const templateContent =
-			options.templateContent !== undefined
-				? options.templateContent
-				: await options.resolveTemplateContent?.();
+		const templateContent = await this.resolveTemplateContent(collection, options);
 		const draft = this.prepareNewDocument(collection, mapped, undefined, templateContent);
 		return { record: null, draft };
 	}
@@ -326,6 +341,46 @@ export class DocumentService {
 			content: initialContent,
 			isFolder: false,
 		};
+	}
+
+	private async resolveTemplateContent(
+		collection: string,
+		options: UpsertBySlugOptions,
+	): Promise<string | undefined> {
+		if (options.templateContent !== undefined) {
+			return options.templateContent;
+		}
+		const resolved = await options.resolveTemplateContent?.();
+		if (resolved !== undefined) {
+			return resolved;
+		}
+		if (!this.templateService) {
+			return undefined;
+		}
+		const templates: TemplateRecord[] = await this.templateService.GetTemplatesForCollection(
+			collection,
+		);
+		if (templates.length === 1) {
+			return templates[0].content;
+		}
+		return undefined;
+	}
+
+	private async assertNoValidationErrors(
+		collection: string,
+		path: string,
+		raw: string,
+	): Promise<void> {
+		if (!this.validationService) {
+			return;
+		}
+		const issues = await this.validationService.ValidateRaw(collection, path, raw);
+		const errors = issues.filter((issue: ValidationIssue) => issue.severity === "error");
+		if (errors.length === 0) {
+			return;
+		}
+		const details = errors.map((issue) => `${issue.code}: ${issue.message}`).join("; ");
+		throw new Error(`validation failed: ${details}`);
 	}
 }
 
