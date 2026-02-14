@@ -9,13 +9,21 @@ const PROJECT_ROOT = new URL("../../", import.meta.url).pathname;
 async function runCli(
 	args: string[],
 	_cwd: string,
+	stdinText?: string,
 ): Promise<{ stdout: string; stderr: string; code: number }> {
 	const proc = Bun.spawn([...CLI, ...args], {
 		cwd: PROJECT_ROOT,
 		stdout: "pipe",
 		stderr: "pipe",
+		stdin: "pipe",
 		env: { ...process.env, TMDOC_SKIP_EDITOR: "1" },
 	});
+	if (stdinText !== undefined) {
+		proc.stdin.write(stdinText);
+		proc.stdin.end();
+	} else {
+		proc.stdin.end();
+	}
 	const [stdout, stderr, code] = await Promise.all([
 		new Response(proc.stdout).text(),
 		new Response(proc.stderr).text(),
@@ -24,8 +32,8 @@ async function runCli(
 	return { stdout, stderr, code };
 }
 
-async function runOk(args: string[], cwd: string): Promise<string> {
-	const res = await runCli(args, cwd);
+async function runOk(args: string[], cwd: string, stdinText?: string): Promise<string> {
+	const res = await runCli(args, cwd, stdinText);
 	if (res.code !== 0) {
 		throw new Error(
 			`command failed (${res.code}): ${args.join(" ")}\nstdout:\n${res.stdout}\nstderr:\n${res.stderr}`,
@@ -80,7 +88,7 @@ describe("CLI workflows", () => {
 		expect(listedJSON).toHaveLength(1);
 		expect(listedJSON[0].path).toContain("beta-corp");
 
-		await runOk(["-C", root, "delete", id], root);
+		await runOk(["-C", root, "delete", id, "--force"], root);
 		const listedAfter = await runOk(["-C", root, "list", "cli", "-o", "json"], root);
 		expect(JSON.parse(listedAfter)).toEqual([]);
 	});
@@ -323,5 +331,76 @@ describe("CLI workflows", () => {
 		await runOk(["-C", root, "schema", "delete", "customers", "--force"], root);
 		const rootConfig = await readFile(join(root, "tmdoc.yaml"), "utf8");
 		expect(rootConfig).not.toContain("customers");
+	});
+
+	test("update can read replacement content from stdin", async () => {
+		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-stdin-"));
+		await runOk(["-C", root, "init"], root);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"create",
+				"clients",
+				"--prefix",
+				"cli",
+				"--slug",
+				"{{short_id}}-{{name}}",
+			],
+			root,
+		);
+		await runOk(["-C", root, "schema", "field", "create", "clients", "name", "--required"], root);
+		const created = JSON.parse(
+			await runOk(["-C", root, "create", "cli", "Acme", "-o", "json"], root),
+		) as {
+			document: { metadata: { id: string } };
+		};
+		const id = created.document.metadata.id;
+
+		await runOk(["-C", root, "update", id, "--content", "-", "-o", "json"], root, "# From stdin\n");
+		const raw = await runOk(["-C", root, "read", id, "-o", "raw"], root);
+		expect(raw).toContain("# From stdin");
+	});
+
+	test("delete prompts for confirmation unless --force", async () => {
+		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-delete-"));
+		await runOk(["-C", root, "init"], root);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"create",
+				"clients",
+				"--prefix",
+				"cli",
+				"--slug",
+				"{{short_id}}-{{name}}",
+			],
+			root,
+		);
+		await runOk(["-C", root, "schema", "field", "create", "clients", "name", "--required"], root);
+		const created = JSON.parse(
+			await runOk(["-C", root, "create", "cli", "Acme", "-o", "json"], root),
+		) as {
+			document: { metadata: { id: string } };
+		};
+		const id = created.document.metadata.id;
+
+		const aborted = await runOk(["-C", root, "delete", id], root, "n\n");
+		expect(aborted).toContain("Aborted");
+		const listedAfterAbort = JSON.parse(
+			await runOk(["-C", root, "list", "cli", "-o", "json"], root),
+		) as Array<{
+			path: string;
+		}>;
+		expect(listedAfterAbort).toHaveLength(1);
+
+		await runOk(["-C", root, "delete", id], root, "y\n");
+		const listedAfterDelete = JSON.parse(
+			await runOk(["-C", root, "list", "cli", "-o", "json"], root),
+		);
+		expect(listedAfterDelete).toEqual([]);
 	});
 });

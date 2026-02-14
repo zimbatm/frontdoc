@@ -2,6 +2,7 @@
 import { spawnSync } from "node:child_process";
 import { writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
+import { createInterface } from "node:readline/promises";
 import { Command } from "commander";
 import { stringify } from "yaml";
 import { contentPath as documentContentPath } from "./document/document.js";
@@ -167,12 +168,13 @@ program
 			if (opts.field.length === 0 && opts.unset.length === 0 && opts.content === undefined) {
 				throw new Error("no fields or content to update");
 			}
+			const content = opts.content === "-" ? await readFromStdin() : opts.content;
 			const manager = await Manager.New(getWorkDir(program));
 			const updated = await withWriteLock(manager, async () => {
 				return await manager.Documents().UpdateByID(id, {
 					fields: parseFields(opts.field),
 					unsetFields: opts.unset,
-					content: opts.content,
+					content,
 				});
 			});
 			renderWriteOutput(updated, opts.output);
@@ -184,9 +186,17 @@ program
 	.alias("rm")
 	.description("Delete a document")
 	.argument("<id>", "Document id")
+	.option("--force", "Skip confirmation prompt", false)
 	.option("-o, --output <format>", "Output format: default|json", "default")
-	.action(async (id: string, opts: { output: "default" | "json" }) => {
+	.action(async (id: string, opts: { force: boolean; output: "default" | "json" }) => {
 		const manager = await Manager.New(getWorkDir(program));
+		if (!opts.force) {
+			const confirmed = await confirmDelete(id);
+			if (!confirmed) {
+				console.log("Aborted");
+				return;
+			}
+		}
 		const record = await withWriteLock(manager, async () => {
 			const existing = await manager.Documents().ReadByID(id);
 			await manager.Documents().DeleteByID(id);
@@ -843,6 +853,30 @@ function parseBool(value: string): boolean {
 	if (value === "true") return true;
 	if (value === "false") return false;
 	throw new Error(`invalid boolean: ${value} (expected true|false)`);
+}
+
+async function readFromStdin(): Promise<string> {
+	const reader = process.stdin;
+	reader.setEncoding("utf8");
+	let content = "";
+	for await (const chunk of reader) {
+		content += chunk;
+	}
+	return content;
+}
+
+async function confirmDelete(id: string): Promise<boolean> {
+	const rl = createInterface({
+		input: process.stdin,
+		output: process.stdout,
+	});
+	try {
+		const answer = await rl.question(`Delete ${id}? [y/N] `);
+		const normalized = answer.trim().toLowerCase();
+		return normalized === "y" || normalized === "yes";
+	} finally {
+		rl.close();
+	}
 }
 
 function splitCSV(value: string): string[] {
