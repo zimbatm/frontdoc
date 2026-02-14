@@ -15,6 +15,12 @@ fields:
   starts_at:
     type: datetime
     default: "2026-02-14T00:00:00Z"
+  next_review:
+    type: date
+    default: today
+  reminder_at:
+    type: datetime
+    default: tomorrow
   budget:
     type: number
     default: "42.5"
@@ -31,9 +37,9 @@ fields:
 		expect(() =>
 			parseCollectionSchema(`slug: "{{short_id}}"
 fields:
-  starts_at:
-    type: datetime
-    default: tomorrow
+  due_date:
+    type: date
+    default: next_week
 `),
 		).toThrow("invalid _schema.yaml");
 	});

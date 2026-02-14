@@ -1,5 +1,6 @@
 import { parse, stringify } from "yaml";
 import type { VFS } from "../storage/vfs.js";
+import { normalizeDateInput, normalizeDatetimeInput } from "./date-input.js";
 import type { CollectionSchema, FieldDefinition, FieldType } from "./types.js";
 
 /**
@@ -96,16 +97,23 @@ function validateFieldDefault(name: string, def: FieldDefinition): void {
 			}
 			return;
 		case "date":
-			if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-				fail("must be YYYY-MM-DD");
+			if (typeof value !== "string") {
+				fail("must be YYYY-MM-DD or supported shorthand");
+			}
+			try {
+				normalizeDateInput(value);
+			} catch {
+				fail("must be YYYY-MM-DD or supported shorthand");
 			}
 			return;
 		case "datetime":
-			if (
-				typeof value !== "string" ||
-				!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value)
-			) {
-				fail("must be RFC3339 datetime");
+			if (typeof value !== "string") {
+				fail("must be RFC3339 datetime or supported date shorthand");
+			}
+			try {
+				normalizeDatetimeInput(value);
+			} catch {
+				fail("must be RFC3339 datetime or supported date shorthand");
 			}
 			return;
 		case "number":

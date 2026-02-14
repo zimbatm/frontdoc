@@ -5,6 +5,7 @@ import { join, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { Command } from "commander";
 import { stringify } from "yaml";
+import { normalizeDateInput, normalizeDatetimeInput } from "./config/date-input.js";
 import type { CollectionSchema } from "./config/types.js";
 import { contentPath as documentContentPath } from "./document/document.js";
 import { extractPlaceholders } from "./document/template-engine.js";
@@ -958,50 +959,20 @@ function normalizeFieldInputs(
 function normalizeFieldValue(name: string, value: string, schema: CollectionSchema): string {
 	const fieldType = schema.fields[name]?.type;
 	if (fieldType === "date") {
-		return normalizeDateInput(name, value);
+		try {
+			return normalizeDateInput(value);
+		} catch {
+			throw new Error(`invalid date input for '${name}': ${value}`);
+		}
 	}
 	if (fieldType === "datetime") {
-		return normalizeDatetimeInput(name, value);
+		try {
+			return normalizeDatetimeInput(value);
+		} catch {
+			throw new Error(`invalid datetime input for '${name}': ${value}`);
+		}
 	}
 	return value;
-}
-
-function normalizeDateInput(name: string, value: string): string {
-	const trimmed = value.trim();
-	if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-		return trimmed;
-	}
-	const lower = trimmed.toLowerCase();
-	if (lower === "today") return dateOffsetISO(0);
-	if (lower === "yesterday") return dateOffsetISO(-1);
-	if (lower === "tomorrow") return dateOffsetISO(1);
-	if (/^[+-]\d+$/.test(lower)) {
-		return dateOffsetISO(Number.parseInt(lower, 10));
-	}
-	throw new Error(`invalid date input for '${name}': ${value}`);
-}
-
-function normalizeDatetimeInput(name: string, value: string): string {
-	const trimmed = value.trim();
-	if (isRFC3339(trimmed)) {
-		return trimmed;
-	}
-	const date = normalizeDateInput(name, trimmed);
-	return `${date}T00:00:00Z`;
-}
-
-function dateOffsetISO(offsetDays: number): string {
-	const now = new Date();
-	const utcMidnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-	const shifted = new Date(utcMidnight + offsetDays * 24 * 60 * 60 * 1000);
-	return shifted.toISOString().slice(0, 10);
-}
-
-function isRFC3339(value: string): boolean {
-	if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value)) {
-		return false;
-	}
-	return !Number.isNaN(Date.parse(value));
 }
 
 function parseBool(value: string): boolean {

@@ -13,6 +13,8 @@ function makeService(vfs: MemoryVFS): DocumentService {
 				fields: {
 					name: { type: "string", required: true },
 					status: { type: "string", default: "active" },
+					due_date: { type: "date", default: "today" },
+					starts_at: { type: "datetime", default: "+1" },
 				},
 				references: {},
 			},
@@ -38,6 +40,9 @@ describe("DocumentService", () => {
 		expect(typeof created.document.metadata.id).toBe("string");
 		expect(typeof created.document.metadata.created_at).toBe("string");
 		expect(created.document.metadata.status).toBe("active");
+		expect(created.document.metadata.due_date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+		expect(created.document.metadata.due_date).not.toBe("today");
+		expect(created.document.metadata.starts_at).toMatch(/^\d{4}-\d{2}-\d{2}T00:00:00Z$/);
 
 		const raw = await vfs.readFile(created.path);
 		expect(raw).toContain("name: Acme Corp");
