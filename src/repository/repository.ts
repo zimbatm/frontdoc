@@ -1,6 +1,7 @@
 import { type Document, parseDocument } from "../document/document.js";
 import { BoundVFS } from "../storage/bound-vfs.js";
 import type { FileInfo, VFS } from "../storage/vfs.js";
+import { findByIDInRecords } from "./id-lookup.js";
 
 export interface DocumentRecord {
 	document: Document;
@@ -68,33 +69,13 @@ export class Repository {
 	}
 
 	async findByID(idInput: string): Promise<DocumentRecord> {
-		const { collectionScope, partialID } = splitIDInput(idInput);
-		const needle = partialID.toLowerCase();
-		const matches: DocumentRecord[] = [];
-
 		const candidates = await this.collectCandidates();
+		const records: DocumentRecord[] = [];
 		for (const candidate of candidates) {
-			if (collectionScope) {
-				const collection = candidate.path.split("/")[0];
-				if (collection !== collectionScope) {
-					continue;
-				}
-			}
-
 			const record = await this.parseCandidate(candidate.path, candidate.info, candidate.isFolder);
-			const metadataID = String(record.document.metadata._id ?? "").toLowerCase();
-			if (matchesMetadataID(metadataID, needle)) {
-				matches.push(record);
-			}
+			records.push(record);
 		}
-
-		if (matches.length === 0) {
-			throw new Error(`no document found for id: ${idInput}`);
-		}
-		if (matches.length > 1) {
-			throw new Error(`multiple documents match id: ${idInput}`);
-		}
-		return matches[0];
+		return findByIDInRecords(records, idInput);
 	}
 
 	private async collectCandidates(): Promise<
@@ -136,52 +117,10 @@ export class Repository {
 	}
 }
 
-function splitIDInput(input: string): { collectionScope: string | null; partialID: string } {
-	const trimmed = input.trim();
-	if (trimmed.length === 0) {
-		throw new Error("document id must not be empty");
-	}
-
-	const slashIndex = trimmed.indexOf("/");
-	if (slashIndex === -1) {
-		return { collectionScope: null, partialID: trimmed };
-	}
-
-	const collectionScope = trimmed.slice(0, slashIndex);
-	const partialID = trimmed.slice(slashIndex + 1);
-	if (collectionScope.length === 0 || partialID.length === 0) {
-		throw new Error(`invalid id format: ${input}`);
-	}
-
-	return { collectionScope, partialID };
-}
-
 function isDocumentMarkdownFile(path: string, name: string): boolean {
 	if (!path.endsWith(".md")) return false;
 	if (name === "README.md") return false;
 	if (name === "index.md") return false;
 	if (name.startsWith(".")) return false;
 	return true;
-}
-
-function matchesMetadataID(metadataID: string, needle: string): boolean {
-	if (metadataID.length === 0 || needle.length === 0) {
-		return false;
-	}
-	if (metadataID === needle || metadataID.startsWith(needle)) {
-		return true;
-	}
-
-	// Also match short-id prefixes (last N chars of ULID, where N is 4..16).
-	for (let n = 4; n <= 16; n++) {
-		if (metadataID.length < n) {
-			continue;
-		}
-		const shortID = metadataID.slice(-n);
-		if (shortID.startsWith(needle)) {
-			return true;
-		}
-	}
-
-	return false;
 }

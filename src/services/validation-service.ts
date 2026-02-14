@@ -12,6 +12,7 @@ import {
 import { generateFilename, slugify } from "../document/slug.js";
 import { processTemplate } from "../document/template-engine.js";
 import { byCollection, type DocumentRecord, type Repository } from "../repository/repository.js";
+import { findByIDInRecords } from "../repository/id-lookup.js";
 import type { FileInfo } from "../storage/vfs.js";
 
 export type ValidationSeverity = "error" | "warning";
@@ -42,19 +43,22 @@ export class ValidationService {
 		fix?: boolean;
 		pruneAttachments?: boolean;
 	}): Promise<CheckResult> {
-		const filters = [];
-		if (options.collection) {
-			filters.push(byCollection(this.resolveCollection(options.collection)));
-		}
-		const records = await this.repository.collectAll(...filters);
+		const allRecords = await this.repository.collectAll();
+		const records = options.collection
+			? allRecords.filter(byCollection(this.resolveCollection(options.collection)))
+			: allRecords;
+		const resolveByID = (id: string) => findByIDInRecords(allRecords, id);
 		const issues: ValidationIssue[] = [];
 		let fixed = 0;
 
 		for (const record of records) {
-			issues.push(...(await this.validateRecord(record)));
+			issues.push(...(await this.validateRecord(record, resolveByID)));
 		}
 
 		if (options.fix) {
+			const filters = options.collection
+				? [byCollection(this.resolveCollection(options.collection))]
+				: [];
 			const latest = await this.repository.collectAll(...filters);
 			for (const record of latest) {
 				fixed += await this.fixRecord(record, Boolean(options.pruneAttachments));
@@ -108,10 +112,15 @@ export class ValidationService {
 			size: raw.length,
 			modifiedAt: new Date(),
 		};
-		return await this.validateRecord({ document, path, info });
+		const allRecords = await this.repository.collectAll();
+		const resolveByID = (id: string) => findByIDInRecords(allRecords, id);
+		return await this.validateRecord({ document, path, info }, resolveByID);
 	}
 
-	private async validateRecord(record: DocumentRecord): Promise<ValidationIssue[]> {
+	private async validateRecord(
+		record: DocumentRecord,
+		resolveByID: (id: string) => DocumentRecord,
+	): Promise<ValidationIssue[]> {
 		const issues: ValidationIssue[] = [];
 		const collection = record.path.split("/")[0];
 		const schema = this.schemas.get(collection);
@@ -158,7 +167,7 @@ export class ValidationService {
 			const targetCollection = this.resolveCollection(targetCollectionRaw);
 			let target: DocumentRecord;
 			try {
-				target = await this.repository.findByID(value);
+				target = resolveByID(value);
 			} catch {
 				issues.push({
 					severity: "error",
@@ -200,7 +209,7 @@ export class ValidationService {
 			}
 		}
 
-		issues.push(...(await this.validateWikiLinks(record)));
+		issues.push(...this.validateWikiLinks(record, resolveByID));
 
 		try {
 			const expectedPath = this.expectedPath(record.document, schema, collection);
@@ -406,7 +415,10 @@ export class ValidationService {
 		await this.repository.fileSystem().writeFile(contentPath, buildDocument(doc));
 	}
 
-	private async validateWikiLinks(record: DocumentRecord): Promise<ValidationIssue[]> {
+	private validateWikiLinks(
+		record: DocumentRecord,
+		resolveByID: (id: string) => DocumentRecord,
+	): ValidationIssue[] {
 		const issues: ValidationIssue[] = [];
 		for (const link of parseWikiLinks(record.document.content)) {
 			const linkID = link.idToken;
@@ -422,7 +434,7 @@ export class ValidationService {
 
 			let target: DocumentRecord;
 			try {
-				target = await this.repository.findByID(linkID);
+				target = resolveByID(linkID);
 			} catch {
 				issues.push({
 					severity: "error",

@@ -1,6 +1,7 @@
 import { writeFile as writeHostFile } from "node:fs/promises";
 import type { CollectionSchema } from "../config/types.js";
 import { extractTitleFromContent } from "../document/document.js";
+import { findByIDInRecords } from "../repository/id-lookup.js";
 import {
 	type DocumentRecord,
 	excludeTemplatesFilter,
@@ -29,8 +30,8 @@ export class RelationshipService {
 	) {}
 
 	async GetRelationships(id: string): Promise<RelationshipView> {
-		const target = await this.repository.findByID(id);
 		const all = await this.repository.collectAll(excludeTemplatesFilter());
+		const target = findByIDInRecords(all, id);
 		const outgoing = await this.extractOutgoing(target, all);
 		const incoming = this.extractIncoming(target, all);
 		return { target, outgoing, incoming };
@@ -50,7 +51,7 @@ export class RelationshipService {
 
 		// try as id scope
 		try {
-			const center = await this.repository.findByID(scope);
+			const center = findByIDInRecords(all, scope);
 			const edges = await this.extractOutgoing(center, all);
 			for (const edge of this.extractIncoming(center, all)) {
 				edges.push(edge);
