@@ -93,4 +93,36 @@ describe("Repository", () => {
 		const repo = new Repository(vfs);
 		await expect(repo.findByID("abc")).rejects.toThrow("multiple documents match");
 	});
+
+	test("cache is invalidated by repository file system writes", async () => {
+		const vfs = new MemoryVFS();
+		await vfs.mkdirAll("clients");
+		await vfs.writeFile("clients/_schema.yaml", 'slug: "{{name}}-{{short_id}}"\n');
+		await vfs.writeFile("clients/abc123-acme.md", doc("01arz3ndektsv4rrffq6abc123", "Acme"));
+
+		const repo = new Repository(vfs);
+		const first = await repo.collectAll();
+		expect(first).toHaveLength(1);
+
+		await repo
+			.fileSystem()
+			.writeFile("clients/def456-beta.md", doc("01arz3ndektsv4rrffq69def45", "Beta"));
+
+		const second = await repo.collectAll();
+		expect(second).toHaveLength(2);
+	});
+
+	test("cached records are returned as clones", async () => {
+		const vfs = new MemoryVFS();
+		await vfs.mkdirAll("clients");
+		await vfs.writeFile("clients/_schema.yaml", 'slug: "{{name}}-{{short_id}}"\n');
+		await vfs.writeFile("clients/abc123-acme.md", doc("01arz3ndektsv4rrffq6abc123", "Acme"));
+
+		const repo = new Repository(vfs);
+		const first = await repo.findByID("abc123");
+		first.document.metadata.name = "Mutated";
+
+		const second = await repo.findByID("abc123");
+		expect(second.document.metadata.name).toBe("Acme");
+	});
 });

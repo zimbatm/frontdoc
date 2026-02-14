@@ -44,39 +44,39 @@ export function excludeTemplatesFilter(): Filter {
  * Repository wraps VFS and provides document-specific operations.
  */
 export class Repository {
-	constructor(private readonly vfs: VFS) {}
+	private cachedRecords: DocumentRecord[] | null = null;
+	private cacheLoad: Promise<DocumentRecord[]> | null = null;
+	private readonly proxyVfs: VFS;
+
+	constructor(private readonly vfs: VFS) {
+		this.proxyVfs = createInvalidatingVFS(vfs, () => this.invalidateCache());
+	}
 
 	static fromRoot(rootPath: string): Repository {
 		return new Repository(new BoundVFS(rootPath));
 	}
 
 	fileSystem(): VFS {
-		return this.vfs;
+		return this.proxyVfs;
 	}
 
 	async collectAll(...filters: Filter[]): Promise<DocumentRecord[]> {
-		const records: DocumentRecord[] = [];
-		const candidates = await this.collectCandidates();
-
-		for (const candidate of candidates) {
-			const record = await this.parseCandidate(candidate.path, candidate.info, candidate.isFolder);
-			if (filters.length > 0 && !filters.every((fn) => fn(record))) {
-				continue;
-			}
-			records.push(record);
-		}
-
-		return records;
+		const records = await this.getRecordsSnapshot();
+		const selected =
+			filters.length === 0
+				? records
+				: records.filter((record) => filters.every((fn) => fn(record)));
+		return selected.map(cloneDocumentRecord);
 	}
 
 	async findByID(idInput: string): Promise<DocumentRecord> {
-		const candidates = await this.collectCandidates();
-		const records: DocumentRecord[] = [];
-		for (const candidate of candidates) {
-			const record = await this.parseCandidate(candidate.path, candidate.info, candidate.isFolder);
-			records.push(record);
-		}
-		return findByIDInRecords(records, idInput);
+		const records = await this.getRecordsSnapshot();
+		return cloneDocumentRecord(findByIDInRecords(records, idInput));
+	}
+
+	invalidateCache(): void {
+		this.cachedRecords = null;
+		this.cacheLoad = null;
 	}
 
 	private async collectCandidates(): Promise<
@@ -116,6 +116,83 @@ export class Repository {
 		const document = parseDocument(raw, path, isFolder);
 		return { document, path, info };
 	}
+
+	private async getRecordsSnapshot(): Promise<DocumentRecord[]> {
+		if (this.cachedRecords) {
+			return this.cachedRecords;
+		}
+		if (!this.cacheLoad) {
+			this.cacheLoad = this.loadRecords();
+		}
+		this.cachedRecords = await this.cacheLoad;
+		this.cacheLoad = null;
+		return this.cachedRecords;
+	}
+
+	private async loadRecords(): Promise<DocumentRecord[]> {
+		const records: DocumentRecord[] = [];
+		const candidates = await this.collectCandidates();
+
+		for (const candidate of candidates) {
+			const record = await this.parseCandidate(candidate.path, candidate.info, candidate.isFolder);
+			records.push(record);
+		}
+		return records;
+	}
+}
+
+function createInvalidatingVFS(vfs: VFS, invalidate: () => void): VFS {
+	return {
+		root: () => vfs.root(),
+		readFile: async (path) => await vfs.readFile(path),
+		writeFile: async (path, data) => {
+			await vfs.writeFile(path, data);
+			invalidate();
+		},
+		exists: async (path) => await vfs.exists(path),
+		isDir: async (path) => await vfs.isDir(path),
+		isFile: async (path) => await vfs.isFile(path),
+		stat: async (path) => await vfs.stat(path),
+		mkdirAll: async (path) => {
+			await vfs.mkdirAll(path);
+			invalidate();
+		},
+		remove: async (path) => {
+			await vfs.remove(path);
+			invalidate();
+		},
+		removeAll: async (path) => {
+			await vfs.removeAll(path);
+			invalidate();
+		},
+		rename: async (oldPath, newPath) => {
+			await vfs.rename(oldPath, newPath);
+			invalidate();
+		},
+		walk: async (root, walkFunc) => await vfs.walk(root, walkFunc),
+		readDir: async (path) => await vfs.readDir(path),
+	};
+}
+
+function cloneDocumentRecord(record: DocumentRecord): DocumentRecord {
+	return {
+		path: record.path,
+		document: {
+			path: record.document.path,
+			metadata: structuredClone(record.document.metadata),
+			content: record.document.content,
+			isFolder: record.document.isFolder,
+		},
+		info: {
+			name: record.info.name,
+			path: record.info.path,
+			isDirectory: record.info.isDirectory,
+			isFile: record.info.isFile,
+			isSymlink: record.info.isSymlink,
+			size: record.info.size,
+			modifiedAt: new Date(record.info.modifiedAt),
+		},
+	};
 }
 
 function isDocumentMarkdownFile(path: string, name: string): boolean {
