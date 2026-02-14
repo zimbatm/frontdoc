@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, extname, join } from "node:path";
+import { basename, dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
 	collectionFromPath,
@@ -39,7 +39,8 @@ interface DraftState {
 	baselineRaw: string;
 }
 
-const WEB_UI_STATIC_DIR = fileURLToPath(new URL("./static/", import.meta.url));
+const WEB_UI_STATIC_DIR_CANDIDATES = staticDirCandidates();
+let resolvedWebUiStaticDir: Promise<string | null> | null = null;
 
 export async function runWebServer(manager: Manager, opts: WebServerOptions): Promise<void> {
 	const allowedCollections = resolveAllowedCollections(manager, opts.collections ?? []);
@@ -142,8 +143,9 @@ async function handleRequest(
 }
 
 async function serveWebUiShell(initialCollection: string | null): Promise<Response> {
-	const indexFile = Bun.file(join(WEB_UI_STATIC_DIR, "index.html"));
-	if (await indexFile.exists()) {
+	const staticDir = await webUiStaticDir();
+	if (staticDir) {
+		const indexFile = Bun.file(join(staticDir, "index.html"));
 		return new Response(indexFile, {
 			headers: {
 				"content-type": "text/html; charset=utf-8",
@@ -153,7 +155,7 @@ async function serveWebUiShell(initialCollection: string | null): Promise<Respon
 	}
 	const hint = initialCollection ? ` (initial collection: ${initialCollection})` : "";
 	return json(500, {
-		error: `web UI bundle not found at src/web/static/index.html${hint}`,
+		error: `web UI bundle not found. Tried: ${WEB_UI_STATIC_DIR_CANDIDATES.join(", ")}${hint}`,
 	});
 }
 
@@ -167,7 +169,12 @@ async function serveStaticUiAsset(pathname: string): Promise<Response | null> {
 		return new Response("not found", { status: 404 });
 	}
 
-	const targetPath = join(WEB_UI_STATIC_DIR, ...segments);
+	const staticDir = await webUiStaticDir();
+	if (!staticDir) {
+		return null;
+	}
+
+	const targetPath = join(staticDir, ...segments);
 	const file = Bun.file(targetPath);
 	if (!(await file.exists())) {
 		return new Response("not found", { status: 404 });
@@ -179,6 +186,38 @@ async function serveStaticUiAsset(pathname: string): Promise<Response | null> {
 			"cache-control": "no-store",
 		},
 	});
+}
+
+function staticDirCandidates(): string[] {
+	const candidates = [
+		process.env.FRONTDOC_WEB_STATIC_DIR,
+		fileURLToPath(new URL("./static/", import.meta.url)),
+		resolve(dirname(process.execPath), "../share/frontdoc/web/static"),
+	];
+	const out: string[] = [];
+	for (const path of candidates) {
+		if (!path) continue;
+		if (out.includes(path)) continue;
+		out.push(path);
+	}
+	return out;
+}
+
+async function webUiStaticDir(): Promise<string | null> {
+	if (!resolvedWebUiStaticDir) {
+		resolvedWebUiStaticDir = findWebUiStaticDir();
+	}
+	return await resolvedWebUiStaticDir;
+}
+
+async function findWebUiStaticDir(): Promise<string | null> {
+	for (const dir of WEB_UI_STATIC_DIR_CANDIDATES) {
+		const indexFile = Bun.file(join(dir, "index.html"));
+		if (await indexFile.exists()) {
+			return dir;
+		}
+	}
+	return null;
 }
 
 function contentTypeForPath(path: string): string {

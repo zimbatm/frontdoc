@@ -1,10 +1,15 @@
 <script setup lang="ts">
 import MarkdownIt from "markdown-it";
+import Button from "primevue/button";
+import Card from "primevue/card";
+import Message from "primevue/message";
+import SelectButton from "primevue/selectbutton";
 import { computed, defineAsyncComponent, onBeforeUnmount, onMounted } from "vue";
+import EditorMetadataForm from "../editor/EditorMetadataForm.vue";
 import type { UiSchemaField } from "../editor/schema-form-model";
 import type { EditorMode, ListDoc, ReadDoc } from "../types";
 
-const _RichMarkdownEditor = defineAsyncComponent(() => import("../editor/RichMarkdownEditor.vue"));
+const RichMarkdownEditor = defineAsyncComponent(() => import("../editor/RichMarkdownEditor.vue"));
 
 const props = defineProps<{
 	errorMessage: string;
@@ -40,7 +45,7 @@ const markdown = new MarkdownIt({
 	breaks: true,
 });
 
-const _previewHtml = computed(() => markdown.render(props.contentValue || ""));
+const previewHtml = computed(() => markdown.render(props.contentValue || ""));
 
 function onGlobalKeydown(event: KeyboardEvent): void {
 	if (!props.selectedDoc) return;

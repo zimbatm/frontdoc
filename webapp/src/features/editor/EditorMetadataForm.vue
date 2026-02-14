@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SchemaFieldInput from "./SchemaFieldInput.vue";
 import type { UiSchemaField } from "./schema-form-model";
 
 defineProps<{
@@ -7,7 +8,7 @@ defineProps<{
 	errors: Record<string, string>;
 }>();
 
-const _emit = defineEmits<{
+const emit = defineEmits<{
 	"update:field": [name: string, value: string];
 }>();
 </script>

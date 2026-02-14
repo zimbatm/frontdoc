@@ -27,6 +27,8 @@ bun2nix.mkDerivation {
     runHook preInstall
 
     install -D -m755 dist/frontdoc "$out/bin/frontdoc"
+    install -d "$out/share/frontdoc/web/static"
+    cp -r src/web/static/. "$out/share/frontdoc/web/static/"
 
     runHook postInstall
   '';
