@@ -337,16 +337,7 @@ program
 			if (!schema) {
 				throw new Error(`unknown collection: ${collection}`);
 			}
-			const vars = extractPlaceholders(schema.slug).filter((v) => v !== "short_id" && v !== "date");
-			const defaults: string[] = [];
-			for (const name of vars) {
-				const value = schema.fields[name]?.default;
-				if (value === undefined || value === null || String(value).length === 0) {
-					defaults.push("");
-					continue;
-				}
-				defaults.push(normalizeFieldValue(name, String(value), schema));
-			}
+			const defaults = defaultSlugArgs(schema);
 			const planned = await manager.Documents().PlanBySlug(resolvedCollection, defaults, {
 				resolveTemplateContent,
 			});
@@ -410,16 +401,7 @@ program
 			if (!schema) {
 				throw new Error(`unknown collection: ${collection}`);
 			}
-			const vars = extractPlaceholders(schema.slug).filter((v) => v !== "short_id" && v !== "date");
-			const defaults: string[] = [];
-			for (const name of vars) {
-				const value = schema.fields[name]?.default;
-				if (value === undefined || value === null || String(value).length === 0) {
-					defaults.push("");
-					continue;
-				}
-				defaults.push(normalizeFieldValue(name, String(value), schema));
-			}
+			const defaults = defaultSlugArgs(schema);
 			return await manager.Documents().PlanBySlug(resolvedCollection, defaults, {
 				resolveTemplateContent,
 			});
@@ -834,6 +816,20 @@ function normalizeFieldValue(name: string, value: string, schema: CollectionSche
 		}
 	}
 	return value;
+}
+
+function defaultSlugArgs(schema: CollectionSchema): string[] {
+	const vars = extractPlaceholders(schema.slug).filter((v) => v !== "short_id" && v !== "date");
+	const defaults: string[] = [];
+	for (const name of vars) {
+		const value = schema.fields[name]?.default;
+		if (value === undefined || value === null || String(value).length === 0) {
+			defaults.push("");
+			continue;
+		}
+		defaults.push(normalizeFieldValue(name, String(value), schema));
+	}
+	return defaults;
 }
 
 async function readFromStdin(): Promise<string> {
