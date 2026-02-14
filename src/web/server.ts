@@ -620,8 +620,7 @@ async function handleUploadAttachment(
 
 			tempDir = await mkdtemp(join(tmpdir(), "tmdoc-web-upload-"));
 			const tempPath = join(tempDir, name);
-			// DocumentService attach expects a host path. Contents are replaced with uploaded bytes below.
-			await writeFile(tempPath, "", "utf8");
+			await writeFile(tempPath, bytes);
 
 			const attachmentPath = await manager.Documents().AttachFileByID(
 				id,
@@ -629,7 +628,6 @@ async function handleUploadAttachment(
 				addReference,
 				force,
 			);
-			await Bun.write(join(manager.RootPath(), attachmentPath), bytes);
 			const updated = await manager.Documents().ReadByID(id);
 			return { attachmentPath, updated };
 		});

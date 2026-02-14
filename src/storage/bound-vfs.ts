@@ -37,9 +37,22 @@ export class BoundVFS implements VFS {
 		return await readFile(fullPath, "utf-8");
 	}
 
+	async readFileBytes(path: string): Promise<Uint8Array> {
+		const fullPath = this.resolve(path);
+		await this.checkNotSymlink(fullPath);
+		return new Uint8Array(await readFile(fullPath));
+	}
+
 	async writeFile(path: string, data: string): Promise<void> {
 		const fullPath = this.resolve(path);
 		// Atomic write: write to temp, then rename
+		const tmpPath = `${fullPath}.tmp-${Date.now()}`;
+		await fsWriteFile(tmpPath, data, { mode: 0o644 });
+		await fsRename(tmpPath, fullPath);
+	}
+
+	async writeFileBytes(path: string, data: Uint8Array): Promise<void> {
+		const fullPath = this.resolve(path);
 		const tmpPath = `${fullPath}.tmp-${Date.now()}`;
 		await fsWriteFile(tmpPath, data, { mode: 0o644 });
 		await fsRename(tmpPath, fullPath);

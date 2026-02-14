@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { CollectionSchema } from "../../src/config/types.js";
 import { Repository } from "../../src/repository/repository.js";
 import { DocumentService } from "../../src/services/document-service.js";
@@ -122,5 +125,24 @@ describe("DocumentService", () => {
 			fields: { name: "Acme Corp" },
 		});
 		expect(created.path).toMatch(/^clients\/acme-corp-[a-z0-9]+\.md$/);
+	});
+
+	test("attach writes binary bytes without utf8 conversion", async () => {
+		const vfs = new MemoryVFS();
+		await vfs.mkdirAll("clients");
+		const service = makeService(vfs);
+		const created = await service.Create({
+			collection: "clients",
+			fields: { name: "Acme Corp" },
+		});
+
+		const tempDir = await mkdtemp(join(tmpdir(), "tmdoc-attach-"));
+		const source = join(tempDir, "banner.bin");
+		const payload = new Uint8Array([0, 255, 16, 128, 65, 66, 67]);
+		await writeFile(source, payload);
+
+		const attachedPath = await service.AttachFileByID(String(created.document.metadata._id), source, false);
+		const saved = await vfs.readFileBytes(attachedPath);
+		expect(saved).toEqual(payload);
 	});
 });

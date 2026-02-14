@@ -5,8 +5,10 @@ import type { FileInfo, VFS, WalkFunc } from "./vfs.js";
  * In-memory VFS implementation for testing.
  */
 export class MemoryVFS implements VFS {
-	private files = new Map<string, string>();
+	private files = new Map<string, Uint8Array>();
 	private dirs = new Set<string>();
+	private readonly encoder = new TextEncoder();
+	private readonly decoder = new TextDecoder();
 
 	constructor() {
 		// Root directory always exists
@@ -19,21 +21,34 @@ export class MemoryVFS implements VFS {
 
 	async readFile(path: string): Promise<string> {
 		const norm = normalizePath(path);
-		const content = this.files.get(norm);
-		if (content === undefined) {
+		const bytes = this.files.get(norm);
+		if (bytes === undefined) {
 			throw new Error(`file not found: ${norm}`);
 		}
-		return content;
+		return this.decoder.decode(bytes);
+	}
+
+	async readFileBytes(path: string): Promise<Uint8Array> {
+		const norm = normalizePath(path);
+		const bytes = this.files.get(norm);
+		if (bytes === undefined) {
+			throw new Error(`file not found: ${norm}`);
+		}
+		return bytes.slice();
 	}
 
 	async writeFile(path: string, data: string): Promise<void> {
+		await this.writeFileBytes(path, this.encoder.encode(data));
+	}
+
+	async writeFileBytes(path: string, data: Uint8Array): Promise<void> {
 		const norm = normalizePath(path);
 		// Ensure parent directories exist
 		const parent = parentDir(norm);
 		if (parent && !this.dirExists(parent)) {
 			throw new Error(`parent directory does not exist: ${parent}`);
 		}
-		this.files.set(norm, data);
+		this.files.set(norm, data.slice());
 	}
 
 	async exists(path: string): Promise<boolean> {
@@ -129,12 +144,12 @@ export class MemoryVFS implements VFS {
 		}
 
 		if (this.files.has(oldNorm)) {
-			const content = this.files.get(oldNorm);
-			if (content === undefined) {
+			const bytes = this.files.get(oldNorm);
+			if (bytes === undefined) {
 				throw new Error(`path not found: ${oldNorm}`);
 			}
 			this.files.delete(oldNorm);
-			this.files.set(newNorm, content);
+			this.files.set(newNorm, bytes);
 			return;
 		}
 
@@ -146,11 +161,11 @@ export class MemoryVFS implements VFS {
 			for (const key of [...this.files.keys()]) {
 				if (key.startsWith(prefix)) {
 					const newKey = `${newNorm}/${key.slice(prefix.length)}`;
-					const content = this.files.get(key);
-					if (content === undefined) {
+					const bytes = this.files.get(key);
+					if (bytes === undefined) {
 						continue;
 					}
-					this.files.set(newKey, content);
+					this.files.set(newKey, bytes);
 					this.files.delete(key);
 				}
 			}
@@ -238,7 +253,7 @@ export class MemoryVFS implements VFS {
 			isDirectory,
 			isFile: !isDirectory,
 			isSymlink: false,
-			size: isDirectory ? 0 : (this.files.get(path)?.length ?? 0),
+			size: isDirectory ? 0 : (this.files.get(path)?.byteLength ?? 0),
 			modifiedAt: new Date(),
 		};
 	}

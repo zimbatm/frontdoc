@@ -145,8 +145,13 @@ function createInvalidatingVFS(vfs: VFS, invalidate: () => void): VFS {
 	return {
 		root: () => vfs.root(),
 		readFile: async (path) => await vfs.readFile(path),
+		readFileBytes: async (path) => await vfs.readFileBytes(path),
 		writeFile: async (path, data) => {
 			await vfs.writeFile(path, data);
+			invalidate();
+		},
+		writeFileBytes: async (path, data) => {
+			await vfs.writeFileBytes(path, data);
 			invalidate();
 		},
 		exists: async (path) => await vfs.exists(path),

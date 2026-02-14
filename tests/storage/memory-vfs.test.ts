@@ -15,6 +15,15 @@ describe("MemoryVFS", () => {
 		expect(content).toBe("# Hello");
 	});
 
+	test("writeFileBytes and readFileBytes preserve raw bytes", async () => {
+		const vfs = new MemoryVFS();
+		await vfs.mkdirAll("docs");
+		const bytes = new Uint8Array([0, 255, 10, 128, 65]);
+		await vfs.writeFileBytes("docs/blob.bin", bytes);
+		const loaded = await vfs.readFileBytes("docs/blob.bin");
+		expect(loaded).toEqual(bytes);
+	});
+
 	test("readFile throws on missing file", async () => {
 		const vfs = new MemoryVFS();
 		await expect(vfs.readFile("missing.txt")).rejects.toThrow("file not found");

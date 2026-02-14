@@ -171,8 +171,8 @@ export class DocumentService {
 			throw new Error(`attachment already exists: ${destPath}`);
 		}
 
-		const content = await readHostFile(sourcePath, "utf8");
-		await this.repository.fileSystem().writeFile(destPath, content);
+		const content = new Uint8Array(await readHostFile(sourcePath));
+		await this.repository.fileSystem().writeFileBytes(destPath, content);
 
 		if (addReference) {
 			const loaded = await loadDocumentRecordByPath(this.repository.fileSystem(), docPath);

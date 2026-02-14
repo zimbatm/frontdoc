@@ -21,8 +21,14 @@ export interface VFS {
 	/** Reads entire file contents. */
 	readFile(path: string): Promise<string>;
 
+	/** Reads raw file bytes. */
+	readFileBytes(path: string): Promise<Uint8Array>;
+
 	/** Writes data to a file atomically. */
 	writeFile(path: string, data: string): Promise<void>;
+
+	/** Writes raw file bytes atomically. */
+	writeFileBytes(path: string, data: Uint8Array): Promise<void>;
 
 	/** Checks if a path exists. */
 	exists(path: string): Promise<boolean>;
