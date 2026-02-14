@@ -154,13 +154,23 @@ export class ValidationService {
 
 		issues.push(...(await this.validateWikiLinks(record)));
 
-		const expectedPath = this.expectedPath(record.document, schema, collection);
-		if (expectedPath !== record.path) {
+		try {
+			const expectedPath = this.expectedPath(record.document, schema, collection);
+			if (expectedPath !== record.path) {
+				issues.push({
+					severity: "error",
+					path: record.path,
+					code: "filename.mismatch",
+					message: `expected path: ${expectedPath}`,
+				});
+			}
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
 			issues.push({
 				severity: "error",
 				path: record.path,
-				code: "filename.mismatch",
-				message: `expected path: ${expectedPath}`,
+				code: "filename.invalid",
+				message: `cannot compute expected filename: ${message}`,
 			});
 		}
 

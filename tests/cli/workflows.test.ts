@@ -10,13 +10,19 @@ async function runCli(
 	args: string[],
 	_cwd: string,
 	stdinText?: string,
+	envOverride?: Record<string, string | undefined>,
 ): Promise<{ stdout: string; stderr: string; code: number }> {
+	const env = {
+		...process.env,
+		TMDOC_SKIP_EDITOR: "1",
+		...envOverride,
+	};
 	const proc = Bun.spawn([...CLI, ...args], {
 		cwd: PROJECT_ROOT,
 		stdout: "pipe",
 		stderr: "pipe",
 		stdin: "pipe",
-		env: { ...process.env, TMDOC_SKIP_EDITOR: "1" },
+		env,
 	});
 	if (stdinText !== undefined) {
 		proc.stdin.write(stdinText);
@@ -32,8 +38,13 @@ async function runCli(
 	return { stdout, stderr, code };
 }
 
-async function runOk(args: string[], cwd: string, stdinText?: string): Promise<string> {
-	const res = await runCli(args, cwd, stdinText);
+async function runOk(
+	args: string[],
+	cwd: string,
+	stdinText?: string,
+	envOverride?: Record<string, string | undefined>,
+): Promise<string> {
+	const res = await runCli(args, cwd, stdinText, envOverride);
 	if (res.code !== 0) {
 		throw new Error(
 			`command failed (${res.code}): ${args.join(" ")}\nstdout:\n${res.stdout}\nstderr:\n${res.stderr}`,
@@ -497,5 +508,82 @@ describe("CLI workflows", () => {
 			await runOk(["-C", root, "list", "cli", "-o", "json"], root),
 		);
 		expect(listedAfterDelete).toEqual([]);
+	});
+
+	test("open validates after edit and can re-open editor", async () => {
+		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-open-"));
+		await runOk(["-C", root, "init"], root);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"create",
+				"clients",
+				"--prefix",
+				"cli",
+				"--slug",
+				"{{short_id}}-{{name}}",
+			],
+			root,
+		);
+		await runOk(["-C", root, "schema", "field", "create", "clients", "name", "--required"], root);
+		const created = JSON.parse(
+			await runOk(["-C", root, "create", "cli", "Acme", "-o", "json"], root),
+		) as {
+			document: { metadata: { id: string } };
+			path: string;
+		};
+		const id = created.document.metadata.id;
+		const shortID = id.slice(-6);
+
+		const editorScript = join(root, "fake-editor.sh");
+		const countFile = join(root, ".edit-count");
+		await writeFile(
+			editorScript,
+			`#!/usr/bin/env bash
+set -euo pipefail
+target="$1"
+count_file="\${COUNT_FILE:?}"
+count=0
+if [ -f "$count_file" ]; then
+  count="$(cat "$count_file")"
+fi
+id_line="$(grep '^id:' "$target" | head -n1 | cut -d' ' -f2-)"
+created_line="$(grep '^created_at:' "$target" | head -n1 | cut -d' ' -f2-)"
+if [ "$count" = "0" ]; then
+  cat >"$target" <<EOF
+---
+id: $id_line
+created_at: $created_line
+---
+
+invalid
+EOF
+  echo 1 >"$count_file"
+else
+  cat >"$target" <<EOF
+---
+id: $id_line
+created_at: $created_line
+name: Repaired Name
+---
+
+valid
+EOF
+fi
+`,
+			{ mode: 0o755 },
+		);
+
+		const output = await runOk(["-C", root, "open", "cli", shortID], root, "y\n", {
+			EDITOR: editorScript,
+			TMDOC_SKIP_EDITOR: "0",
+			COUNT_FILE: countFile,
+		});
+		expect(output).toContain("Validation issues found:");
+
+		const raw = await runOk(["-C", root, "read", id, "-o", "raw"], root);
+		expect(raw).toContain("name: Repaired Name");
 	});
 });

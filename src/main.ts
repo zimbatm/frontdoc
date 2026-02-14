@@ -308,14 +308,41 @@ program
 
 		const absPath = join(manager.RootPath(), documentContentPath(record.document));
 		const editor = process.env.EDITOR || "vi";
-		if (process.env.TMDOC_SKIP_EDITOR !== "1") {
-			const result = spawnSync(editor, [absPath], { stdio: "inherit" });
-			if (result.error) {
-				throw result.error;
+		let reopen = true;
+		while (reopen) {
+			if (process.env.TMDOC_SKIP_EDITOR !== "1") {
+				const result = spawnSync(editor, [absPath], { stdio: "inherit" });
+				if (result.error) {
+					throw result.error;
+				}
+				if (result.status !== 0) {
+					throw new Error(`editor exited with status ${result.status}`);
+				}
 			}
-			if (result.status !== 0) {
-				throw new Error(`editor exited with status ${result.status}`);
+
+			const check = await manager.Validation().Check({
+				collection: resolvedCollection,
+				fix: false,
+				pruneAttachments: false,
+			});
+			const issues = check.issues.filter(
+				(issue) =>
+					issue.path === record.path &&
+					issue.code !== "filename.mismatch" &&
+					issue.code !== "filename.invalid",
+			);
+			if (issues.length === 0) {
+				break;
 			}
+			console.log("Validation issues found:");
+			for (const issue of issues) {
+				console.log(`${issue.severity.toUpperCase()} ${issue.path}: ${issue.message}`);
+			}
+
+			if (process.env.TMDOC_SKIP_EDITOR === "1") {
+				break;
+			}
+			reopen = await confirmReopen();
 		}
 
 		const renamedPath = await withWriteLock(manager, async () => {
@@ -871,6 +898,20 @@ async function confirmDelete(id: string): Promise<boolean> {
 	});
 	try {
 		const answer = await rl.question(`Delete ${id}? [y/N] `);
+		const normalized = answer.trim().toLowerCase();
+		return normalized === "y" || normalized === "yes";
+	} finally {
+		rl.close();
+	}
+}
+
+async function confirmReopen(): Promise<boolean> {
+	const rl = createInterface({
+		input: process.stdin,
+		output: process.stdout,
+	});
+	try {
+		const answer = await rl.question("Re-open editor to fix issues? [y/N] ");
 		const normalized = answer.trim().toLowerCase();
 		return normalized === "y" || normalized === "yes";
 	} finally {
