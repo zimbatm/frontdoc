@@ -4,17 +4,19 @@ import { basename, join, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { Command } from "commander";
 import { createDocumentUseCase, updateDocumentUseCase } from "../app/document-use-cases.js";
+import {
+	defaultSlugArgsForSchema,
+	listDocumentsUseCase,
+	normalizeFieldsForSchema,
+} from "../app/document-use-cases.js";
 import { withWriteLock } from "../app/write-lock.js";
 import { listResultsToCsv, listResultsToTable, searchResultsToCsv } from "./output-format.js";
 import { registerSchemaCommands } from "./schema-commands.js";
-import { normalizeFieldInputValue } from "../config/field-rules.js";
-import type { CollectionSchema } from "../config/types.js";
 import { buildDocument, contentPath as documentContentPath } from "../document/document.js";
 import { collectionFromPath } from "../document/path-utils.js";
 import { extractPlaceholders } from "../document/template-engine.js";
 import { Manager } from "../manager.js";
 import {
-	byCollection,
 	byField,
 	type DocumentRecord,
 	hasField,
@@ -93,14 +95,14 @@ program
 					throw new Error(`unknown collection: ${collection}`);
 				}
 
-				const fields = parseFields(opts.field);
+					const fields = parseFields(opts.field);
 				if (title) {
 					const titleField = firstSlugField(schema.slug);
 					if (titleField) {
 						fields[titleField] = title;
 					}
 				}
-				const normalizedFields = normalizeFieldInputs(fields, schema);
+					const normalizedFields = normalizeFieldsForSchema(fields, schema);
 
 				let templateContent: string | undefined;
 				const noTemplate = opts.template === false;
@@ -192,7 +194,7 @@ program
 				if (!schema) {
 					throw new Error(`unknown collection: ${collection}`);
 				}
-				const fields = normalizeFieldInputs(parseFields(opts.field), schema);
+					const fields = normalizeFieldsForSchema(parseFields(opts.field), schema);
 				for (const key of opts.unset) {
 					assertUserFieldInput(key);
 				}
@@ -263,12 +265,9 @@ program
 			const manager = await Manager.New(getWorkDir(program));
 			const filters = [];
 
-			if (collection) {
-				filters.push(byCollection(manager.Documents().ResolveCollection(collection)));
-			}
-			for (const entry of opts.filter) {
-				const [key, value] = splitFieldArg(entry);
-				filters.push(byField(key, value));
+				for (const entry of opts.filter) {
+					const [key, value] = splitFieldArg(entry);
+					filters.push(byField(key, value));
 			}
 			for (const key of opts.has) {
 				filters.push(hasField(key));
@@ -277,13 +276,12 @@ program
 				filters.push(not(hasField(key)));
 			}
 
-			let docs = await manager.Documents().List(filters);
-			if (query) {
-				docs = docs.filter((doc) => manager.Search().MatchesQuery(doc, query));
-			}
-			if (opts.limit !== undefined) {
-				docs = docs.slice(0, Math.max(0, opts.limit));
-			}
+				const docs = await listDocumentsUseCase(manager, {
+					collection,
+					query,
+					filters,
+					limit: opts.limit,
+				});
 			if (opts.output === "json") {
 				console.log(JSON.stringify(docs, null, 2));
 				return;
@@ -337,7 +335,7 @@ program
 			if (!schema) {
 				throw new Error(`unknown collection: ${collection}`);
 			}
-			const defaults = defaultSlugArgs(schema);
+				const defaults = defaultSlugArgsForSchema(schema);
 			const planned = await manager.Documents().PlanBySlug(resolvedCollection, defaults, {
 				resolveTemplateContent,
 			});
@@ -402,7 +400,7 @@ program
 			if (!schema) {
 				throw new Error(`unknown collection: ${collection}`);
 			}
-			const defaults = defaultSlugArgs(schema);
+			const defaults = defaultSlugArgsForSchema(schema);
 			return await manager.Documents().PlanBySlug(resolvedCollection, defaults, {
 				resolveTemplateContent,
 			});
@@ -788,46 +786,6 @@ function parseIntArg(value: string): number {
 		throw new Error(`invalid integer: ${value}`);
 	}
 	return parsed;
-}
-
-function normalizeFieldInputs(
-	fields: Record<string, string>,
-	schema: CollectionSchema,
-): Record<string, string> {
-	const out = { ...fields };
-	for (const [name, value] of Object.entries(fields)) {
-		out[name] = normalizeFieldValue(name, value, schema);
-	}
-	return out;
-}
-
-function normalizeFieldValue(name: string, value: string, schema: CollectionSchema): string {
-	try {
-		return normalizeFieldInputValue(schema.fields[name]?.type, value);
-	} catch {
-		const fieldType = schema.fields[name]?.type;
-		if (fieldType === "date") {
-			throw new Error(`invalid date input for '${name}': ${value}`);
-		}
-		if (fieldType === "datetime") {
-			throw new Error(`invalid datetime input for '${name}': ${value}`);
-		}
-		throw new Error(`invalid value for '${name}': ${value}`);
-	}
-}
-
-function defaultSlugArgs(schema: CollectionSchema): string[] {
-	const vars = extractPlaceholders(schema.slug).filter((v) => v !== "short_id" && v !== "date");
-	const defaults: string[] = [];
-	for (const name of vars) {
-		const value = schema.fields[name]?.default;
-		if (value === undefined || value === null || String(value).length === 0) {
-			defaults.push("");
-			continue;
-		}
-		defaults.push(normalizeFieldValue(name, String(value), schema));
-	}
-	return defaults;
 }
 
 async function readFromStdin(): Promise<string> {

@@ -6,15 +6,16 @@ import { fileURLToPath } from "node:url";
 import {
 	collectionFromPath,
 	createDocumentUseCase,
+	defaultSlugArgsForSchema,
+	listDocumentsUseCase,
+	normalizeFieldsForSchema,
 	updateDocumentUseCase,
 } from "../app/document-use-cases.js";
 import { withWriteLock } from "../app/write-lock.js";
-import { normalizeDateInput, normalizeDatetimeInput } from "../config/date-input.js";
 import type { CollectionSchema } from "../config/types.js";
-import { buildDocument, displayName, parseDocument, SYSTEM_FIELDS } from "../document/document.js";
-import { extractPlaceholders } from "../document/template-engine.js";
+import { buildDocument, displayName, parseDocument } from "../document/document.js";
 import type { Manager } from "../manager.js";
-import { byCollection, type DocumentRecord } from "../repository/repository.js";
+import type { DocumentRecord } from "../repository/repository.js";
 
 export interface WebServerOptions {
 	host: string;
@@ -241,20 +242,12 @@ async function handleDocumentsList(
 ): Promise<Response> {
 	const collection = url.searchParams.get("collection");
 	const query = url.searchParams.get("query");
-	const filters = [];
 	const scope = collectionScopeSet(allowedCollections);
-	if (collection) {
-		const resolvedCollection = manager.Documents().ResolveCollection(collection);
-		if (!isCollectionAllowed(resolvedCollection, scope)) {
-			return json(200, { documents: [] });
-		}
-		filters.push(byCollection(resolvedCollection));
+	if (collection && !isCollectionAllowed(manager.Documents().ResolveCollection(collection), scope)) {
+		return json(200, { documents: [] });
 	}
-	let docs = await manager.Documents().List(filters);
+	let docs = await listDocumentsUseCase(manager, { collection: collection ?? undefined, query: query ?? undefined });
 	docs = docs.filter((record) => isCollectionAllowed(collectionFromPath(record.path), scope));
-	if (query && query.length > 0) {
-		docs = docs.filter((record) => manager.Search().MatchesQuery(record, query));
-	}
 	const documents = docs.map((record) => listItemFromRecord(record, manager.Schemas()));
 	return json(200, { documents });
 }
@@ -396,28 +389,7 @@ async function handleCreateDocument(
 }
 
 function resolveOpenDefaultsArgs(schema: CollectionSchema): string[] {
-	const vars = extractPlaceholders(schema.slug).filter((v) => v !== "short_id" && v !== "date");
-	const defaults: string[] = [];
-	for (const name of vars) {
-		const value = schema.fields[name]?.default;
-		if (value === undefined || value === null || String(value).length === 0) {
-			defaults.push("");
-			continue;
-		}
-		defaults.push(normalizeFieldValue(name, String(value), schema));
-	}
-	return defaults;
-}
-
-function normalizeFieldValue(name: string, value: string, schema: CollectionSchema): string {
-	const type = schema.fields[name]?.type;
-	if (type === "date") {
-		return normalizeDateInput(value);
-	}
-	if (type === "datetime") {
-		return normalizeDatetimeInput(value);
-	}
-	return value;
+	return defaultSlugArgsForSchema(schema);
 }
 
 async function handleUpdateDocument(
@@ -689,42 +661,6 @@ function listItemFromRecord(
 	};
 }
 
-function normalizeFieldsForSchema(
-	fields: Record<string, unknown>,
-	schema: CollectionSchema,
-): Record<string, unknown> {
-	const normalized: Record<string, unknown> = {};
-	for (const [name, raw] of Object.entries(fields)) {
-		if (SYSTEM_FIELDS.has(name) || name.startsWith("_")) {
-			throw new Error(`reserved field prefix '_': ${name}`);
-		}
-		const type = schema.fields[name]?.type;
-		if (type === "array") {
-			if (Array.isArray(raw)) {
-				normalized[name] = raw.map((entry) => String(entry));
-				continue;
-			}
-			const value = String(raw ?? "");
-			normalized[name] = value
-				.split(/\n|,/g)
-				.map((entry) => entry.trim())
-				.filter((entry) => entry.length > 0);
-			continue;
-		}
-		const value = String(raw ?? "");
-		if (type === "date") {
-			normalized[name] = normalizeDateInput(value);
-			continue;
-		}
-		if (type === "datetime") {
-			normalized[name] = normalizeDatetimeInput(value);
-			continue;
-		}
-		normalized[name] = value;
-	}
-	return normalized;
-}
-
 async function loadByPath(manager: Manager, path: string): Promise<DocumentRecord> {
 	const raw = await manager.Repository().fileSystem().readFile(path);
 	const document = parseDocument(raw, path, false);
@@ -893,7 +829,7 @@ async function resolveCanonicalDocumentRoute(
 	collection: string,
 	target: string,
 ): Promise<string | null> {
-	const docs = await manager.Documents().List([byCollection(collection)]);
+	const docs = await listDocumentsUseCase(manager, { collection });
 	if (docs.some((record) => routeTargetFromPath(collection, record.path) === target)) {
 		return null;
 	}
