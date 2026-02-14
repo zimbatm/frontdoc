@@ -2,6 +2,7 @@ import { readFile as readHostFile } from "node:fs/promises";
 import { basename, dirname } from "node:path";
 import { resolveAlias } from "../config/alias.js";
 import type { CollectionSchema } from "../config/types.js";
+import { expectedPathForDocument } from "../document/path-policy.js";
 import {
 	buildDocument,
 	type Document,
@@ -9,8 +10,6 @@ import {
 	extractTitleFromContent,
 	parseDocument,
 } from "../document/document.js";
-import { generateFilename, slugify } from "../document/slug.js";
-import { processTemplate } from "../document/template-engine.js";
 import { byCollection, type DocumentRecord, type Repository } from "../repository/repository.js";
 import { findByIDInRecords } from "../repository/id-lookup.js";
 import type { FileInfo } from "../storage/vfs.js";
@@ -212,7 +211,7 @@ export class ValidationService {
 		issues.push(...this.validateWikiLinks(record, resolveByID));
 
 		try {
-			const expectedPath = this.expectedPath(record.document, schema, collection);
+			const expectedPath = expectedPathForDocument(record.document, schema, collection);
 			if (expectedPath !== record.path) {
 				issues.push({
 					severity: "error",
@@ -292,7 +291,7 @@ export class ValidationService {
 		if (!schema) {
 			return record.path;
 		}
-		const expected = this.expectedPath(record.document, schema, collection);
+		const expected = expectedPathForDocument(record.document, schema, collection);
 		if (expected === record.path) {
 			return record.path;
 		}
@@ -368,29 +367,6 @@ export class ValidationService {
 			await this.repository.fileSystem().removeAll(record.path);
 		}
 		return true;
-	}
-
-	private expectedPath(doc: Document, schema: CollectionSchema, collection: string): string {
-		const id = String(doc.metadata._id ?? "");
-		const shortLength = schema.short_id_length ?? 6;
-		const shortID = id.length >= shortLength ? id.slice(-shortLength) : id;
-		const values: Record<string, string> = {
-			short_id: shortID,
-			date:
-				typeof doc.metadata.date === "string"
-					? doc.metadata.date
-					: new Date().toISOString().slice(0, 10),
-			_title: extractTitleFromContent(doc.content),
-		};
-		for (const [key, value] of Object.entries(doc.metadata)) {
-			if (value === undefined || value === null) continue;
-			values[key] = String(value);
-		}
-		const rendered = processTemplate(schema.slug, slugifyTemplateValues(values));
-		const withShortIDSuffix = appendShortIDSuffix(rendered, values.short_id ?? "");
-		const filename = generateFilename(withShortIDSuffix);
-		const path = `${collection}/${filename}`;
-		return doc.isFolder ? stripMd(path) : path;
 	}
 
 	private resolveCollection(input: string): string {
@@ -518,34 +494,6 @@ export class ValidationService {
 	}
 }
 
-function slugifyTemplateValues(values: Record<string, string>): Record<string, string> {
-	const slugValues: Record<string, string> = {};
-	for (const [key, value] of Object.entries(values)) {
-		slugValues[key] = slugify(value);
-	}
-	return slugValues;
-}
-
-function appendShortIDSuffix(renderedSlug: string, shortID: string): string {
-	const id = slugify(shortID);
-	if (id.length === 0) {
-		return renderedSlug;
-	}
-
-	const hadMd = renderedSlug.endsWith(".md");
-	const withoutExt = hadMd ? renderedSlug.slice(0, -3) : renderedSlug;
-	const segments = withoutExt.split("/");
-	const last = segments.length > 0 ? segments[segments.length - 1] : "";
-
-	if (last === id || last.endsWith(`-${id}`)) {
-		return renderedSlug;
-	}
-
-	segments[segments.length - 1] = last.length > 0 ? `${last}-${id}` : id;
-	const rebuilt = segments.join("/");
-	return hadMd ? `${rebuilt}.md` : rebuilt;
-}
-
 function hasValue(value: unknown): boolean {
 	if (value === undefined || value === null) return false;
 	if (typeof value === "string") return value.length > 0;
@@ -623,10 +571,6 @@ function normalizeReferenceTarget(target: string): string {
 	value = value.split("?")[0] ?? value;
 	value = value.split("#")[0] ?? value;
 	return basename(value);
-}
-
-function stripMd(path: string): string {
-	return path.endsWith(".md") ? path.slice(0, -3) : path;
 }
 
 export async function readAttachmentSource(sourcePath: string): Promise<string> {

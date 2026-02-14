@@ -5,6 +5,10 @@ import { resolveAlias } from "../config/alias.js";
 import { normalizeDateInput, normalizeDatetimeInput } from "../config/date-input.js";
 import type { CollectionSchema } from "../config/types.js";
 import {
+	buildTemplateValues,
+	generateDocumentFilename,
+} from "../document/path-policy.js";
+import {
 	buildDocument,
 	type Document,
 	extractTitleFromContent,
@@ -12,7 +16,6 @@ import {
 	RESERVED_FIELD_PREFIX,
 	SYSTEM_FIELDS,
 } from "../document/document.js";
-import { generateFilename, slugify } from "../document/slug.js";
 import { extractPlaceholders, processTemplate } from "../document/template-engine.js";
 import {
 	byCollection,
@@ -234,7 +237,7 @@ export class DocumentService {
 		const schema = this.getCollectionSchema(collection);
 		const id = String(record.document.metadata._id ?? "");
 		const templateValues = buildTemplateValues(record.document.metadata, schema, id, record.document.content);
-		const expectedFilePath = `${collection}/${this.generateFilename(schema, templateValues)}`;
+		const expectedFilePath = `${collection}/${generateDocumentFilename(schema, templateValues)}`;
 		const targetPath = record.document.isFolder
 			? stripMdExtension(expectedFilePath)
 			: expectedFilePath;
@@ -259,12 +262,6 @@ export class DocumentService {
 		return schema;
 	}
 
-	private generateFilename(schema: CollectionSchema, values: Record<string, string>): string {
-		const rendered = processTemplate(schema.slug, slugifyTemplateValues(values));
-		const withShortIDSuffix = appendShortIDSuffix(rendered, values.short_id ?? "");
-		return generateFilename(withShortIDSuffix);
-	}
-
 	private async findByMetadataMatch(
 		collection: string,
 		fields: Record<string, unknown>,
@@ -272,19 +269,19 @@ export class DocumentService {
 		const docs = await this.repository.collectAll(byCollection(collection));
 		for (const record of docs) {
 			let allMatch = true;
-			for (const [key, value] of Object.entries(fields)) {
-				if (key === "short_id") continue;
-				if (key === "_title") {
-					const title = extractTitleFromContent(record.document.content);
-					if (title !== value) {
+				for (const [key, value] of Object.entries(fields)) {
+					if (key === "short_id") continue;
+					if (key === "_title") {
+						const title = extractTitleFromContent(record.document.content);
+						if (title !== value) {
+							allMatch = false;
+							break;
+						}
+						continue;
+					}
+					if (record.document.metadata[key] !== value) {
 						allMatch = false;
 						break;
-					}
-					continue;
-				}
-				if (record.document.metadata[key] !== value) {
-					allMatch = false;
-					break;
 				}
 			}
 			if (allMatch) return record;
@@ -333,7 +330,7 @@ export class DocumentService {
 			? processTemplate(templateContent, buildTemplateValues(fields, schema, id))
 			: (content ?? "");
 		const templateValues = buildTemplateValues(fields, schema, id, initialContent);
-		const filename = this.generateFilename(schema, templateValues);
+		const filename = generateDocumentFilename(schema, templateValues);
 
 		return {
 			path: `${collection}/${filename}`,
@@ -416,63 +413,6 @@ function normalizeDefaultFieldValue(type: string, value: unknown): unknown {
 		return normalizeDatetimeInput(value);
 	}
 	return value;
-}
-
-function buildTemplateValues(
-	fields: Record<string, unknown>,
-	schema: CollectionSchema,
-	id: string,
-	content = "",
-): Record<string, string> {
-	const shortLength = schema.short_id_length ?? 6;
-	const shortID = id.length >= shortLength ? id.slice(-shortLength) : id;
-	const values: Record<string, string> = {
-		short_id: shortID,
-		date: resolveDateString(fields.date),
-		_title: extractTitleFromContent(content),
-	};
-
-	for (const [key, value] of Object.entries(fields)) {
-		if (value === undefined || value === null) continue;
-		values[key] = String(value);
-	}
-
-	return values;
-}
-
-function slugifyTemplateValues(values: Record<string, string>): Record<string, string> {
-	const slugValues: Record<string, string> = {};
-	for (const [key, value] of Object.entries(values)) {
-		slugValues[key] = slugify(value);
-	}
-	return slugValues;
-}
-
-function appendShortIDSuffix(renderedSlug: string, shortID: string): string {
-	const id = slugify(shortID);
-	if (id.length === 0) {
-		return renderedSlug;
-	}
-
-	const hadMd = renderedSlug.endsWith(".md");
-	const withoutExt = hadMd ? renderedSlug.slice(0, -3) : renderedSlug;
-	const segments = withoutExt.split("/");
-	const last = segments.length > 0 ? segments[segments.length - 1] : "";
-
-	if (last === id || last.endsWith(`-${id}`)) {
-		return renderedSlug;
-	}
-
-	segments[segments.length - 1] = last.length > 0 ? `${last}-${id}` : id;
-	const rebuilt = segments.join("/");
-	return hadMd ? `${rebuilt}.md` : rebuilt;
-}
-
-function resolveDateString(value: unknown): string {
-	if (typeof value === "string" && value.length > 0) {
-		return value;
-	}
-	return new Date().toISOString().slice(0, 10);
 }
 
 function extractTemplateVariables(slugTemplate: string): string[] {
