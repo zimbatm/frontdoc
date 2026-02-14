@@ -25,7 +25,7 @@ describe("Manager", () => {
 		await mkdir(join(root, "clients"), { recursive: true });
 		await writeFile(
 			join(root, "clients", "_schema.yaml"),
-			'slug: "{{short_id}}-{{name}}"\nfields:\n  name:\n    type: string\n',
+			'slug: "{{name}}-{{short_id}}"\nfields:\n  name:\n    type: string\n',
 			"utf8",
 		);
 

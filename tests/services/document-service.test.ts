@@ -9,7 +9,7 @@ function makeService(vfs: MemoryVFS): DocumentService {
 		[
 			"clients",
 			{
-				slug: "{{short_id}}-{{name}}",
+				slug: "{{name}}-{{short_id}}",
 				fields: {
 					name: { type: "string", required: true },
 					status: { type: "string", default: "active" },
@@ -66,7 +66,8 @@ describe("DocumentService", () => {
 		});
 
 		expect(updated.path).not.toBe(created.path);
-		expect(updated.path).toContain("-beta-corp.md");
+		expect(updated.path).toContain("beta-corp-");
+		expect(updated.path).toContain(".md");
 		expect(updated.document.content.trimStart()).toBe("# Updated");
 		expect(updated.document.metadata.notes).toBeUndefined();
 	});
@@ -100,5 +101,26 @@ describe("DocumentService", () => {
 		const third = await service.UpsertBySlug("clients", ["Beta Corp"]);
 		expect(third.created).toBe(true);
 		expect(third.record.path).not.toBe(first.record.path);
+	});
+
+	test("auto-appends short id when slug template omits short_id", async () => {
+		const vfs = new MemoryVFS();
+		await vfs.mkdirAll("clients");
+		const schemas = new Map<string, CollectionSchema>([
+			[
+				"clients",
+				{
+					slug: "{{name}}",
+					fields: { name: { type: "string", required: true } },
+					references: {},
+				},
+			],
+		]);
+		const service = new DocumentService(schemas, { cli: "clients" }, new Repository(vfs));
+		const created = await service.Create({
+			collection: "clients",
+			fields: { name: "Acme Corp" },
+		});
+		expect(created.path).toMatch(/^clients\/acme-corp-[a-z0-9]+\.md$/);
 	});
 });

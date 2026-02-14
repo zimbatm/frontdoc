@@ -12,10 +12,10 @@ async function setup(): Promise<RelationshipService> {
 	const vfs = new MemoryVFS();
 	await vfs.mkdirAll("clients");
 	await vfs.mkdirAll("projects");
-	await vfs.writeFile("clients/_schema.yaml", 'slug: "{{short_id}}-{{name}}"\n');
+	await vfs.writeFile("clients/_schema.yaml", 'slug: "{{name}}-{{short_id}}"\n');
 	await vfs.writeFile(
 		"projects/_schema.yaml",
-		'slug: "{{short_id}}-{{name}}"\nreferences:\n  client_id: clients\n',
+		'slug: "{{name}}-{{short_id}}"\nreferences:\n  client_id: clients\n',
 	);
 
 	await vfs.writeFile(
@@ -31,10 +31,10 @@ async function setup(): Promise<RelationshipService> {
 	);
 
 	const schemas = new Map<string, CollectionSchema>([
-		["clients", { slug: "{{short_id}}-{{name}}", fields: {}, references: {} }],
+		["clients", { slug: "{{name}}-{{short_id}}", fields: {}, references: {} }],
 		[
 			"projects",
-			{ slug: "{{short_id}}-{{name}}", fields: {}, references: { client_id: "clients" } },
+			{ slug: "{{name}}-{{short_id}}", fields: {}, references: { client_id: "clients" } },
 		],
 	]);
 

@@ -12,6 +12,7 @@ import {
 import { generateFilename, slugify } from "../document/slug.js";
 import { processTemplate } from "../document/template-engine.js";
 import { byCollection, type DocumentRecord, type Repository } from "../repository/repository.js";
+import type { FileInfo } from "../storage/vfs.js";
 import type { DocumentService } from "./document-service.js";
 
 export type ValidationSeverity = "error" | "warning";
@@ -67,6 +68,49 @@ export class ValidationService {
 			fixed,
 			scanned: records.length,
 		};
+	}
+
+	async ValidateRaw(
+		collectionInput: string,
+		path: string,
+		raw: string,
+	): Promise<ValidationIssue[]> {
+		const collection = this.resolveCollection(collectionInput);
+		const schema = this.schemas.get(collection);
+		if (!schema) {
+			return [
+				{
+					severity: "error",
+					path,
+					code: "collection.unknown",
+					message: `unknown collection: ${collectionInput}`,
+				},
+			];
+		}
+		let document: Document;
+		try {
+			document = parseDocument(raw, path, false);
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			return [
+				{
+					severity: "error",
+					path,
+					code: "document.parse",
+					message,
+				},
+			];
+		}
+		const info: FileInfo = {
+			name: basename(path),
+			path,
+			isDirectory: false,
+			isFile: true,
+			isSymlink: false,
+			size: raw.length,
+			modifiedAt: new Date(),
+		};
+		return await this.validateRecord({ document, path, info });
 	}
 
 	private async validateRecord(record: DocumentRecord): Promise<ValidationIssue[]> {
@@ -318,7 +362,8 @@ export class ValidationService {
 			values[key] = String(value);
 		}
 		const rendered = processTemplate(schema.slug, slugifyTemplateValues(values));
-		const filename = generateFilename(rendered);
+		const withShortIDSuffix = appendShortIDSuffix(rendered, values.short_id ?? "");
+		const filename = generateFilename(withShortIDSuffix);
 		const path = `${collection}/${filename}`;
 		return doc.isFolder ? stripMd(path) : path;
 	}
@@ -436,7 +481,12 @@ export class ValidationService {
 	private displayNameForRecord(record: DocumentRecord): string {
 		const collection = record.path.split("/")[0];
 		const schema = this.schemas.get(collection);
-		return displayName(record.document, schema?.slug, schema?.short_id_length ?? 6);
+		return displayName(
+			record.document,
+			schema?.slug,
+			schema?.short_id_length ?? 6,
+			schema?.title_field,
+		);
 	}
 }
 
@@ -446,6 +496,26 @@ function slugifyTemplateValues(values: Record<string, string>): Record<string, s
 		slugValues[key] = slugify(value);
 	}
 	return slugValues;
+}
+
+function appendShortIDSuffix(renderedSlug: string, shortID: string): string {
+	const id = slugify(shortID);
+	if (id.length === 0) {
+		return renderedSlug;
+	}
+
+	const hadMd = renderedSlug.endsWith(".md");
+	const withoutExt = hadMd ? renderedSlug.slice(0, -3) : renderedSlug;
+	const segments = withoutExt.split("/");
+	const last = segments.length > 0 ? segments[segments.length - 1] : "";
+
+	if (last === id || last.endsWith(`-${id}`)) {
+		return renderedSlug;
+	}
+
+	segments[segments.length - 1] = last.length > 0 ? `${last}-${id}` : id;
+	const rebuilt = segments.join("/");
+	return hadMd ? `${rebuilt}.md` : rebuilt;
 }
 
 function hasValue(value: unknown): boolean {

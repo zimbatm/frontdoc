@@ -68,16 +68,28 @@ export function getShortID(doc: Document, length = 6): string {
 
 /**
  * Returns the display name for a document.
- * Priority: slug template field -> name/title/subject/summary -> filename -> short ID -> "Untitled"
+ * Priority: title_field -> slug template field -> name/title/subject/summary -> filename -> short ID -> "Untitled"
  */
-export function displayName(doc: Document, slugTemplate?: string, shortIdLength = 6): string {
+export function displayName(
+	doc: Document,
+	slugTemplate?: string,
+	shortIdLength = 6,
+	titleField?: string,
+): string {
+	if (titleField && titleField.length > 0) {
+		const value = doc.metadata[titleField];
+		if (typeof value === "string" && value.length > 0) {
+			return value;
+		}
+	}
+
 	// First try to extract field name from slug template
 	if (slugTemplate) {
 		const fieldMatch = slugTemplate.match(/\{\{(\w+)\}\}/g);
 		if (fieldMatch) {
 			for (const match of fieldMatch) {
 				const field = match.slice(2, -2).trim();
-				if (field !== "short_id" && field !== "date") {
+				if (field !== "short_id") {
 					const val = doc.metadata[field];
 					if (typeof val === "string" && val.length > 0) {
 						return val;

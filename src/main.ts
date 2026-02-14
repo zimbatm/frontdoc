@@ -1,13 +1,13 @@
 #!/usr/bin/env bun
 import { spawnSync } from "node:child_process";
 import { writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { Command } from "commander";
 import { stringify } from "yaml";
 import { normalizeDateInput, normalizeDatetimeInput } from "./config/date-input.js";
 import type { CollectionSchema } from "./config/types.js";
-import { contentPath as documentContentPath } from "./document/document.js";
+import { buildDocument, contentPath as documentContentPath } from "./document/document.js";
 import { extractPlaceholders } from "./document/template-engine.js";
 import { Manager } from "./manager.js";
 import {
@@ -20,6 +20,8 @@ import {
 import { formatSchemaReadText, formatSchemaShowText } from "./services/schema-service.js";
 import type { TemplateRecord } from "./services/template-service.js";
 import { FileLock } from "./storage/lock.js";
+import type { VFS } from "./storage/vfs.js";
+import { runWebServer } from "./web/server.js";
 
 type SchemaOutputFormat = "text" | "json" | "yaml";
 type ReadOutputFormat = "markdown" | "json" | "raw";
@@ -27,8 +29,6 @@ type ListOutputFormat = "table" | "json" | "csv";
 type WriteOutputFormat = "default" | "json" | "path";
 type CheckOutputFormat = "text" | "json";
 type SearchOutputFormat = "detail" | "table" | "json" | "csv";
-
-class UserFacingError extends Error {}
 
 const program = new Command();
 
@@ -310,6 +310,7 @@ program
 	.action(async (collection: string, idOrArg: string | undefined) => {
 		const manager = await Manager.New(getWorkDir(program));
 		const resolvedCollection = manager.Documents().ResolveCollection(collection);
+		const vfs = manager.Repository().fileSystem();
 		let templateResolved = false;
 		let templateContent: string | undefined;
 		const resolveTemplateContent = async (): Promise<string | undefined> => {
@@ -326,17 +327,15 @@ program
 			return templateContent;
 		};
 
-		const record: DocumentRecord = await withWriteLock(manager, async () => {
+		const existing: DocumentRecord | null = await withWriteLock(manager, async () => {
 			if (idOrArg) {
 				try {
 					return await manager.Documents().ReadByID(`${resolvedCollection}/${idOrArg}`);
 				} catch {
-					const upsert = await manager.Documents().UpsertBySlug(
-						resolvedCollection,
-						[idOrArg],
-						{ resolveTemplateContent },
-					);
-					return upsert.record;
+					const planned = await manager.Documents().PlanBySlug(resolvedCollection, [idOrArg], {
+						resolveTemplateContent,
+					});
+					return planned.record;
 				}
 			}
 
@@ -345,29 +344,106 @@ program
 				throw new Error(`unknown collection: ${collection}`);
 			}
 			const vars = extractPlaceholders(schema.slug).filter((v) => v !== "short_id" && v !== "date");
-			const missing: string[] = [];
 			const defaults: string[] = [];
 			for (const name of vars) {
 				const value = schema.fields[name]?.default;
 				if (value === undefined || value === null || String(value).length === 0) {
-					missing.push(name);
+					defaults.push("");
 					continue;
 				}
 				defaults.push(normalizeFieldValue(name, String(value), schema));
 			}
-			if (missing.length > 0) {
-				throw new UserFacingError(formatMissingOpenTemplateArgs(collection, missing));
-			}
-			const upsert = await manager.Documents().UpsertBySlug(resolvedCollection, defaults, {
+			const planned = await manager.Documents().PlanBySlug(resolvedCollection, defaults, {
 				resolveTemplateContent,
 			});
-			return upsert.record;
+			return planned.record;
 		});
 
-		const absPath = join(manager.RootPath(), documentContentPath(record.document));
+		if (existing) {
+			const absPath = join(manager.RootPath(), documentContentPath(existing.document));
+			const editor = process.env.EDITOR || "vi";
+			let reopen = true;
+			while (reopen) {
+				if (process.env.TMDOC_SKIP_EDITOR !== "1") {
+					const result = spawnSync(editor, [absPath], { stdio: "inherit" });
+					if (result.error) {
+						throw result.error;
+					}
+					if (result.status !== 0) {
+						throw new Error(`editor exited with status ${result.status}`);
+					}
+				}
+
+				const check = await manager.Validation().Check({
+					collection: resolvedCollection,
+					fix: false,
+					pruneAttachments: false,
+				});
+				const issues = check.issues.filter(
+					(issue) =>
+						issue.path === existing.path &&
+						issue.code !== "filename.mismatch" &&
+						issue.code !== "filename.invalid",
+				);
+				if (issues.length === 0) {
+					break;
+				}
+				console.log("Validation issues found:");
+				for (const issue of issues) {
+					console.log(`${issue.severity.toUpperCase()} ${issue.path}: ${issue.message}`);
+				}
+
+				if (process.env.TMDOC_SKIP_EDITOR === "1") {
+					break;
+				}
+				reopen = await confirmReopen();
+			}
+
+			const renamedPath = await withWriteLock(manager, async () => {
+				return await manager.Documents().AutoRenamePath(existing.path);
+			});
+			console.log(renamedPath);
+			return;
+		}
+
+		const planned = await withWriteLock(manager, async () => {
+			if (idOrArg) {
+				return await manager.Documents().PlanBySlug(resolvedCollection, [idOrArg], {
+					resolveTemplateContent,
+				});
+			}
+			const schema = manager.Schemas().get(resolvedCollection);
+			if (!schema) {
+				throw new Error(`unknown collection: ${collection}`);
+			}
+			const vars = extractPlaceholders(schema.slug).filter((v) => v !== "short_id" && v !== "date");
+			const defaults: string[] = [];
+			for (const name of vars) {
+				const value = schema.fields[name]?.default;
+				if (value === undefined || value === null || String(value).length === 0) {
+					defaults.push("");
+					continue;
+				}
+				defaults.push(normalizeFieldValue(name, String(value), schema));
+			}
+			return await manager.Documents().PlanBySlug(resolvedCollection, defaults, {
+				resolveTemplateContent,
+			});
+		});
+		if (planned.record || !planned.draft) {
+			throw new Error("expected draft plan for missing open target");
+		}
+		const targetPath = planned.draft.path;
+		const draftPath = openDraftPath(targetPath, String(planned.draft.metadata._id ?? ""));
+		const baselineRaw = buildDocument(planned.draft);
+		await withWriteLock(manager, async () => {
+			await ensureParentDir(vfs, draftPath);
+			await vfs.writeFile(draftPath, baselineRaw);
+		});
+
+		const absPath = join(manager.RootPath(), draftPath);
 		const editor = process.env.EDITOR || "vi";
-		let reopen = true;
-		while (reopen) {
+		while (true) {
 			if (process.env.TMDOC_SKIP_EDITOR !== "1") {
 				const result = spawnSync(editor, [absPath], { stdio: "inherit" });
 				if (result.error) {
@@ -377,20 +453,26 @@ program
 					throw new Error(`editor exited with status ${result.status}`);
 				}
 			}
+			const raw = await vfs.readFile(draftPath);
+			if (raw === baselineRaw) {
+				await withWriteLock(manager, async () => {
+					await removeIfExists(vfs, draftPath);
+				});
+				return;
+			}
 
-			const check = await manager.Validation().Check({
-				collection: resolvedCollection,
-				fix: false,
-				pruneAttachments: false,
-			});
-			const issues = check.issues.filter(
-				(issue) =>
-					issue.path === record.path &&
-					issue.code !== "filename.mismatch" &&
-					issue.code !== "filename.invalid",
-			);
+			const issues = (
+				await manager.Validation().ValidateRaw(resolvedCollection, targetPath, raw)
+			).filter((issue) => issue.code !== "filename.mismatch" && issue.code !== "filename.invalid");
 			if (issues.length === 0) {
-				break;
+				const renamedPath = await withWriteLock(manager, async () => {
+					await ensureParentDir(vfs, targetPath);
+					await vfs.writeFile(targetPath, raw);
+					await removeIfExists(vfs, draftPath);
+					return await manager.Documents().AutoRenamePath(targetPath);
+				});
+				console.log(renamedPath);
+				return;
 			}
 			console.log("Validation issues found:");
 			for (const issue of issues) {
@@ -398,15 +480,44 @@ program
 			}
 
 			if (process.env.TMDOC_SKIP_EDITOR === "1") {
-				break;
+				console.log(draftPath);
+				return;
 			}
-			reopen = await confirmReopen();
+			const action = await chooseDraftValidationAction();
+			if (action === "reopen") {
+				continue;
+			}
+			if (action === "keep") {
+				console.log(draftPath);
+				return;
+			}
+			await withWriteLock(manager, async () => {
+				await removeIfExists(vfs, draftPath);
+			});
+			return;
 		}
+	});
 
-		const renamedPath = await withWriteLock(manager, async () => {
-			return await manager.Documents().AutoRenamePath(record.path);
+program
+	.command("web")
+	.alias("serve")
+	.description("Start a local Web UI server")
+	.option("--host <host>", "Bind host", "127.0.0.1")
+	.option("--port <port>", "Bind port (0 = auto)", parseIntArg, 0)
+	.option("--open", "Auto-open browser on startup", true)
+	.option("--no-open", "Disable browser auto-open")
+	.option("--collection <name>", "Collection to serve (repeatable)", collectRepeated, [])
+	.action(async (opts: { host: string; port: number; open: boolean; collection: string[] }) => {
+		if (opts.port < 0 || opts.port > 65535) {
+			throw new Error(`invalid port: ${opts.port}`);
+		}
+		const manager = await Manager.New(getWorkDir(program));
+		await runWebServer(manager, {
+			host: opts.host,
+			port: opts.port,
+			open: opts.open,
+			collections: opts.collection,
 		});
-		console.log(renamedPath);
 	});
 
 program
@@ -643,6 +754,7 @@ schema
 	.option("--prefix <alias>", "Alias prefix")
 	.option("--slug <template>", "Slug template")
 	.option("--short-id-length <n>", "Short ID length", parseIntArg)
+	.option("--title-field <name>", "Field used as display title in UI")
 	.option("-o, --output <format>", "Output format: text|json|yaml", "text")
 	.action(
 		async (
@@ -651,6 +763,7 @@ schema
 				prefix?: string;
 				slug?: string;
 				shortIdLength?: number;
+				titleField?: string;
 				output: SchemaOutputFormat;
 			},
 		) => {
@@ -661,6 +774,7 @@ schema
 					alias: opts.prefix,
 					slug: opts.slug,
 					shortIdLength: opts.shortIdLength,
+					titleField: opts.titleField,
 				});
 			});
 			renderSchemaOutput(result, opts.output, formatSchemaReadText);
@@ -674,6 +788,7 @@ schema
 	.option("--prefix <alias>", "Alias prefix")
 	.option("--slug <template>", "Slug template")
 	.option("--short-id-length <n>", "Short ID length", parseIntArg)
+	.option("--title-field <name>", "Field used as display title in UI")
 	.option("-o, --output <format>", "Output format: text|json|yaml", "text")
 	.action(
 		async (
@@ -682,6 +797,7 @@ schema
 				prefix?: string;
 				slug?: string;
 				shortIdLength?: number;
+				titleField?: string;
 				output: SchemaOutputFormat;
 			},
 		) => {
@@ -692,6 +808,7 @@ schema
 					alias: opts.prefix,
 					slug: opts.slug,
 					shortIdLength: opts.shortIdLength,
+					titleField: opts.titleField,
 				});
 			});
 			renderSchemaOutput(result, opts.output, formatSchemaReadText);
@@ -850,10 +967,6 @@ schemaField
 try {
 	await program.parseAsync(process.argv);
 } catch (err) {
-	if (err instanceof UserFacingError) {
-		console.error(err.message);
-		process.exit(1);
-	}
 	if (err instanceof Error) {
 		if (process.env.TMDOC_DEBUG === "1" && err.stack) {
 			console.error(err.stack);
@@ -869,17 +982,6 @@ try {
 function getWorkDir(cmd: Command): string {
 	const directory = cmd.opts<{ directory?: string }>().directory;
 	return resolve(directory ?? process.cwd());
-}
-
-function formatMissingOpenTemplateArgs(collection: string, missing: string[]): string {
-	const vars = missing.map((name) => `{{${name}}}`).join(", ");
-	return [
-		`Cannot create a new '${collection}' document from the slug template.`,
-		`Missing values for: ${vars}`,
-		"",
-		`Try: tmdoc open ${collection} "<value>"`,
-		"or set defaults for those fields in your schema.",
-	].join("\n");
 }
 
 function renderSchemaOutput<T>(
@@ -1065,6 +1167,53 @@ async function confirmReopen(): Promise<boolean> {
 		return normalized === "y" || normalized === "yes";
 	} finally {
 		rl.close();
+	}
+}
+
+type DraftValidationAction = "reopen" | "keep" | "discard";
+
+async function chooseDraftValidationAction(): Promise<DraftValidationAction> {
+	const rl = createInterface({
+		input: process.stdin,
+		output: process.stdout,
+	});
+	try {
+		console.log("1. Re-open draft to fix issues");
+		console.log("2. Keep draft and exit");
+		console.log("3. Discard draft");
+		const answer = await rl.question("Choose action [1/2/3]: ");
+		const normalized = answer.trim();
+		if (normalized === "1") return "reopen";
+		if (normalized === "2") return "keep";
+		if (normalized === "3") return "discard";
+		throw new Error(`invalid selection: ${answer.trim()}`);
+	} finally {
+		rl.close();
+	}
+}
+
+function openDraftPath(targetPath: string, id: string): string {
+	const collection = targetPath.split("/")[0] ?? "";
+	const base = basename(targetPath, ".md")
+		.toLowerCase()
+		.replace(/[^a-z0-9-]+/g, "-")
+		.replace(/^-+|-+$/g, "");
+	const suffix = base.length > 0 ? base : "draft";
+	const shortID = id.length >= 6 ? id.slice(-6) : "draft";
+	return `${collection}/.tdo-${shortID}-${suffix}.md`;
+}
+
+async function ensureParentDir(vfs: VFS, path: string): Promise<void> {
+	const parent = dirname(path);
+	if (parent === ".") {
+		return;
+	}
+	await vfs.mkdirAll(parent);
+}
+
+async function removeIfExists(vfs: VFS, path: string): Promise<void> {
+	if (await vfs.exists(path)) {
+		await vfs.remove(path);
 	}
 }
 

@@ -85,9 +85,19 @@ describe("getShortID", () => {
 });
 
 describe("displayName", () => {
+	test("uses schema-configured title field when available", () => {
+		const doc = makeDoc({ metadata: { _id: "abc", name: "Highlight", date: "2026-02-14" } });
+		expect(displayName(doc, "{{date}}", 6, "date")).toBe("2026-02-14");
+	});
+
 	test("uses slug template field when available", () => {
 		const doc = makeDoc();
-		expect(displayName(doc, "{{short_id}}-{{name}}")).toBe("Acme Corporation");
+		expect(displayName(doc, "{{name}}-{{short_id}}")).toBe("Acme Corporation");
+	});
+
+	test("uses date field from slug when no title_field override", () => {
+		const doc = makeDoc({ metadata: { _id: "abc", date: "2026-02-14", name: "Highlight" } });
+		expect(displayName(doc, "{{date}}")).toBe("2026-02-14");
 	});
 
 	test("falls back to name field", () => {

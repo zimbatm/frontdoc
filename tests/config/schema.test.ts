@@ -3,8 +3,9 @@ import { parseCollectionSchema } from "../../src/config/schema.js";
 
 describe("parseCollectionSchema", () => {
 	test("accepts valid field defaults", () => {
-		const schema = parseCollectionSchema(`slug: "{{short_id}}-{{name}}"
+		const schema = parseCollectionSchema(`slug: "{{name}}-{{short_id}}"
 short_id_length: 8
+title_field: due_date
 fields:
   name:
     type: string
@@ -30,6 +31,7 @@ fields:
     default: open
 `);
 		expect(schema.short_id_length).toBe(8);
+		expect(schema.title_field).toBe("due_date");
 		expect(schema.fields.name.default).toBe("Acme");
 	});
 
@@ -44,11 +46,28 @@ fields:
 		).toThrow("invalid _schema.yaml");
 	});
 
+	test("accepts slug template without short_id placeholder", () => {
+		const schema = parseCollectionSchema(`slug: "{{name}}"
+fields:
+  name:
+    type: string
+`);
+		expect(schema.slug).toBe("{{name}}");
+	});
+
 	test("rejects out-of-range short_id_length", () => {
 		expect(() =>
 			parseCollectionSchema(`slug: "{{short_id}}"
 short_id_length: 3
 `),
 		).toThrow("short_id_length");
+	});
+
+	test("rejects empty title_field", () => {
+		expect(() =>
+			parseCollectionSchema(`slug: "{{short_id}}"
+title_field: "  "
+`),
+		).toThrow("title_field");
 	});
 });

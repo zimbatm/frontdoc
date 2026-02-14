@@ -6,7 +6,7 @@ import { MemoryVFS } from "../../src/storage/memory-vfs.js";
 async function setup(): Promise<TemplateService> {
 	const vfs = new MemoryVFS();
 	await vfs.mkdirAll("templates");
-	await vfs.writeFile("templates/_schema.yaml", 'slug: "{{short_id}}-{{name}}"\n');
+	await vfs.writeFile("templates/_schema.yaml", 'slug: "{{name}}-{{short_id}}"\n');
 	await vfs.writeFile(
 		"templates/tmp001-client.md",
 		"---\n_id: 01arz3ndektsv4rrffq6tmp001\nname: Client Onboarding\nfor: clients\n---\n\n# Client: {{name}}\n",

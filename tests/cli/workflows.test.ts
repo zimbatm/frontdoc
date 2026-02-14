@@ -76,7 +76,7 @@ describe("CLI workflows", () => {
 				"--prefix",
 				"cli",
 				"--slug",
-				"{{short_id}}-{{name}}",
+				"{{name}}-{{short_id}}",
 			],
 			root,
 		);
@@ -125,7 +125,7 @@ describe("CLI workflows", () => {
 				"--prefix",
 				"cli",
 				"--slug",
-				"{{short_id}}-{{name}}",
+				"{{name}}-{{short_id}}",
 			],
 			root,
 		);
@@ -154,7 +154,7 @@ describe("CLI workflows", () => {
 				"--prefix",
 				"tpl",
 				"--slug",
-				"{{short_id}}-{{name}}",
+				"{{name}}-{{short_id}}",
 			],
 			root,
 		);
@@ -204,7 +204,7 @@ describe("CLI workflows", () => {
 				"--prefix",
 				"cli",
 				"--slug",
-				"{{short_id}}-{{name}}",
+				"{{name}}-{{short_id}}",
 			],
 			root,
 		);
@@ -233,7 +233,7 @@ describe("CLI workflows", () => {
 				"--prefix",
 				"tpl",
 				"--slug",
-				"{{short_id}}-{{name}}",
+				"{{name}}-{{short_id}}",
 			],
 			root,
 		);
@@ -256,9 +256,24 @@ describe("CLI workflows", () => {
 			root,
 		);
 
-		const createdPath = await runOk(["-C", root, "open", "cli", "Acme"], root);
-		expect(createdPath).toContain("acme.md");
-		const listed = JSON.parse(await runOk(["-C", root, "list", "cli", "-o", "json"], root)) as Array<{
+		const editorScript = join(root, "append-editor.sh");
+		await writeFile(
+			editorScript,
+			`#!/usr/bin/env bash
+set -euo pipefail
+echo "\\nseeded" >>"$1"
+`,
+			{ mode: 0o755 },
+		);
+		const createdPath = await runOk(["-C", root, "open", "cli", "Acme"], root, undefined, {
+			EDITOR: editorScript,
+			TMDOC_SKIP_EDITOR: "0",
+		});
+		expect(createdPath).toContain("acme-");
+		expect(createdPath).toContain(".md");
+		const listed = JSON.parse(
+			await runOk(["-C", root, "list", "cli", "-o", "json"], root),
+		) as Array<{
 			document: { metadata: { _id: string } };
 		}>;
 		expect(listed).toHaveLength(1);
@@ -271,6 +286,149 @@ describe("CLI workflows", () => {
 		const reopenedRaw = await runOk(["-C", root, "read", id, "-o", "raw"], root);
 		expect(reopenedRaw).toContain("# Custom body");
 		expect(reopenedRaw).not.toContain("# Hello Acme");
+	});
+
+	test("open does not create missing slug target when draft is unchanged", async () => {
+		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-open-unchanged-draft-"));
+		await runOk(["-C", root, "init"], root);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"create",
+				"journal",
+				"--prefix",
+				"jrn",
+				"--slug",
+				"journal-{{date}}-{{short_id}}",
+			],
+			root,
+		);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"field",
+				"create",
+				"journal",
+				"date",
+				"--type",
+				"date",
+				"--required",
+				"--default",
+				"today",
+			],
+			root,
+		);
+
+		const output = await runOk(["-C", root, "open", "jrn"], root);
+		expect(output).toBe("");
+		const list = JSON.parse(
+			await runOk(["-C", root, "list", "jrn", "-o", "json"], root),
+		) as unknown[];
+		expect(list).toHaveLength(0);
+	});
+
+	test("open without slug defaults stages draft instead of failing", async () => {
+		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-open-missing-defaults-"));
+		await runOk(["-C", root, "init"], root);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"create",
+				"contacts",
+				"--prefix",
+				"con",
+				"--slug",
+				"{{name}}-{{short_id}}",
+			],
+			root,
+		);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"field",
+				"create",
+				"contacts",
+				"name",
+				"--type",
+				"string",
+				"--required",
+			],
+			root,
+		);
+
+		const out = await runOk(["-C", root, "open", "con"], root);
+		expect(out).toBe("");
+	});
+
+	test("open can keep invalid draft without creating target document", async () => {
+		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-open-keep-draft-"));
+		await runOk(["-C", root, "init"], root);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"create",
+				"clients",
+				"--prefix",
+				"cli",
+				"--slug",
+				"{{name}}-{{short_id}}",
+			],
+			root,
+		);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"field",
+				"create",
+				"clients",
+				"name",
+				"--type",
+				"string",
+				"--required",
+			],
+			root,
+		);
+		const editorScript = join(root, "invalid-editor.sh");
+		await writeFile(
+			editorScript,
+			`#!/usr/bin/env bash
+set -euo pipefail
+target="$1"
+id_line="$(grep '^_id:' "$target" | head -n1 | cut -d' ' -f2-)"
+created_line="$(grep '^_created_at:' "$target" | head -n1 | cut -d' ' -f2-)"
+cat >"$target" <<EOF
+---
+_id: $id_line
+_created_at: $created_line
+---
+
+invalid
+EOF
+`,
+			{ mode: 0o755 },
+		);
+
+		const output = await runOk(["-C", root, "open", "cli", "Acme"], root, "2\n", {
+			EDITOR: editorScript,
+			TMDOC_SKIP_EDITOR: "0",
+		});
+		expect(output).toContain(".tdo-");
+		const list = JSON.parse(
+			await runOk(["-C", root, "list", "cli", "-o", "json"], root),
+		) as unknown[];
+		expect(list).toHaveLength(0);
 	});
 
 	test("open does not prompt for template when slug match already exists", async () => {
@@ -286,7 +444,7 @@ describe("CLI workflows", () => {
 				"--prefix",
 				"cli",
 				"--slug",
-				"{{short_id}}-{{name}}",
+				"{{name}}-{{short_id}}",
 			],
 			root,
 		);
@@ -315,7 +473,7 @@ describe("CLI workflows", () => {
 				"--prefix",
 				"tpl",
 				"--slug",
-				"{{short_id}}-{{name}}",
+				"{{name}}-{{short_id}}",
 			],
 			root,
 		);
@@ -376,7 +534,7 @@ describe("CLI workflows", () => {
 				"--prefix",
 				"cli",
 				"--slug",
-				"{{short_id}}-{{name}}",
+				"{{name}}-{{short_id}}",
 			],
 			root,
 		);
@@ -405,7 +563,7 @@ describe("CLI workflows", () => {
 				"--prefix",
 				"tpl",
 				"--slug",
-				"{{short_id}}-{{name}}",
+				"{{name}}-{{short_id}}",
 			],
 			root,
 		);
@@ -467,7 +625,7 @@ describe("CLI workflows", () => {
 				"--prefix",
 				"cli",
 				"--slug",
-				"{{short_id}}-{{name}}",
+				"{{name}}-{{short_id}}",
 			],
 			root,
 		);
@@ -522,7 +680,7 @@ describe("CLI workflows", () => {
 				"--prefix",
 				"cli",
 				"--slug",
-				"{{short_id}}-{{name}}",
+				"{{name}}-{{short_id}}",
 			],
 			root,
 		);
@@ -537,7 +695,7 @@ describe("CLI workflows", () => {
 				"--prefix",
 				"prj",
 				"--slug",
-				"{{short_id}}-{{name}}",
+				"{{name}}-{{short_id}}",
 			],
 			root,
 		);
@@ -628,7 +786,7 @@ describe("CLI workflows", () => {
 				"--prefix",
 				"cli",
 				"--slug",
-				"{{short_id}}-{{name}}",
+				"{{name}}-{{short_id}}",
 			],
 			root,
 		);
@@ -658,7 +816,7 @@ describe("CLI workflows", () => {
 				"--prefix",
 				"cli",
 				"--slug",
-				"{{short_id}}-{{name}}",
+				"{{name}}-{{short_id}}",
 			],
 			root,
 		);
@@ -699,7 +857,7 @@ describe("CLI workflows", () => {
 				"--prefix",
 				"cli",
 				"--slug",
-				"{{short_id}}-{{name}}",
+				"{{name}}-{{short_id}}",
 			],
 			root,
 		);
@@ -776,7 +934,7 @@ fi
 				"--prefix",
 				"cli",
 				"--slug",
-				"{{short_id}}-{{name}}",
+				"{{name}}-{{short_id}}",
 			],
 			root,
 		);
@@ -837,7 +995,7 @@ fi
 				"--prefix",
 				"cli",
 				"--slug",
-				"{{short_id}}-{{name}}",
+				"{{name}}-{{short_id}}",
 			],
 			root,
 		);
@@ -912,7 +1070,7 @@ fi
 				"--prefix",
 				"cli",
 				"--slug",
-				"{{short_id}}-{{name}}",
+				"{{name}}-{{short_id}}",
 			],
 			root,
 		);
@@ -941,7 +1099,7 @@ fi
 				"--prefix",
 				"tsk",
 				"--slug",
-				"{{short_id}}-{{name}}",
+				"{{name}}-{{short_id}}",
 			],
 			root,
 		);
@@ -1002,6 +1160,564 @@ fi
 		expect(pathMatch).not.toBeNull();
 		expect(pathMatch?.[1].startsWith("projects/")).toBe(true);
 	});
+
+	test("web server serves API and honors -C", async () => {
+		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-web-"));
+		await runOk(["-C", root, "init"], root);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"create",
+				"clients",
+				"--prefix",
+				"cli",
+				"--slug",
+				"{{name}}-{{short_id}}",
+			],
+			root,
+		);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"field",
+				"create",
+				"clients",
+				"name",
+				"--type",
+				"string",
+				"--required",
+			],
+			root,
+		);
+		await runOk(["-C", root, "create", "cli", "Acme"], root);
+
+		const proc = Bun.spawn(
+			[...CLI, "-C", root, "web", "--host", "127.0.0.1", "--port", "0", "--no-open"],
+			{
+				cwd: PROJECT_ROOT,
+				stdout: "pipe",
+				stderr: "pipe",
+				env: {
+					...process.env,
+					TMDOC_SKIP_EDITOR: "1",
+				},
+			},
+		);
+
+		try {
+			const url = await waitForWebUrl(proc.stdout);
+			const collectionsResp = await fetch(new URL("/api/collections", url));
+			expect(collectionsResp.status).toBe(200);
+			const collections = (await collectionsResp.json()) as {
+				collections: Array<{ name: string; count: number }>;
+			};
+			expect(collections.collections.some((c) => c.name === "clients")).toBe(true);
+			expect(collections.collections.some((c) => c.name === "clients" && c.count === 1)).toBe(true);
+
+			const docsResp = await fetch(new URL("/api/documents?collection=cli", url));
+			expect(docsResp.status).toBe(200);
+			const docs = (await docsResp.json()) as {
+				documents: Array<{ title: string }>;
+			};
+			expect(docs.documents.some((d) => d.title.includes("Acme"))).toBe(true);
+		} finally {
+			proc.kill("SIGINT");
+			await proc.exited;
+		}
+	});
+
+	test("web attachment API uploads dropped files and appends markdown reference", async () => {
+		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-web-attachments-"));
+		await runOk(["-C", root, "init"], root);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"create",
+				"clients",
+				"--prefix",
+				"cli",
+				"--slug",
+				"{{name}}-{{short_id}}",
+			],
+			root,
+		);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"field",
+				"create",
+				"clients",
+				"name",
+				"--type",
+				"string",
+				"--required",
+			],
+			root,
+		);
+		await runOk(["-C", root, "create", "cli", "Acme"], root);
+
+		const proc = Bun.spawn(
+			[...CLI, "-C", root, "web", "--host", "127.0.0.1", "--port", "0", "--no-open"],
+			{
+				cwd: PROJECT_ROOT,
+				stdout: "pipe",
+				stderr: "pipe",
+				env: {
+					...process.env,
+					TMDOC_SKIP_EDITOR: "1",
+				},
+			},
+		);
+
+		try {
+			const url = await waitForWebUrl(proc.stdout);
+			const docsResp = await fetch(new URL("/api/documents?collection=cli", url));
+			expect(docsResp.status).toBe(200);
+			const docs = (await docsResp.json()) as {
+				documents: Array<{ id: string }>;
+			};
+			expect(docs.documents).toHaveLength(1);
+			const id = docs.documents[0].id;
+
+			const payload = new FormData();
+			payload.set("file", new File(["Attachment body"], "notes.txt", { type: "text/plain" }));
+			payload.set("reference", "true");
+			const uploadResp = await fetch(new URL(`/api/documents/${encodeURIComponent(id)}/attachments`, url), {
+				method: "POST",
+				body: payload,
+			});
+			expect(uploadResp.status).toBe(201);
+			const uploaded = (await uploadResp.json()) as {
+				path: string;
+			};
+			expect(uploaded.path.endsWith("/notes.txt")).toBe(true);
+
+			const readResp = await fetch(new URL(`/api/documents/${encodeURIComponent(id)}`, url));
+			expect(readResp.status).toBe(200);
+			const read = (await readResp.json()) as {
+				document: { content: string; path: string };
+			};
+			expect(read.document.path.endsWith(".md")).toBe(false);
+			expect(read.document.content).toContain("[notes.txt](notes.txt)");
+		} finally {
+			proc.kill("SIGINT");
+			await proc.exited;
+		}
+	});
+
+	test("web server serves SPA shell and static UI bundle", async () => {
+		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-web-ui-shell-"));
+		await runOk(["-C", root, "init"], root);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"create",
+				"clients",
+				"--prefix",
+				"cli",
+				"--slug",
+				"{{name}}-{{short_id}}",
+			],
+			root,
+		);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"field",
+				"create",
+				"clients",
+				"name",
+				"--type",
+				"string",
+				"--required",
+			],
+			root,
+		);
+		await runOk(["-C", root, "create", "cli", "Acme"], root);
+
+		const proc = Bun.spawn(
+			[...CLI, "-C", root, "web", "--host", "127.0.0.1", "--port", "0", "--no-open"],
+			{
+				cwd: PROJECT_ROOT,
+				stdout: "pipe",
+				stderr: "pipe",
+				env: {
+					...process.env,
+					TMDOC_SKIP_EDITOR: "1",
+				},
+			},
+		);
+
+		try {
+			const url = await waitForWebUrl(proc.stdout);
+			const shellResp = await fetch(url);
+			expect(shellResp.status).toBe(200);
+			const shellHtml = await shellResp.text();
+			expect(shellHtml).toContain('id="app"');
+			expect(shellHtml).toContain("/ui/main.js");
+
+			const jsResp = await fetch(new URL("/ui/main.js", url));
+			expect(jsResp.status).toBe(200);
+			const jsContentType = jsResp.headers.get("content-type") ?? "";
+			expect(jsContentType).toContain("javascript");
+		} finally {
+			proc.kill("SIGINT");
+			await proc.exited;
+		}
+	});
+
+	test("web server redirects legacy id document routes to canonical slug routes", async () => {
+		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-web-slug-route-"));
+		await runOk(["-C", root, "init"], root);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"create",
+				"contacts",
+				"--prefix",
+				"con",
+				"--slug",
+				"{{name}}-{{short_id}}",
+			],
+			root,
+		);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"field",
+				"create",
+				"contacts",
+				"name",
+				"--type",
+				"string",
+				"--required",
+			],
+			root,
+		);
+		await runOk(["-C", root, "create", "con", "Alice Example"], root);
+
+		const proc = Bun.spawn(
+			[...CLI, "-C", root, "web", "--host", "127.0.0.1", "--port", "0", "--no-open"],
+			{
+				cwd: PROJECT_ROOT,
+				stdout: "pipe",
+				stderr: "pipe",
+				env: {
+					...process.env,
+					TMDOC_SKIP_EDITOR: "1",
+				},
+			},
+		);
+
+		try {
+			const url = await waitForWebUrl(proc.stdout);
+			const docsResp = await fetch(new URL("/api/documents?collection=contacts", url));
+			expect(docsResp.status).toBe(200);
+			const docs = (await docsResp.json()) as {
+				documents: Array<{ id: string; collection: string; path: string }>;
+			};
+			expect(docs.documents).toHaveLength(1);
+			const doc = docs.documents[0];
+			const slug = slugFromPath(doc.collection, doc.path);
+
+			const legacyUrl = new URL(
+				`/c/${encodeURIComponent(doc.collection)}/${encodeURIComponent(doc.id)}`,
+				url,
+			);
+			const legacyResp = await fetch(legacyUrl, { redirect: "manual" });
+			expect(legacyResp.status).toBe(302);
+			const location = legacyResp.headers.get("location");
+			expect(location).toBe(`/c/${encodeURIComponent(doc.collection)}/${encodeURIComponent(slug)}`);
+		} finally {
+			proc.kill("SIGINT");
+			await proc.exited;
+		}
+	});
+
+	test("web create API uses open-style draft lifecycle and reopens existing slug target", async () => {
+		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-web-open-defaults-"));
+		await runOk(["-C", root, "init"], root);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"create",
+				"clients",
+				"--prefix",
+				"cli",
+				"--slug",
+				"{{name}}-{{short_id}}",
+			],
+			root,
+		);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"field",
+				"create",
+				"clients",
+				"name",
+				"--type",
+				"string",
+				"--required",
+				"--default",
+				"Untitled Client",
+			],
+			root,
+		);
+
+		const proc = Bun.spawn(
+			[...CLI, "-C", root, "web", "--host", "127.0.0.1", "--port", "0", "--no-open"],
+			{
+				cwd: PROJECT_ROOT,
+				stdout: "pipe",
+				stderr: "pipe",
+				env: {
+					...process.env,
+					TMDOC_SKIP_EDITOR: "1",
+				},
+			},
+		);
+
+		try {
+			const url = await waitForWebUrl(proc.stdout);
+			const createResp = await fetch(new URL("/api/documents", url), {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ collection: "cli", openDefaults: true }),
+			});
+			expect(createResp.status).toBe(201);
+			const created = (await createResp.json()) as {
+				document: { id: string; collection: string; path: string };
+			};
+			expect(created.document.collection).toBe("clients");
+			expect(created.document.path).toContain("/.tdo-");
+
+			const docsBeforeSaveResp = await fetch(new URL("/api/documents?collection=cli", url));
+			expect(docsBeforeSaveResp.status).toBe(200);
+			const docsBeforeSave = (await docsBeforeSaveResp.json()) as {
+				documents: Array<{ id: string }>;
+			};
+			expect(docsBeforeSave.documents).toHaveLength(0);
+
+			const saveResp = await fetch(
+				new URL(`/api/documents/${encodeURIComponent(created.document.id)}`, url),
+				{
+					method: "PUT",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({
+						fields: { name: "Untitled Client" },
+						content: "Created from draft.\n",
+					}),
+				},
+			);
+			expect(saveResp.status).toBe(200);
+			const saved = (await saveResp.json()) as {
+				document: { id: string; path: string };
+			};
+			expect(saved.document.path.startsWith("clients/")).toBe(true);
+			expect(saved.document.path.includes("/.tdo-")).toBe(false);
+
+			const reopenResp = await fetch(new URL("/api/documents", url), {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ collection: "clients", openDefaults: true }),
+			});
+			expect(reopenResp.status).toBe(200);
+			const reopened = (await reopenResp.json()) as {
+				document: { id: string };
+			};
+			expect(reopened.document.id).toBe(saved.document.id);
+		} finally {
+			proc.kill("SIGINT");
+			await proc.exited;
+		}
+	});
+
+	test("web create API stages draft when slug variables have no defaults", async () => {
+		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-web-open-missing-defaults-"));
+		await runOk(["-C", root, "init"], root);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"create",
+				"contacts",
+				"--prefix",
+				"con",
+				"--slug",
+				"{{name}}-{{short_id}}",
+			],
+			root,
+		);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"field",
+				"create",
+				"contacts",
+				"name",
+				"--type",
+				"string",
+				"--required",
+			],
+			root,
+		);
+
+		const proc = Bun.spawn(
+			[...CLI, "-C", root, "web", "--host", "127.0.0.1", "--port", "0", "--no-open"],
+			{
+				cwd: PROJECT_ROOT,
+				stdout: "pipe",
+				stderr: "pipe",
+				env: {
+					...process.env,
+					TMDOC_SKIP_EDITOR: "1",
+				},
+			},
+		);
+
+		try {
+			const url = await waitForWebUrl(proc.stdout);
+			const createResp = await fetch(new URL("/api/documents", url), {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ collection: "con", openDefaults: true }),
+			});
+			expect(createResp.status).toBe(201);
+			const created = (await createResp.json()) as {
+				document: { id: string; path: string; draft?: boolean };
+			};
+			expect(created.document.path).toContain("/.tdo-");
+			expect(created.document.draft).toBe(true);
+		} finally {
+			proc.kill("SIGINT");
+			await proc.exited;
+		}
+	});
+
+	test("web server supports multiple --collection flags as allowlist", async () => {
+		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-web-scope-"));
+		await runOk(["-C", root, "init"], root);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"create",
+				"clients",
+				"--prefix",
+				"cli",
+				"--slug",
+				"{{name}}-{{short_id}}",
+			],
+			root,
+		);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"field",
+				"create",
+				"clients",
+				"name",
+				"--type",
+				"string",
+				"--required",
+			],
+			root,
+		);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"create",
+				"journal",
+				"--prefix",
+				"jrn",
+				"--slug",
+				"journal-{{date}}-{{short_id}}",
+			],
+			root,
+		);
+		await runOk(
+			["-C", root, "schema", "field", "create", "journal", "date", "--type", "date", "--required"],
+			root,
+		);
+		await runOk(["-C", root, "create", "cli", "Acme"], root);
+		await runOk(["-C", root, "create", "jrn", "-f", `date=${dateOffsetISO(0)}`], root);
+
+		const proc = Bun.spawn(
+			[
+				...CLI,
+				"-C",
+				root,
+				"web",
+				"--host",
+				"127.0.0.1",
+				"--port",
+				"0",
+				"--no-open",
+				"--collection",
+				"cli",
+				"--collection",
+				"jrn",
+			],
+			{
+				cwd: PROJECT_ROOT,
+				stdout: "pipe",
+				stderr: "pipe",
+				env: {
+					...process.env,
+					TMDOC_SKIP_EDITOR: "1",
+				},
+			},
+		);
+
+		try {
+			const url = await waitForWebUrl(proc.stdout);
+			const collectionsResp = await fetch(new URL("/api/collections", url));
+			expect(collectionsResp.status).toBe(200);
+			const collections = (await collectionsResp.json()) as {
+				collections: Array<{ name: string }>;
+			};
+			expect(collections.collections.map((c) => c.name).sort()).toEqual(["clients", "journal"]);
+
+			const disallowedResp = await fetch(new URL("/api/documents?collection=templates", url));
+			expect(disallowedResp.status).toBe(200);
+			const disallowed = (await disallowedResp.json()) as {
+				documents: unknown[];
+			};
+			expect(disallowed.documents).toHaveLength(0);
+		} finally {
+			proc.kill("SIGINT");
+			await proc.exited;
+		}
+	});
 });
 
 function dateOffsetISO(offsetDays: number): string {
@@ -1009,4 +1725,29 @@ function dateOffsetISO(offsetDays: number): string {
 	const utcMidnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
 	const shifted = new Date(utcMidnight + offsetDays * 24 * 60 * 60 * 1000);
 	return shifted.toISOString().slice(0, 10);
+}
+
+async function waitForWebUrl(stream: ReadableStream<Uint8Array>): Promise<string> {
+	const reader = stream.getReader();
+	const decoder = new TextDecoder();
+	let buffer = "";
+	const deadline = Date.now() + 8000;
+	while (Date.now() < deadline) {
+		const { value, done } = await reader.read();
+		if (done) {
+			break;
+		}
+		buffer += decoder.decode(value, { stream: true });
+		const match = buffer.match(/http:\/\/[^\s]+/);
+		if (match) {
+			return match[0];
+		}
+	}
+	throw new Error(`timed out waiting for web URL. output=${buffer}`);
+}
+
+function slugFromPath(collection: string, path: string): string {
+	const prefix = `${collection}/`;
+	const relative = path.startsWith(prefix) ? path.slice(prefix.length) : path;
+	return relative.endsWith(".md") ? relative.slice(0, -3) : relative;
 }

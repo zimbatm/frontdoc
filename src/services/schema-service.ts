@@ -27,6 +27,7 @@ export interface AddCollectionOptions {
 	name: string;
 	alias?: string;
 	slug?: string;
+	titleField?: string;
 	fields?: Record<string, FieldDefinition>;
 	references?: Record<string, string>;
 	shortIdLength?: number;
@@ -36,6 +37,7 @@ export interface UpdateCollectionOptions {
 	name: string;
 	alias?: string;
 	slug?: string;
+	titleField?: string;
 	shortIdLength?: number;
 }
 
@@ -105,6 +107,9 @@ export class SchemaService {
 		if (options.shortIdLength !== undefined) {
 			schema.short_id_length = options.shortIdLength;
 		}
+		if (options.titleField !== undefined) {
+			schema.title_field = options.titleField;
+		}
 
 		await this.repository.fileSystem().mkdirAll(name);
 		await this.repository
@@ -130,6 +135,9 @@ export class SchemaService {
 		}
 		if (options.shortIdLength !== undefined) {
 			schema.short_id_length = options.shortIdLength;
+		}
+		if (options.titleField !== undefined) {
+			schema.title_field = options.titleField;
 		}
 		await this.persistSchema(currentName);
 

@@ -10,11 +10,11 @@ describe("Repository", () => {
 	test("collectAll collects file and folder documents", async () => {
 		const vfs = new MemoryVFS();
 		await vfs.mkdirAll("clients");
-		await vfs.writeFile("clients/_schema.yaml", 'slug: "{{short_id}}-{{name}}"\n');
+		await vfs.writeFile("clients/_schema.yaml", 'slug: "{{name}}-{{short_id}}"\n');
 		await vfs.writeFile("clients/abc123-acme.md", doc("01arz3ndektsv4rrffq6abc123", "Acme"));
 
 		await vfs.mkdirAll("projects/proj001-roadmap");
-		await vfs.writeFile("projects/_schema.yaml", 'slug: "{{short_id}}-{{name}}"\n');
+		await vfs.writeFile("projects/_schema.yaml", 'slug: "{{name}}-{{short_id}}"\n');
 		await vfs.writeFile(
 			"projects/proj001-roadmap/index.md",
 			doc("01arz3ndektsv4rrffq69proj1", "Roadmap"),
@@ -34,7 +34,7 @@ describe("Repository", () => {
 	test("collectAll applies filters", async () => {
 		const vfs = new MemoryVFS();
 		await vfs.mkdirAll("clients");
-		await vfs.writeFile("clients/_schema.yaml", 'slug: "{{short_id}}-{{name}}"\n');
+		await vfs.writeFile("clients/_schema.yaml", 'slug: "{{name}}-{{short_id}}"\n');
 		await vfs.writeFile(
 			"clients/abc123-acme.md",
 			"---\n_id: 01arz3ndektsv4rrffq6abc123\nname: Acme\nstatus: active\n---\n",
@@ -58,7 +58,7 @@ describe("Repository", () => {
 	test("findByID supports plain and collection-scoped ids", async () => {
 		const vfs = new MemoryVFS();
 		await vfs.mkdirAll("clients");
-		await vfs.writeFile("clients/_schema.yaml", 'slug: "{{short_id}}-{{name}}"\n');
+		await vfs.writeFile("clients/_schema.yaml", 'slug: "{{name}}-{{short_id}}"\n');
 		await vfs.writeFile("clients/abc123-acme.md", doc("01arz3ndektsv4rrffq6abc123", "Acme"));
 
 		const repo = new Repository(vfs);
@@ -69,10 +69,24 @@ describe("Repository", () => {
 		expect(byScoped.path).toBe("clients/abc123-acme.md");
 	});
 
+	test("findByID matches metadata id even when filename has no id prefix", async () => {
+		const vfs = new MemoryVFS();
+		await vfs.mkdirAll("journal");
+		await vfs.writeFile("journal/_schema.yaml", 'slug: "journal-{{date}}-{{short_id}}"\n');
+		await vfs.writeFile(
+			"journal/journal-2026-02-14.md",
+			doc("01khdw60we90w6fb5rajbbjer9", "Daily log"),
+		);
+
+		const repo = new Repository(vfs);
+		const byFullID = await repo.findByID("01khdw60we90w6fb5rajbbjer9");
+		expect(byFullID.path).toBe("journal/journal-2026-02-14.md");
+	});
+
 	test("findByID errors on ambiguity", async () => {
 		const vfs = new MemoryVFS();
 		await vfs.mkdirAll("clients");
-		await vfs.writeFile("clients/_schema.yaml", 'slug: "{{short_id}}-{{name}}"\n');
+		await vfs.writeFile("clients/_schema.yaml", 'slug: "{{name}}-{{short_id}}"\n');
 		await vfs.writeFile("clients/abc123-acme.md", doc("01arz3ndektsv4rrffq69abc12", "Acme"));
 		await vfs.writeFile("clients/abc456-beta.md", doc("01arz3ndektsv4rrffq69abc45", "Beta"));
 

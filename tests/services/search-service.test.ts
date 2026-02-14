@@ -11,8 +11,8 @@ async function setup(): Promise<SearchService> {
 	const vfs = new MemoryVFS();
 	await vfs.mkdirAll("clients");
 	await vfs.mkdirAll("templates");
-	await vfs.writeFile("clients/_schema.yaml", 'slug: "{{short_id}}-{{name}}"\n');
-	await vfs.writeFile("templates/_schema.yaml", 'slug: "{{short_id}}-{{name}}"\n');
+	await vfs.writeFile("clients/_schema.yaml", 'slug: "{{name}}-{{short_id}}"\n');
+	await vfs.writeFile("templates/_schema.yaml", 'slug: "{{name}}-{{short_id}}"\n');
 	await vfs.writeFile(
 		"clients/abc123-acme.md",
 		doc("01arz3ndektsv4rrffq6abc123", "Acme Corp", "Kubernetes migration plan", "status: active\n"),

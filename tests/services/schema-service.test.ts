@@ -18,7 +18,7 @@ async function setup(): Promise<{
 	await vfs.writeFile(
 		"clients/_schema.yaml",
 		serializeCollectionSchema({
-			slug: "{{short_id}}-{{name}}",
+			slug: "{{name}}-{{short_id}}",
 			fields: { name: { type: "string", required: true } },
 			references: {},
 		}),
@@ -38,12 +38,12 @@ async function setup(): Promise<{
 describe("SchemaService", () => {
 	test("add/update/remove collection persists schema and aliases", async () => {
 		const { vfs, service } = await setup();
-		await service.AddCollection({ name: "projects", slug: "{{short_id}}-{{title}}" });
+		await service.AddCollection({ name: "projects", slug: "{{title}}-{{short_id}}" });
 		expect(await vfs.exists("projects/_schema.yaml")).toBe(true);
 
 		const updated = await service.UpdateCollection({
 			name: "projects",
-			slug: "{{short_id}}-{{name}}",
+			slug: "{{name}}-{{short_id}}",
 			alias: "prj",
 		});
 		expect(updated.alias).toBe("prj");
@@ -56,7 +56,7 @@ describe("SchemaService", () => {
 		const { vfs, service, schemas } = await setup();
 		await service.AddCollection({
 			name: "projects",
-			slug: "{{short_id}}-{{name}}",
+			slug: "{{name}}-{{short_id}}",
 			fields: { name: { type: "string" }, client_id: { type: "reference" } },
 			references: { client_id: "clients" },
 			alias: "prj",
@@ -97,5 +97,13 @@ describe("SchemaService", () => {
 		const { service } = await setup();
 		await expect(service.RemoveCollection({ name: "clients" })).rejects.toThrow("has 1 documents");
 		await service.RemoveCollection({ name: "clients", removeDocuments: true });
+	});
+
+	test("accepts slug templates that omit short_id", async () => {
+		const { service } = await setup();
+		const created = await service.AddCollection({ name: "projects", slug: "{{title}}" });
+		expect(created.schema.slug).toBe("{{title}}");
+		const updated = await service.UpdateCollection({ name: "clients", slug: "{{name}}" });
+		expect(updated.schema.slug).toBe("{{name}}");
 	});
 });

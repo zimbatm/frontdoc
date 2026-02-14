@@ -1,4 +1,3 @@
-import { basename } from "node:path";
 import { type Document, parseDocument } from "../document/document.js";
 import { BoundVFS } from "../storage/bound-vfs.js";
 import type { FileInfo, VFS } from "../storage/vfs.js";
@@ -82,16 +81,6 @@ export class Repository {
 				}
 			}
 
-			const idSegment = extractIDSegment(candidate.path, candidate.isFolder);
-			const idPrefix = idSegment.toLowerCase();
-			if (
-				!idPrefix.startsWith(needle) &&
-				!needle.startsWith(idPrefix) &&
-				!needle.endsWith(idPrefix)
-			) {
-				continue;
-			}
-
 			const record = await this.parseCandidate(candidate.path, candidate.info, candidate.isFolder);
 			const metadataID = String(record.document.metadata._id ?? "").toLowerCase();
 			if (matchesMetadataID(metadataID, needle)) {
@@ -165,15 +154,6 @@ function splitIDInput(input: string): { collectionScope: string | null; partialI
 	}
 
 	return { collectionScope, partialID };
-}
-
-function extractIDSegment(path: string, isFolder: boolean): string {
-	const base = isFolder ? basename(path) : basename(path, ".md");
-	const dash = base.indexOf("-");
-	if (dash === -1) {
-		return base;
-	}
-	return base.slice(0, dash);
 }
 
 function isDocumentMarkdownFile(path: string, name: string): boolean {

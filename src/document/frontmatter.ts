@@ -32,7 +32,7 @@ export function parseFrontmatter(raw: string): {
 
 	const yamlStr = raw.slice(startLen, yamlEnd);
 	if (yamlStr.trim() === "") {
-		return { metadata: {}, content: raw.slice(contentStart) };
+		return { metadata: {}, content: stripFrontmatterSeparator(raw.slice(contentStart)) };
 	}
 
 	const doc = parseDocument(yamlStr, {
@@ -51,7 +51,7 @@ export function parseFrontmatter(raw: string): {
 		}
 	}
 
-	const content = raw.slice(contentStart);
+	const content = stripFrontmatterSeparator(raw.slice(contentStart));
 	return { metadata, content };
 }
 
@@ -77,6 +77,16 @@ export function serializeFrontmatter(metadata: Record<string, unknown>, content:
 	}
 	result += content;
 	return result;
+}
+
+function stripFrontmatterSeparator(content: string): string {
+	if (content.startsWith("\r\n")) {
+		return content.slice(2);
+	}
+	if (content.startsWith("\n")) {
+		return content.slice(1);
+	}
+	return content;
 }
 
 /**

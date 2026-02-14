@@ -38,6 +38,10 @@ export function parseCollectionSchema(content: string): CollectionSchema {
 	if (shortIDLength !== undefined && (shortIDLength < 4 || shortIDLength > 16)) {
 		throw new Error("invalid _schema.yaml: short_id_length must be between 4 and 16");
 	}
+	const titleField = typeof data.title_field === "string" ? data.title_field.trim() : undefined;
+	if (titleField !== undefined && titleField.length === 0) {
+		throw new Error("invalid _schema.yaml: title_field must not be empty");
+	}
 
 	for (const [name, def] of Object.entries(fields)) {
 		validateFieldDefault(name, def);
@@ -46,6 +50,7 @@ export function parseCollectionSchema(content: string): CollectionSchema {
 	return {
 		slug: data.slug,
 		short_id_length: shortIDLength,
+		title_field: titleField,
 		fields,
 		references,
 	};
@@ -163,6 +168,9 @@ export function serializeCollectionSchema(schema: CollectionSchema): string {
 	if (schema.short_id_length !== undefined) {
 		data.short_id_length = schema.short_id_length;
 	}
+	if (schema.title_field !== undefined) {
+		data.title_field = schema.title_field;
+	}
 	if (Object.keys(schema.fields).length > 0) {
 		data.fields = serializeFields(schema.fields);
 	}
@@ -213,7 +221,7 @@ export async function discoverCollections(vfs: VFS): Promise<Map<string, Collect
 export function generateDefaultSlug(fields: Record<string, FieldDefinition>): string {
 	for (const name of ["title", "name", "subject"]) {
 		if (name in fields) {
-			return `{{short_id}}-{{${name}}}`;
+			return `{{${name}}}`;
 		}
 	}
 	return "{{short_id}}";

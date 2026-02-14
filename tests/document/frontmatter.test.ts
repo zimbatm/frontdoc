@@ -15,7 +15,7 @@ name: Acme Corporation
 		expect(metadata._id).toBe("01arz3ndektsv4rrffq69g5fav");
 		expect(metadata._created_at).toBe("2024-03-15T10:30:00Z");
 		expect(metadata.name).toBe("Acme Corporation");
-		expect(content).toBe("\n# Acme Corporation");
+		expect(content).toBe("# Acme Corporation");
 	});
 
 	test("returns empty metadata when no frontmatter", () => {
@@ -116,7 +116,7 @@ describe("serializeFrontmatter", () => {
 			name: "Test Doc",
 			status: "active",
 		};
-		const originalContent = "\n# Test\n\nSome content here.\n";
+		const originalContent = "# Test\n\nSome content here.\n";
 
 		const serialized = serializeFrontmatter(originalMeta, originalContent);
 		const { metadata, content } = parseFrontmatter(serialized);
@@ -126,5 +126,11 @@ describe("serializeFrontmatter", () => {
 		expect(metadata.name).toBe(originalMeta.name);
 		expect(metadata.status).toBe(originalMeta.status);
 		expect(content).toBe(originalContent);
+	});
+
+	test("preserves intentional extra leading blank lines", () => {
+		const serialized = serializeFrontmatter({ _id: "abc" }, "\n\n# Heading");
+		const { content } = parseFrontmatter(serialized);
+		expect(content).toBe("\n# Heading");
 	});
 });

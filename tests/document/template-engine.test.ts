@@ -8,11 +8,11 @@ describe("processTemplate", () => {
 	});
 
 	test("replaces multiple placeholders", () => {
-		const result = processTemplate("{{short_id}}-{{name}}", {
+		const result = processTemplate("{{name}}-{{short_id}}", {
 			short_id: "9g5fav",
 			name: "Acme Corp",
 		});
-		expect(result).toBe("9g5fav-Acme Corp");
+		expect(result).toBe("Acme Corp-9g5fav");
 	});
 
 	test("applies year filter", () => {
@@ -65,19 +65,19 @@ describe("processTemplate", () => {
 	});
 
 	test("handles subdirectory slug template", () => {
-		const result = processTemplate("{{date | year}}/{{short_id}}-{{name}}", {
+		const result = processTemplate("{{date | year}}/{{name}}-{{short_id}}", {
 			date: "2024-03-15",
 			short_id: "9g5fav",
 			name: "Acme Corp",
 		});
-		expect(result).toBe("2024/9g5fav-Acme Corp");
+		expect(result).toBe("2024/Acme Corp-9g5fav");
 	});
 });
 
 describe("extractPlaceholders", () => {
 	test("extracts simple fields", () => {
-		const fields = extractPlaceholders("{{short_id}}-{{name}}");
-		expect(fields).toEqual(["short_id", "name"]);
+		const fields = extractPlaceholders("{{name}}-{{short_id}}");
+		expect(fields).toEqual(["name", "short_id"]);
 	});
 
 	test("extracts fields with filters", () => {

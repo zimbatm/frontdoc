@@ -16,7 +16,7 @@ function makeServices(vfs: MemoryVFS): {
 		[
 			"clients",
 			{
-				slug: "{{short_id}}-{{name}}",
+				slug: "{{name}}-{{short_id}}",
 				fields: {
 					name: { type: "string", required: true },
 					currency: { type: "currency" },
@@ -27,7 +27,7 @@ function makeServices(vfs: MemoryVFS): {
 		[
 			"templates",
 			{
-				slug: "{{short_id}}-{{name}}",
+				slug: "{{name}}-{{short_id}}",
 				fields: {
 					name: { type: "string", required: true },
 					for: { type: "string", required: true },

@@ -45,6 +45,11 @@ export interface UpsertBySlugOptions {
 	resolveTemplateContent?: () => Promise<string | undefined>;
 }
 
+export interface PlanBySlugResult {
+	record: DocumentRecord | null;
+	draft: Document | null;
+}
+
 export class DocumentService {
 	constructor(
 		private readonly schemas: Map<string, CollectionSchema>,
@@ -57,36 +62,18 @@ export class DocumentService {
 	}
 
 	async Create(options: CreateOptions): Promise<DocumentRecord> {
-		const collection = this.ResolveCollection(options.collection);
-		const schema = this.getCollectionSchema(collection);
-		const fields = { ...(options.fields ?? {}) };
-		assertNoReservedFields(fields, "create");
-
-		injectFieldDefaults(fields, schema);
-		ensureRequiredFields(fields, schema, collection);
-
-		const id = ulid().toLowerCase();
-		const createdAt = new Date().toISOString();
-		fields._id = id;
-		fields._created_at = createdAt;
-
-		const content = options.templateContent
-			? processTemplate(options.templateContent, buildTemplateValues(fields, schema, id))
-			: (options.content ?? "");
-		const templateValues = buildTemplateValues(fields, schema, id, content);
-		const filename = this.generateFilename(schema, templateValues);
-		const path = `${collection}/${filename}`;
+		const doc = this.prepareNewDocument(
+			options.collection,
+			options.fields ?? {},
+			options.content,
+			options.templateContent,
+		);
+		const path = doc.path;
 
 		if (!options.overwrite && (await this.repository.fileSystem().exists(path))) {
 			throw new Error(`document already exists: ${path}`);
 		}
 
-		const doc: Document = {
-			path,
-			metadata: fields,
-			content,
-			isFolder: false,
-		};
 		await this.save(doc);
 
 		const info = await this.repository.fileSystem().stat(path);
@@ -180,11 +167,11 @@ export class DocumentService {
 		return records.sort((a, b) => a.path.localeCompare(b.path));
 	}
 
-	async UpsertBySlug(
+	async PlanBySlug(
 		collectionInput: string,
 		args: string[],
 		options: UpsertBySlugOptions = {},
-	): Promise<UpsertResult> {
+	): Promise<PlanBySlugResult> {
 		const collection = this.ResolveCollection(collectionInput);
 		const schema = this.getCollectionSchema(collection);
 		const variables = extractTemplateVariables(schema.slug);
@@ -196,19 +183,34 @@ export class DocumentService {
 
 		const existing = await this.findByMetadataMatch(collection, mapped);
 		if (existing) {
-			return { record: existing, created: false };
+			return { record: existing, draft: null };
 		}
 		const templateContent =
 			options.templateContent !== undefined
 				? options.templateContent
 				: await options.resolveTemplateContent?.();
+		const draft = this.prepareNewDocument(collection, mapped, undefined, templateContent);
+		return { record: null, draft };
+	}
 
-		const created = await this.Create({
-			collection,
-			fields: mapped,
-			templateContent,
-		});
-		return { record: created, created: true };
+	async UpsertBySlug(
+		collectionInput: string,
+		args: string[],
+		options: UpsertBySlugOptions = {},
+	): Promise<UpsertResult> {
+		const planned = await this.PlanBySlug(collectionInput, args, options);
+		if (planned.record) {
+			return { record: planned.record, created: false };
+		}
+		if (!planned.draft) {
+			throw new Error("missing draft plan");
+		}
+		if (await this.repository.fileSystem().exists(planned.draft.path)) {
+			throw new Error(`document already exists: ${planned.draft.path}`);
+		}
+		await this.save(planned.draft);
+		const info = await this.repository.fileSystem().stat(planned.draft.path);
+		return { record: { document: planned.draft, path: planned.draft.path, info }, created: true };
 	}
 
 	async AutoRenamePath(path: string): Promise<string> {
@@ -244,7 +246,8 @@ export class DocumentService {
 
 	private generateFilename(schema: CollectionSchema, values: Record<string, string>): string {
 		const rendered = processTemplate(schema.slug, slugifyTemplateValues(values));
-		return generateFilename(rendered);
+		const withShortIDSuffix = appendShortIDSuffix(rendered, values.short_id ?? "");
+		return generateFilename(withShortIDSuffix);
 	}
 
 	private async findByMetadataMatch(
@@ -290,6 +293,39 @@ export class DocumentService {
 		const document = parseDocument(raw, path, isFolder);
 		const info = await this.repository.fileSystem().stat(path);
 		return { document, path, info };
+	}
+
+	private prepareNewDocument(
+		collectionInput: string,
+		inputFields: Record<string, unknown>,
+		content: string | undefined,
+		templateContent: string | undefined,
+	): Document {
+		const collection = this.ResolveCollection(collectionInput);
+		const schema = this.getCollectionSchema(collection);
+		const fields = { ...inputFields };
+		assertNoReservedFields(fields, "create");
+
+		injectFieldDefaults(fields, schema);
+		ensureRequiredFields(fields, schema, collection);
+
+		const id = ulid().toLowerCase();
+		const createdAt = new Date().toISOString();
+		fields._id = id;
+		fields._created_at = createdAt;
+
+		const initialContent = templateContent
+			? processTemplate(templateContent, buildTemplateValues(fields, schema, id))
+			: (content ?? "");
+		const templateValues = buildTemplateValues(fields, schema, id, initialContent);
+		const filename = this.generateFilename(schema, templateValues);
+
+		return {
+			path: `${collection}/${filename}`,
+			metadata: fields,
+			content: initialContent,
+			isFolder: false,
+		};
 	}
 }
 
@@ -355,6 +391,26 @@ function slugifyTemplateValues(values: Record<string, string>): Record<string, s
 		slugValues[key] = slugify(value);
 	}
 	return slugValues;
+}
+
+function appendShortIDSuffix(renderedSlug: string, shortID: string): string {
+	const id = slugify(shortID);
+	if (id.length === 0) {
+		return renderedSlug;
+	}
+
+	const hadMd = renderedSlug.endsWith(".md");
+	const withoutExt = hadMd ? renderedSlug.slice(0, -3) : renderedSlug;
+	const segments = withoutExt.split("/");
+	const last = segments.length > 0 ? segments[segments.length - 1] : "";
+
+	if (last === id || last.endsWith(`-${id}`)) {
+		return renderedSlug;
+	}
+
+	segments[segments.length - 1] = last.length > 0 ? `${last}-${id}` : id;
+	const rebuilt = segments.join("/");
+	return hadMd ? `${rebuilt}.md` : rebuilt;
 }
 
 function resolveDateString(value: unknown): string {
