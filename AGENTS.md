@@ -7,6 +7,7 @@ Design and behavior specs are in `spec/` (numbered docs), and runnable examples 
 
 ## Build, Test, and Development Commands
 - `nix develop`: enter the pinned development shell (preferred).
+- In the dev shell, use the `tmdoc` wrapper (for example `tmdoc --help`, `tmdoc create ...`) instead of calling `bun run src/main.ts` directly.
 - `bun run dev` or `bun run src/main.ts --help`: run the CLI in development.
 - `bun run test`: run the full Bun test suite.
 - `bun test tests/cli/workflows.test.ts`: run a focused workflow test.
@@ -39,3 +40,15 @@ For PRs, include:
 Before making changes to the codebase, check the relevant files in `spec/` first.  
 If implementation and spec diverge, update the spec first, then update code to match it.  
 If there is uncertainty, follow the spec.
+
+## Development Process (BDD/TDD)
+Default to BDD/TDD for all non-trivial changes:
+- start from behavior in spec and encode it as tests first,
+- write or update failing tests that describe expected behavior,
+- implement the smallest code change to make tests pass,
+- refactor while keeping tests green.
+Use clear scenario-oriented test names (Given/When/Then style where practical).
+
+## Commit Discipline
+Commit changes as you go, in small atomic commits.  
+Each commit should represent one logical change and include only related files.
