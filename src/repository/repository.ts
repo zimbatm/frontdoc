@@ -61,12 +61,11 @@ export class Repository {
 	}
 
 	async collectAll(...filters: Filter[]): Promise<DocumentRecord[]> {
-		const records = await this.getRecordsSnapshot();
-		const selected =
-			filters.length === 0
-				? records
-				: records.filter((record) => filters.every((fn) => fn(record)));
-		return selected.map(cloneDocumentRecord);
+		if (filters.length === 0) {
+			const records = await this.getRecordsSnapshot();
+			return records.map(cloneDocumentRecord);
+		}
+		return await this.collectFiltered(filters);
 	}
 
 	async findByID(idInput: string): Promise<DocumentRecord> {
@@ -136,6 +135,18 @@ export class Repository {
 		for (const candidate of candidates) {
 			const record = await this.parseCandidate(candidate.path, candidate.info, candidate.isFolder);
 			records.push(record);
+		}
+		return records;
+	}
+
+	private async collectFiltered(filters: Filter[]): Promise<DocumentRecord[]> {
+		const records: DocumentRecord[] = [];
+		const candidates = await this.collectCandidates();
+		for (const candidate of candidates) {
+			const record = await this.parseCandidate(candidate.path, candidate.info, candidate.isFolder);
+			if (filters.every((fn) => fn(record))) {
+				records.push(cloneDocumentRecord(record));
+			}
 		}
 		return records;
 	}
