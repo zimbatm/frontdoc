@@ -13,10 +13,10 @@ import {
 	type Document,
 	contentPath,
 	extractTitleFromContent,
-	parseDocument,
 	RESERVED_FIELD_PREFIX,
 	SYSTEM_FIELDS,
 } from "../document/document.js";
+import { loadDocumentRecordByPath, saveDocument } from "../document/persistence.js";
 import { extractPlaceholders, processTemplate } from "../document/template-engine.js";
 import { collectionFromPath } from "../document/path-utils.js";
 import {
@@ -90,7 +90,7 @@ export class DocumentService {
 			await this.assertNoValidationErrors(collection, path, buildDocument(doc));
 		}
 
-		await this.save(doc);
+		await saveDocument(this.repository.fileSystem(), doc);
 
 		const info = await this.repository.fileSystem().stat(path);
 		return { document: doc, path, info };
@@ -127,9 +127,9 @@ export class DocumentService {
 			doc.content = options.content;
 		}
 
-		await this.save(doc);
+		await saveDocument(this.repository.fileSystem(), doc);
 		const renamedPath = await this.AutoRenamePath(doc.path);
-		const updated = await this.loadByPath(renamedPath);
+		const updated = await loadDocumentRecordByPath(this.repository.fileSystem(), renamedPath);
 		if (!options.skipValidation && this.validationService) {
 			await this.assertNoValidationErrors(
 				collectionFromPath(updated.path),
@@ -175,10 +175,10 @@ export class DocumentService {
 		await this.repository.fileSystem().writeFile(destPath, content);
 
 		if (addReference) {
-			const loaded = await this.loadByPath(docPath);
+			const loaded = await loadDocumentRecordByPath(this.repository.fileSystem(), docPath);
 			const suffix = loaded.document.content.endsWith("\n") ? "" : "\n";
 			loaded.document.content = `${loaded.document.content}${suffix}\n[${fileName}](${fileName})\n`;
-			await this.save(loaded.document);
+			await saveDocument(this.repository.fileSystem(), loaded.document);
 		}
 
 		return destPath;
@@ -227,13 +227,13 @@ export class DocumentService {
 		if (await this.repository.fileSystem().exists(planned.draft.path)) {
 			throw new Error(`document already exists: ${planned.draft.path}`);
 		}
-		await this.save(planned.draft);
+		await saveDocument(this.repository.fileSystem(), planned.draft);
 		const info = await this.repository.fileSystem().stat(planned.draft.path);
 		return { record: { document: planned.draft, path: planned.draft.path, info }, created: true };
 	}
 
 	async AutoRenamePath(path: string): Promise<string> {
-		const record = await this.loadByPath(path);
+		const record = await loadDocumentRecordByPath(this.repository.fileSystem(), path);
 		const collection = collectionFromPath(record.path);
 		const schema = this.getCollectionSchema(collection);
 		const id = String(record.document.metadata._id ?? "");
@@ -288,24 +288,6 @@ export class DocumentService {
 			if (allMatch) return record;
 		}
 		return null;
-	}
-
-	private async save(doc: Document): Promise<void> {
-		const contentPath = doc.isFolder ? `${doc.path}/index.md` : doc.path;
-		const parent = dirname(contentPath);
-		if (parent !== ".") {
-			await this.repository.fileSystem().mkdirAll(parent);
-		}
-		await this.repository.fileSystem().writeFile(contentPath, buildDocument(doc));
-	}
-
-	private async loadByPath(path: string): Promise<DocumentRecord> {
-		const isFolder = await this.repository.fileSystem().isDir(path);
-		const contentPath = isFolder ? `${path}/index.md` : path;
-		const raw = await this.repository.fileSystem().readFile(contentPath);
-		const document = parseDocument(raw, path, isFolder);
-		const info = await this.repository.fileSystem().stat(path);
-		return { document, path, info };
 	}
 
 	private prepareNewDocument(

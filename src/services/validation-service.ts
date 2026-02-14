@@ -5,12 +5,12 @@ import type { CollectionSchema } from "../config/types.js";
 import { expectedPathForDocument } from "../document/path-policy.js";
 import { collectionFromPath } from "../document/path-utils.js";
 import {
-	buildDocument,
 	type Document,
 	displayName,
 	extractTitleFromContent,
 	parseDocument,
 } from "../document/document.js";
+import { loadDocumentRecordByPath, saveDocument } from "../document/persistence.js";
 import { parseSingleWikiLink, parseWikiLinks } from "../document/wiki-link.js";
 import { byCollection, type DocumentRecord, type Repository } from "../repository/repository.js";
 import { findByIDInRecords } from "../repository/id-lookup.js";
@@ -247,7 +247,7 @@ export class ValidationService {
 			fixed++;
 		}
 
-		const refreshed = await this.loadByPath(renamedPath);
+		const refreshed = await loadDocumentRecordByPath(this.repository.fileSystem(), renamedPath);
 		const schema = this.schemas.get(collectionFromPath(refreshed.path));
 		if (!schema) {
 			return fixed;
@@ -265,7 +265,7 @@ export class ValidationService {
 			}
 		}
 		if (changedFields) {
-			await this.save(refreshed.document);
+			await saveDocument(this.repository.fileSystem(), refreshed.document);
 			fixed++;
 		}
 
@@ -279,7 +279,7 @@ export class ValidationService {
 		}
 
 		if (refreshed.document.isFolder) {
-			const after = await this.loadByPath(refreshed.path);
+			const after = await loadDocumentRecordByPath(this.repository.fileSystem(), refreshed.path);
 			const collapsed = await this.collapseFolderIfPossible(after);
 			if (collapsed) fixed++;
 		}
@@ -375,24 +375,6 @@ export class ValidationService {
 		return resolveCollection(input, this.aliases, this.schemas);
 	}
 
-	private async loadByPath(path: string): Promise<DocumentRecord> {
-		const isFolder = await this.repository.fileSystem().isDir(path);
-		const contentPath = isFolder ? `${path}/index.md` : path;
-		const raw = await this.repository.fileSystem().readFile(contentPath);
-		const document = parseDocument(raw, path, isFolder);
-		const info = await this.repository.fileSystem().stat(path);
-		return { document, path, info };
-	}
-
-	private async save(doc: Document): Promise<void> {
-		const contentPath = doc.isFolder ? `${doc.path}/index.md` : doc.path;
-		const parent = dirname(contentPath);
-		if (parent !== ".") {
-			await this.repository.fileSystem().mkdirAll(parent);
-		}
-		await this.repository.fileSystem().writeFile(contentPath, buildDocument(doc));
-	}
-
 	private validateWikiLinks(
 		record: DocumentRecord,
 		resolveByID: (id: string) => DocumentRecord,
@@ -444,7 +426,7 @@ export class ValidationService {
 			return false;
 		}
 		record.document.content = rebuilt.content;
-		await this.save(record.document);
+		await saveDocument(this.repository.fileSystem(), record.document);
 		return true;
 	}
 
