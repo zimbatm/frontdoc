@@ -15,6 +15,7 @@ import {
 	not,
 } from "./repository/repository.js";
 import { formatSchemaReadText, formatSchemaShowText } from "./services/schema-service.js";
+import { FileLock } from "./storage/lock.js";
 
 type SchemaOutputFormat = "text" | "json" | "yaml";
 type ReadOutputFormat = "markdown" | "json" | "raw";
@@ -72,52 +73,54 @@ program
 			},
 		) => {
 			const manager = await Manager.New(getWorkDir(program));
-			const collection = opts.collection ?? argCollection;
-			if (!collection) {
-				throw new Error("collection is required");
-			}
-
-			const resolvedCollection = manager.Documents().ResolveCollection(collection);
-			const schema = manager.Schemas().get(resolvedCollection);
-			if (!schema) {
-				throw new Error(`unknown collection: ${collection}`);
-			}
-
-			const fields = parseFields(opts.field);
-			if (title) {
-				const titleField = firstSlugField(schema.slug);
-				if (titleField) {
-					fields[titleField] = title;
+			const created = await withWriteLock(manager, async () => {
+				const collection = opts.collection ?? argCollection;
+				if (!collection) {
+					throw new Error("collection is required");
 				}
-			}
 
-			let templateContent: string | undefined;
-			const noTemplate = opts.template === false;
-			const templateName = typeof opts.template === "string" ? opts.template : undefined;
-			if (!noTemplate) {
-				const templates = await manager.Templates().GetTemplatesForCollection(resolvedCollection);
-				if (templateName) {
-					const found = templates.find((template) => template.name === templateName);
-					if (!found) {
+				const resolvedCollection = manager.Documents().ResolveCollection(collection);
+				const schema = manager.Schemas().get(resolvedCollection);
+				if (!schema) {
+					throw new Error(`unknown collection: ${collection}`);
+				}
+
+				const fields = parseFields(opts.field);
+				if (title) {
+					const titleField = firstSlugField(schema.slug);
+					if (titleField) {
+						fields[titleField] = title;
+					}
+				}
+
+				let templateContent: string | undefined;
+				const noTemplate = opts.template === false;
+				const templateName = typeof opts.template === "string" ? opts.template : undefined;
+				if (!noTemplate) {
+					const templates = await manager.Templates().GetTemplatesForCollection(resolvedCollection);
+					if (templateName) {
+						const found = templates.find((template) => template.name === templateName);
+						if (!found) {
+							throw new Error(
+								`template not found for collection '${resolvedCollection}': ${templateName}`,
+							);
+						}
+						templateContent = found.content;
+					} else if (templates.length === 1) {
+						templateContent = templates[0].content;
+					} else if (templates.length > 1) {
 						throw new Error(
-							`template not found for collection '${resolvedCollection}': ${templateName}`,
+							`multiple templates found for '${resolvedCollection}', use --template or --no-template`,
 						);
 					}
-					templateContent = found.content;
-				} else if (templates.length === 1) {
-					templateContent = templates[0].content;
-				} else if (templates.length > 1) {
-					throw new Error(
-						`multiple templates found for '${resolvedCollection}', use --template or --no-template`,
-					);
 				}
-			}
 
-			const created = await manager.Documents().Create({
-				collection: resolvedCollection,
-				fields,
-				content: opts.content,
-				templateContent,
+				return await manager.Documents().Create({
+					collection: resolvedCollection,
+					fields,
+					content: opts.content,
+					templateContent,
+				});
 			});
 
 			renderWriteOutput(created, opts.output);
@@ -165,10 +168,12 @@ program
 				throw new Error("no fields or content to update");
 			}
 			const manager = await Manager.New(getWorkDir(program));
-			const updated = await manager.Documents().UpdateByID(id, {
-				fields: parseFields(opts.field),
-				unsetFields: opts.unset,
-				content: opts.content,
+			const updated = await withWriteLock(manager, async () => {
+				return await manager.Documents().UpdateByID(id, {
+					fields: parseFields(opts.field),
+					unsetFields: opts.unset,
+					content: opts.content,
+				});
 			});
 			renderWriteOutput(updated, opts.output);
 		},
@@ -182,8 +187,11 @@ program
 	.option("-o, --output <format>", "Output format: default|json", "default")
 	.action(async (id: string, opts: { output: "default" | "json" }) => {
 		const manager = await Manager.New(getWorkDir(program));
-		const record = await manager.Documents().ReadByID(id);
-		await manager.Documents().DeleteByID(id);
+		const record = await withWriteLock(manager, async () => {
+			const existing = await manager.Documents().ReadByID(id);
+			await manager.Documents().DeleteByID(id);
+			return existing;
+		});
 		if (opts.output === "json") {
 			console.log(JSON.stringify({ deleted: true, path: record.path }, null, 2));
 			return;
@@ -244,15 +252,16 @@ program
 		const manager = await Manager.New(getWorkDir(program));
 		const resolvedCollection = manager.Documents().ResolveCollection(collection);
 
-		let record: DocumentRecord;
-		if (idOrArg) {
-			try {
-				record = await manager.Documents().ReadByID(`${resolvedCollection}/${idOrArg}`);
-			} catch {
-				const upsert = await manager.Documents().UpsertBySlug(resolvedCollection, [idOrArg]);
-				record = upsert.record;
+		const record: DocumentRecord = await withWriteLock(manager, async () => {
+			if (idOrArg) {
+				try {
+					return await manager.Documents().ReadByID(`${resolvedCollection}/${idOrArg}`);
+				} catch {
+					const upsert = await manager.Documents().UpsertBySlug(resolvedCollection, [idOrArg]);
+					return upsert.record;
+				}
 			}
-		} else {
+
 			const schema = manager.Schemas().get(resolvedCollection);
 			if (!schema) {
 				throw new Error(`unknown collection: ${collection}`);
@@ -266,8 +275,8 @@ program
 				return String(value);
 			});
 			const upsert = await manager.Documents().UpsertBySlug(resolvedCollection, defaults);
-			record = upsert.record;
-		}
+			return upsert.record;
+		});
 
 		const absPath = join(manager.RootPath(), documentContentPath(record.document));
 		const editor = process.env.EDITOR || "vi";
@@ -281,7 +290,9 @@ program
 			}
 		}
 
-		const renamedPath = await manager.Documents().AutoRenamePath(record.path);
+		const renamedPath = await withWriteLock(manager, async () => {
+			return await manager.Documents().AutoRenamePath(record.path);
+		});
 		console.log(renamedPath);
 	});
 
@@ -304,9 +315,9 @@ program
 			},
 		) => {
 			const manager = await Manager.New(getWorkDir(program));
-			const attachmentPath = await manager
-				.Documents()
-				.AttachFileByID(id, filePath, opts.reference, opts.force);
+			const attachmentPath = await withWriteLock(manager, async () => {
+				return await manager.Documents().AttachFileByID(id, filePath, opts.reference, opts.force);
+			});
 			const record = await manager.Documents().ReadByID(id);
 			if (opts.output === "json") {
 				console.log(JSON.stringify({ path: attachmentPath, document: record.path, id }, null, 2));
@@ -333,11 +344,20 @@ program
 			opts: { fix: boolean; pruneAttachments: boolean; output: CheckOutputFormat },
 		) => {
 			const manager = await Manager.New(getWorkDir(program));
-			const result = await manager.Validation().Check({
-				collection,
-				fix: opts.fix || opts.pruneAttachments,
-				pruneAttachments: opts.pruneAttachments,
-			});
+			const mutate = opts.fix || opts.pruneAttachments;
+			const result = mutate
+				? await withWriteLock(manager, async () => {
+						return await manager.Validation().Check({
+							collection,
+							fix: true,
+							pruneAttachments: opts.pruneAttachments,
+						});
+					})
+				: await manager.Validation().Check({
+						collection,
+						fix: false,
+						pruneAttachments: false,
+					});
 			if (opts.output === "json") {
 				console.log(JSON.stringify(result, null, 2));
 				return;
@@ -510,11 +530,13 @@ schema
 			},
 		) => {
 			const manager = await Manager.New(getWorkDir(program));
-			const result = await manager.Schema().AddCollection({
-				name: collection,
-				alias: opts.prefix,
-				slug: opts.slug,
-				shortIdLength: opts.shortIdLength,
+			const result = await withWriteLock(manager, async () => {
+				return await manager.Schema().AddCollection({
+					name: collection,
+					alias: opts.prefix,
+					slug: opts.slug,
+					shortIdLength: opts.shortIdLength,
+				});
 			});
 			renderSchemaOutput(result, opts.output, formatSchemaReadText);
 		},
@@ -539,11 +561,13 @@ schema
 			},
 		) => {
 			const manager = await Manager.New(getWorkDir(program));
-			const result = await manager.Schema().UpdateCollection({
-				name: collection,
-				alias: opts.prefix,
-				slug: opts.slug,
-				shortIdLength: opts.shortIdLength,
+			const result = await withWriteLock(manager, async () => {
+				return await manager.Schema().UpdateCollection({
+					name: collection,
+					alias: opts.prefix,
+					slug: opts.slug,
+					shortIdLength: opts.shortIdLength,
+				});
 			});
 			renderSchemaOutput(result, opts.output, formatSchemaReadText);
 		},
@@ -557,7 +581,9 @@ schema
 	.option("-o, --output <format>", "Output format: text|json|yaml", "text")
 	.action(async (oldName: string, newName: string, opts: { output: SchemaOutputFormat }) => {
 		const manager = await Manager.New(getWorkDir(program));
-		const result = await manager.Schema().RenameCollection(oldName, newName);
+		const result = await withWriteLock(manager, async () => {
+			return await manager.Schema().RenameCollection(oldName, newName);
+		});
 		renderSchemaOutput(result, opts.output, formatSchemaReadText);
 	});
 
@@ -576,10 +602,12 @@ schema
 			},
 		) => {
 			const manager = await Manager.New(getWorkDir(program));
-			await manager.Schema().RemoveCollection({
-				name: collection,
-				removeDocuments: opts.removeDocuments,
-				force: opts.force,
+			await withWriteLock(manager, async () => {
+				await manager.Schema().RemoveCollection({
+					name: collection,
+					removeDocuments: opts.removeDocuments,
+					force: opts.force,
+				});
 			});
 			console.log(`Deleted collection ${collection}`);
 		},
@@ -627,9 +655,11 @@ schemaField
 			if (opts.min !== undefined) fieldDef.min = opts.min;
 			if (opts.max !== undefined) fieldDef.max = opts.max;
 			if (opts.weight !== undefined) fieldDef.weight = opts.weight;
-			const result = await manager
-				.Schema()
-				.AddFieldToCollection(collection, field, fieldDef as never, opts.target);
+			const result = await withWriteLock(manager, async () => {
+				return await manager
+					.Schema()
+					.AddFieldToCollection(collection, field, fieldDef as never, opts.target);
+			});
 			renderSchemaOutput(result, opts.output, formatSchemaReadText);
 		},
 	);
@@ -671,9 +701,9 @@ schemaField
 			if (opts.min !== undefined) update.min = opts.min;
 			if (opts.max !== undefined) update.max = opts.max;
 			if (opts.weight !== undefined) update.weight = opts.weight;
-			const result = await manager
-				.Schema()
-				.UpdateFieldInCollection(collection, field, update as never);
+			const result = await withWriteLock(manager, async () => {
+				return await manager.Schema().UpdateFieldInCollection(collection, field, update as never);
+			});
 			renderSchemaOutput(result, opts.output, formatSchemaReadText);
 		},
 	);
@@ -686,7 +716,9 @@ schemaField
 	.option("-o, --output <format>", "Output format: text|json|yaml", "text")
 	.action(async (collection: string, field: string, opts: { output: SchemaOutputFormat }) => {
 		const manager = await Manager.New(getWorkDir(program));
-		const result = await manager.Schema().RemoveFieldFromCollection(collection, field);
+		const result = await withWriteLock(manager, async () => {
+			return await manager.Schema().RemoveFieldFromCollection(collection, field);
+		});
 		renderSchemaOutput(result, opts.output, formatSchemaReadText);
 	});
 
@@ -795,6 +827,16 @@ function splitCSV(value: string): string[] {
 		.split(",")
 		.map((v) => v.trim())
 		.filter((v) => v.length > 0);
+}
+
+async function withWriteLock<T>(manager: Manager, fn: () => Promise<T>): Promise<T> {
+	const lock = new FileLock(manager.RootPath());
+	await lock.acquire();
+	try {
+		return await fn();
+	} finally {
+		await lock.release();
+	}
 }
 
 function searchResultsToCsv(
