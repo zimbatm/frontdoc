@@ -6,13 +6,17 @@ import { discoverCollections } from "./config/schema.js";
 import type { CollectionSchema, RepoConfig } from "./config/types.js";
 import { Repository } from "./repository/repository.js";
 import { DocumentService } from "./services/document-service.js";
+import { RelationshipService } from "./services/relationship-service.js";
 import { SchemaService } from "./services/schema-service.js";
+import { SearchService } from "./services/search-service.js";
 import { ValidationService } from "./services/validation-service.js";
 import { BoundVFS } from "./storage/bound-vfs.js";
 
 export class Manager {
 	private readonly documentService: DocumentService;
+	private readonly relationshipService: RelationshipService;
 	private readonly schemaService: SchemaService;
+	private readonly searchService: SearchService;
 	private readonly validationService: ValidationService;
 
 	private constructor(
@@ -27,6 +31,8 @@ export class Manager {
 			this.repository,
 		);
 		this.schemaService = new SchemaService(this.schemas, this.repoConfig);
+		this.searchService = new SearchService(this.repository);
+		this.relationshipService = new RelationshipService(this.schemas, this.repository);
 		this.validationService = new ValidationService(
 			this.schemas,
 			this.repoConfig.aliases,
@@ -81,6 +87,14 @@ export class Manager {
 
 	Documents(): DocumentService {
 		return this.documentService;
+	}
+
+	Search(): SearchService {
+		return this.searchService;
+	}
+
+	Relationships(): RelationshipService {
+		return this.relationshipService;
 	}
 
 	Validation(): ValidationService {

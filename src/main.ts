@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from "node:child_process";
+import { writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { Command } from "commander";
 import { stringify } from "yaml";
@@ -20,6 +21,7 @@ type ReadOutputFormat = "markdown" | "json" | "raw";
 type ListOutputFormat = "table" | "json";
 type WriteOutputFormat = "default" | "json" | "path";
 type CheckOutputFormat = "text" | "json";
+type SearchOutputFormat = "detail" | "table" | "json" | "csv";
 
 const program = new Command();
 
@@ -321,6 +323,120 @@ program
 		},
 	);
 
+program
+	.command("search")
+	.alias("find")
+	.description("Search documents")
+	.argument("<query>", "Search query")
+	.option("-o, --output <format>", "Output format: detail|table|json|csv", "detail")
+	.action(async (query: string, opts: { output: SearchOutputFormat }) => {
+		const manager = await Manager.New(getWorkDir(program));
+		const results = await manager.Search().UnifiedSearch(query);
+		switch (opts.output) {
+			case "json":
+				console.log(JSON.stringify(results, null, 2));
+				return;
+			case "csv":
+				console.log(searchResultsToCsv(results));
+				return;
+			case "table":
+				for (const row of results) {
+					console.log(`${row.document.path}\t${row.tier}\t${row.matchCount}`);
+				}
+				return;
+			default:
+				for (const row of results) {
+					console.log(`${row.document.path} (tier=${row.tier}, score=${row.score.toFixed(3)})`);
+					for (const match of row.matches.slice(0, 3)) {
+						console.log(`  - ${match.field}: ${match.context}`);
+					}
+				}
+		}
+	});
+
+program
+	.command("relationships")
+	.description("Show document relationships")
+	.argument("<id>", "Document id")
+	.option("-o, --output <format>", "Output format: text|json", "text")
+	.action(async (id: string, opts: { output: "text" | "json" }) => {
+		const manager = await Manager.New(getWorkDir(program));
+		const rel = await manager.Relationships().GetRelationships(id);
+		if (opts.output === "json") {
+			console.log(JSON.stringify(rel, null, 2));
+			return;
+		}
+		console.log(`Target: ${rel.target.path}`);
+		console.log("Outgoing:");
+		for (const edge of rel.outgoing) {
+			console.log(
+				`  ${edge.type}: ${edge.from} -> ${edge.to}${edge.field ? ` (${edge.field})` : ""}`,
+			);
+		}
+		console.log("Incoming:");
+		for (const edge of rel.incoming) {
+			console.log(
+				`  ${edge.type}: ${edge.from} -> ${edge.to}${edge.field ? ` (${edge.field})` : ""}`,
+			);
+		}
+	});
+
+program
+	.command("graph")
+	.description("Generate relationship graph")
+	.argument("[scope]", "Optional collection or document id scope")
+	.option("-o, --output <format>", "Output format: dot|mermaid|json", "dot")
+	.option("--file <path>", "Write output to file")
+	.action(
+		async (
+			scope: string | undefined,
+			opts: { output: "dot" | "mermaid" | "json"; file?: string },
+		) => {
+			const manager = await Manager.New(getWorkDir(program));
+			const edges = await manager.Relationships().BuildGraph(scope);
+			const rendered =
+				opts.output === "json"
+					? JSON.stringify(edges, null, 2)
+					: opts.output === "mermaid"
+						? manager.Relationships().ToMermaid(edges)
+						: manager.Relationships().ToDot(edges);
+
+			if (opts.file) {
+				await writeFile(opts.file, rendered, "utf8");
+				console.log(opts.file);
+				return;
+			}
+			console.log(rendered);
+		},
+	);
+
+program
+	.command("stats")
+	.description("Show repository statistics")
+	.option("-o, --output <format>", "Output format: text|json", "text")
+	.action(async (opts: { output: "text" | "json" }) => {
+		const manager = await Manager.New(getWorkDir(program));
+		const stats = await manager.Relationships().Stats();
+		if (opts.output === "json") {
+			console.log(JSON.stringify(stats, null, 2));
+			return;
+		}
+		console.log(`Total: ${stats.total}`);
+		for (const [collection, count] of Object.entries(stats.byCollection).sort(([a], [b]) =>
+			a.localeCompare(b),
+		)) {
+			console.log(`${collection}: ${count}`);
+		}
+	});
+
+program
+	.command("completion")
+	.description("Generate shell completion scripts")
+	.argument("<shell>", "bash|zsh|fish|powershell")
+	.action((shell: "bash" | "zsh" | "fish" | "powershell") => {
+		console.log(completionScript(shell));
+	});
+
 const schema = program.command("schema").description("Manage the schema");
 
 schema
@@ -420,4 +536,46 @@ function firstSlugField(slugTemplate: string): string | null {
 		}
 	}
 	return null;
+}
+
+function searchResultsToCsv(
+	results: Array<{ document: { path: string }; tier: number; score: number; matchCount: number }>,
+): string {
+	const lines = ["path,tier,score,match_count"];
+	for (const row of results) {
+		lines.push(`${csv(row.document.path)},${row.tier},${row.score},${row.matchCount}`);
+	}
+	return lines.join("\n");
+}
+
+function csv(value: string): string {
+	return `"${value.replaceAll('"', '""')}"`;
+}
+
+function completionScript(shell: string): string {
+	const commands =
+		"init create read update delete list search open attach check schema relationships graph stats completion";
+	switch (shell) {
+		case "bash":
+			return (
+				"# bash completion for tmdoc\n" +
+				"_tmdoc_complete() {\n" +
+				'  local cur="${' +
+				'COMP_WORDS[COMP_CWORD]}"\n' +
+				`  COMPREPLY=( $(compgen -W "${commands}" -- "$cur") )\n` +
+				"}\n" +
+				"complete -F _tmdoc_complete tmdoc"
+			);
+		case "zsh":
+			return `#compdef tmdoc\n_arguments "1: :(${commands})"`;
+		case "fish":
+			return commands
+				.split(" ")
+				.map((cmd) => `complete -c tmdoc -f -a "${cmd}"`)
+				.join("\n");
+		case "powershell":
+			return `Register-ArgumentCompleter -CommandName tmdoc -ScriptBlock {\n  param($wordToComplete)\n  '${commands}'.Split(' ') | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {\n    [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)\n  }\n}`;
+		default:
+			throw new Error(`unsupported shell: ${shell}`);
+	}
 }
