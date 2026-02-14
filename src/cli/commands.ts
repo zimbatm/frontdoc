@@ -7,7 +7,7 @@ import { createDocumentUseCase, updateDocumentUseCase } from "../app/document-us
 import { withWriteLock } from "../app/write-lock.js";
 import { listResultsToCsv, listResultsToTable, searchResultsToCsv } from "./output-format.js";
 import { registerSchemaCommands } from "./schema-commands.js";
-import { normalizeDateInput, normalizeDatetimeInput } from "../config/date-input.js";
+import { normalizeFieldInputValue } from "../config/field-rules.js";
 import type { CollectionSchema } from "../config/types.js";
 import { buildDocument, contentPath as documentContentPath } from "../document/document.js";
 import { collectionFromPath } from "../document/path-utils.js";
@@ -802,22 +802,18 @@ function normalizeFieldInputs(
 }
 
 function normalizeFieldValue(name: string, value: string, schema: CollectionSchema): string {
-	const fieldType = schema.fields[name]?.type;
-	if (fieldType === "date") {
-		try {
-			return normalizeDateInput(value);
-		} catch {
+	try {
+		return normalizeFieldInputValue(schema.fields[name]?.type, value);
+	} catch {
+		const fieldType = schema.fields[name]?.type;
+		if (fieldType === "date") {
 			throw new Error(`invalid date input for '${name}': ${value}`);
 		}
-	}
-	if (fieldType === "datetime") {
-		try {
-			return normalizeDatetimeInput(value);
-		} catch {
+		if (fieldType === "datetime") {
 			throw new Error(`invalid datetime input for '${name}': ${value}`);
 		}
+		throw new Error(`invalid value for '${name}': ${value}`);
 	}
-	return value;
 }
 
 function defaultSlugArgs(schema: CollectionSchema): string[] {

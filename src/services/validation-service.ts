@@ -1,6 +1,7 @@
 import { readFile as readHostFile } from "node:fs/promises";
 import { basename, dirname } from "node:path";
 import { resolveCollection } from "../config/collection-resolver.js";
+import { validateFieldValue } from "../config/field-rules.js";
 import type { CollectionSchema } from "../config/types.js";
 import { expectedPathForDocument } from "../document/path-policy.js";
 import { collectionFromPath } from "../document/path-utils.js";
@@ -151,7 +152,7 @@ export class ValidationService {
 			const field = schema.fields[fieldName];
 			if (!field) continue;
 			if (!hasValue(value)) continue;
-			const err = validateByType(field.type, value, field.enum_values);
+			const err = validateFieldValue(field.type, value, field.enum_values);
 			if (err) {
 				issues.push({
 					severity: "error",
@@ -482,52 +483,6 @@ function hasValue(value: unknown): boolean {
 	if (value === undefined || value === null) return false;
 	if (typeof value === "string") return value.length > 0;
 	return true;
-}
-
-function validateByType(type: string, value: unknown, enumValues?: string[]): string | null {
-	switch (type) {
-		case "email":
-			return typeof value === "string" &&
-				/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(value)
-				? null
-				: "invalid email format";
-		case "currency":
-			if (typeof value !== "string") return "must be a string";
-			if (!/^[A-Z]{3}$/.test(value)) return "must be uppercase ISO 4217 code";
-			if (enumValues && enumValues.length > 0 && !enumValues.includes(value)) {
-				return "must be one of enum_values";
-			}
-			return null;
-		case "country":
-			if (typeof value !== "string") return "must be a string";
-			if (!/^[A-Z]{2}$/.test(value)) return "must be uppercase ISO 3166-1 alpha-2 code";
-			if (enumValues && enumValues.length > 0 && !enumValues.includes(value)) {
-				return "must be one of enum_values";
-			}
-			return null;
-		case "date":
-			return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)
-				? null
-				: "must be YYYY-MM-DD";
-		case "datetime":
-			if (typeof value !== "string") return "must be RFC3339 string";
-			return Number.isNaN(Date.parse(value)) ? "must be RFC3339 string" : null;
-		case "number":
-			if (typeof value === "number") return null;
-			if (typeof value === "string" && value.length > 0 && !Number.isNaN(Number(value)))
-				return null;
-			return "must be numeric";
-		case "enum":
-			if (typeof value !== "string") return "must be a string";
-			if (!enumValues || enumValues.length === 0) return "enum_values must be configured";
-			return enumValues.some((v) => v.toLowerCase() === value.toLowerCase())
-				? null
-				: "must be one of enum_values";
-		case "array":
-			return Array.isArray(value) ? null : "must be an array";
-		default:
-			return null;
-	}
 }
 
 function extractAttachmentReferences(content: string): Set<string> {

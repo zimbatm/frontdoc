@@ -2,7 +2,7 @@ import { readFile as readHostFile } from "node:fs/promises";
 import { basename, dirname } from "node:path";
 import { ulid } from "ulidx";
 import { resolveCollection } from "../config/collection-resolver.js";
-import { normalizeDateInput, normalizeDatetimeInput } from "../config/date-input.js";
+import { normalizeFieldDefaultValue } from "../config/field-rules.js";
 import type { CollectionSchema } from "../config/types.js";
 import {
 	buildTemplateValues,
@@ -380,22 +380,9 @@ function ensureRequiredFields(
 function injectFieldDefaults(fields: Record<string, unknown>, schema: CollectionSchema): void {
 	for (const [fieldName, field] of Object.entries(schema.fields)) {
 		if (fields[fieldName] === undefined && field.default !== undefined) {
-			fields[fieldName] = normalizeDefaultFieldValue(field.type, field.default);
+			fields[fieldName] = normalizeFieldDefaultValue(field.type, field.default);
 		}
 	}
-}
-
-function normalizeDefaultFieldValue(type: string, value: unknown): unknown {
-	if (typeof value !== "string") {
-		return value;
-	}
-	if (type === "date") {
-		return normalizeDateInput(value);
-	}
-	if (type === "datetime") {
-		return normalizeDatetimeInput(value);
-	}
-	return value;
 }
 
 function extractTemplateVariables(slugTemplate: string): string[] {

@@ -1,6 +1,6 @@
 import { parse, stringify } from "yaml";
 import type { VFS } from "../storage/vfs.js";
-import { normalizeDateInput, normalizeDatetimeInput } from "./date-input.js";
+import { validateFieldDefaultDefinition } from "./field-rules.js";
 import type { CollectionSchema, FieldDefinition, FieldType } from "./types.js";
 
 /**
@@ -44,7 +44,10 @@ export function parseCollectionSchema(content: string): CollectionSchema {
 	}
 
 	for (const [name, def] of Object.entries(fields)) {
-		validateFieldDefault(name, def);
+		const err = validateFieldDefaultDefinition(name, def);
+		if (err) {
+			throw new Error(`invalid _schema.yaml: ${err}`);
+		}
 	}
 
 	return {
@@ -75,83 +78,6 @@ function parseFieldDefinition(raw: unknown): FieldDefinition {
 	if (typeof def.max === "number") result.max = def.max;
 	if (typeof def.weight === "number") result.weight = def.weight;
 	return result;
-}
-
-function validateFieldDefault(name: string, def: FieldDefinition): void {
-	if (def.default === undefined) return;
-	const value = def.default;
-	const fail = (reason: string) => {
-		throw new Error(`invalid _schema.yaml: field '${name}' default ${reason}`);
-	};
-
-	switch (def.type) {
-		case "email":
-			if (
-				typeof value !== "string" ||
-				!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(value)
-			) {
-				fail("must be a valid email");
-			}
-			return;
-		case "currency":
-			if (typeof value !== "string" || !/^[A-Z]{3}$/.test(value)) {
-				fail("must be an uppercase ISO 4217 code");
-			}
-			return;
-		case "country":
-			if (typeof value !== "string" || !/^[A-Z]{2}$/.test(value)) {
-				fail("must be an uppercase ISO 3166-1 alpha-2 code");
-			}
-			return;
-		case "date":
-			if (typeof value !== "string") {
-				fail("must be YYYY-MM-DD or supported shorthand");
-			}
-			try {
-				normalizeDateInput(value);
-			} catch {
-				fail("must be YYYY-MM-DD or supported shorthand");
-			}
-			return;
-		case "datetime":
-			if (typeof value !== "string") {
-				fail("must be RFC3339 datetime or supported date shorthand");
-			}
-			try {
-				normalizeDatetimeInput(value);
-			} catch {
-				fail("must be RFC3339 datetime or supported date shorthand");
-			}
-			return;
-		case "number":
-			if (
-				typeof value !== "number" &&
-				!(typeof value === "string" && value.length > 0 && !Number.isNaN(Number(value)))
-			) {
-				fail("must be numeric");
-			}
-			return;
-		case "enum":
-			if (typeof value !== "string") {
-				fail("must be a string from enum_values");
-			}
-			if (!def.enum_values || def.enum_values.length === 0) {
-				fail("requires enum_values");
-			}
-			if (!def.enum_values.some((v) => v.toLowerCase() === value.toLowerCase())) {
-				fail("must be one of enum_values");
-			}
-			return;
-		case "array":
-			if (!Array.isArray(value)) {
-				fail("must be an array");
-			}
-			return;
-		default:
-			if (typeof value !== "string") {
-				fail("must be a string");
-			}
-	}
 }
 
 function assertUserFieldName(name: string, kind: "field" | "reference"): void {
