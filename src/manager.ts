@@ -30,7 +30,7 @@ export class Manager {
 			this.repoConfig.aliases,
 			this.repository,
 		);
-		this.schemaService = new SchemaService(this.schemas, this.repoConfig);
+		this.schemaService = new SchemaService(this.schemas, this.repoConfig, this.repository);
 		this.searchService = new SearchService(this.repository);
 		this.relationshipService = new RelationshipService(this.schemas, this.repository);
 		this.validationService = new ValidationService(

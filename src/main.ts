@@ -460,6 +460,205 @@ schema
 		renderSchemaOutput(result, opts.output, formatSchemaReadText);
 	});
 
+schema
+	.command("create")
+	.description("Create a collection schema")
+	.argument("<collection>", "Collection name")
+	.option("--prefix <alias>", "Alias prefix")
+	.option("--slug <template>", "Slug template")
+	.option("--short-id-length <n>", "Short ID length", parseIntArg)
+	.option("-o, --output <format>", "Output format: text|json|yaml", "text")
+	.action(
+		async (
+			collection: string,
+			opts: {
+				prefix?: string;
+				slug?: string;
+				shortIdLength?: number;
+				output: SchemaOutputFormat;
+			},
+		) => {
+			const manager = await Manager.New(getWorkDir(program));
+			const result = await manager.Schema().AddCollection({
+				name: collection,
+				alias: opts.prefix,
+				slug: opts.slug,
+				shortIdLength: opts.shortIdLength,
+			});
+			renderSchemaOutput(result, opts.output, formatSchemaReadText);
+		},
+	);
+
+schema
+	.command("update")
+	.description("Update a collection schema")
+	.argument("<collection>", "Collection name or alias")
+	.option("--prefix <alias>", "Alias prefix")
+	.option("--slug <template>", "Slug template")
+	.option("--short-id-length <n>", "Short ID length", parseIntArg)
+	.option("-o, --output <format>", "Output format: text|json|yaml", "text")
+	.action(
+		async (
+			collection: string,
+			opts: {
+				prefix?: string;
+				slug?: string;
+				shortIdLength?: number;
+				output: SchemaOutputFormat;
+			},
+		) => {
+			const manager = await Manager.New(getWorkDir(program));
+			const result = await manager.Schema().UpdateCollection({
+				name: collection,
+				alias: opts.prefix,
+				slug: opts.slug,
+				shortIdLength: opts.shortIdLength,
+			});
+			renderSchemaOutput(result, opts.output, formatSchemaReadText);
+		},
+	);
+
+schema
+	.command("rename")
+	.description("Rename a collection")
+	.argument("<oldName>", "Current collection name or alias")
+	.argument("<newName>", "New collection name")
+	.option("-o, --output <format>", "Output format: text|json|yaml", "text")
+	.action(async (oldName: string, newName: string, opts: { output: SchemaOutputFormat }) => {
+		const manager = await Manager.New(getWorkDir(program));
+		const result = await manager.Schema().RenameCollection(oldName, newName);
+		renderSchemaOutput(result, opts.output, formatSchemaReadText);
+	});
+
+schema
+	.command("delete")
+	.description("Delete a collection")
+	.argument("<collection>", "Collection name or alias")
+	.option("--remove-documents", "Remove documents in collection", false)
+	.option("--force", "Skip non-empty checks", false)
+	.action(
+		async (
+			collection: string,
+			opts: {
+				removeDocuments: boolean;
+				force: boolean;
+			},
+		) => {
+			const manager = await Manager.New(getWorkDir(program));
+			await manager.Schema().RemoveCollection({
+				name: collection,
+				removeDocuments: opts.removeDocuments,
+				force: opts.force,
+			});
+			console.log(`Deleted collection ${collection}`);
+		},
+	);
+
+const schemaField = schema.command("field").description("Manage collection fields");
+
+schemaField
+	.command("create")
+	.description("Create a field in collection schema")
+	.argument("<collection>", "Collection name or alias")
+	.argument("<field>", "Field name")
+	.option("--type <type>", "Field type", "string")
+	.option("--required", "Mark field as required", false)
+	.option("--default <value>", "Default value")
+	.option("--enum-values <v1,v2,...>", "Comma-separated enum values")
+	.option("--min <n>", "Minimum number", parseFloatArg)
+	.option("--max <n>", "Maximum number", parseFloatArg)
+	.option("--weight <n>", "Weight for interactive ordering", parseIntArg)
+	.option("--target <collection>", "Reference target collection")
+	.option("-o, --output <format>", "Output format: text|json|yaml", "text")
+	.action(
+		async (
+			collection: string,
+			field: string,
+			opts: {
+				type: string;
+				required: boolean;
+				default?: string;
+				enumValues?: string;
+				min?: number;
+				max?: number;
+				weight?: number;
+				target?: string;
+				output: SchemaOutputFormat;
+			},
+		) => {
+			const manager = await Manager.New(getWorkDir(program));
+			const fieldDef: Record<string, unknown> = {
+				type: opts.type,
+			};
+			if (opts.required) fieldDef.required = true;
+			if (opts.default !== undefined) fieldDef.default = opts.default;
+			if (opts.enumValues) fieldDef.enum_values = splitCSV(opts.enumValues);
+			if (opts.min !== undefined) fieldDef.min = opts.min;
+			if (opts.max !== undefined) fieldDef.max = opts.max;
+			if (opts.weight !== undefined) fieldDef.weight = opts.weight;
+			const result = await manager
+				.Schema()
+				.AddFieldToCollection(collection, field, fieldDef as never, opts.target);
+			renderSchemaOutput(result, opts.output, formatSchemaReadText);
+		},
+	);
+
+schemaField
+	.command("update")
+	.description("Update a field in collection schema")
+	.argument("<collection>", "Collection name or alias")
+	.argument("<field>", "Field name")
+	.option("--type <type>", "Field type")
+	.option("--required <bool>", "Required true|false")
+	.option("--default <value>", "Default value")
+	.option("--enum-values <v1,v2,...>", "Comma-separated enum values")
+	.option("--min <n>", "Minimum number", parseFloatArg)
+	.option("--max <n>", "Maximum number", parseFloatArg)
+	.option("--weight <n>", "Weight for interactive ordering", parseIntArg)
+	.option("-o, --output <format>", "Output format: text|json|yaml", "text")
+	.action(
+		async (
+			collection: string,
+			field: string,
+			opts: {
+				type?: string;
+				required?: string;
+				default?: string;
+				enumValues?: string;
+				min?: number;
+				max?: number;
+				weight?: number;
+				output: SchemaOutputFormat;
+			},
+		) => {
+			const manager = await Manager.New(getWorkDir(program));
+			const update: Record<string, unknown> = {};
+			if (opts.type !== undefined) update.type = opts.type;
+			if (opts.required !== undefined) update.required = parseBool(opts.required);
+			if (opts.default !== undefined) update.default = opts.default;
+			if (opts.enumValues !== undefined) update.enum_values = splitCSV(opts.enumValues);
+			if (opts.min !== undefined) update.min = opts.min;
+			if (opts.max !== undefined) update.max = opts.max;
+			if (opts.weight !== undefined) update.weight = opts.weight;
+			const result = await manager
+				.Schema()
+				.UpdateFieldInCollection(collection, field, update as never);
+			renderSchemaOutput(result, opts.output, formatSchemaReadText);
+		},
+	);
+
+schemaField
+	.command("delete")
+	.description("Delete a field in collection schema")
+	.argument("<collection>", "Collection name or alias")
+	.argument("<field>", "Field name")
+	.option("-o, --output <format>", "Output format: text|json|yaml", "text")
+	.action(async (collection: string, field: string, opts: { output: SchemaOutputFormat }) => {
+		const manager = await Manager.New(getWorkDir(program));
+		const result = await manager.Schema().RemoveFieldFromCollection(collection, field);
+		renderSchemaOutput(result, opts.output, formatSchemaReadText);
+	});
+
 await program.parseAsync(process.argv);
 
 function getWorkDir(cmd: Command): string {
@@ -536,6 +735,35 @@ function firstSlugField(slugTemplate: string): string | null {
 		}
 	}
 	return null;
+}
+
+function parseIntArg(value: string): number {
+	const parsed = Number.parseInt(value, 10);
+	if (Number.isNaN(parsed)) {
+		throw new Error(`invalid integer: ${value}`);
+	}
+	return parsed;
+}
+
+function parseFloatArg(value: string): number {
+	const parsed = Number.parseFloat(value);
+	if (Number.isNaN(parsed)) {
+		throw new Error(`invalid number: ${value}`);
+	}
+	return parsed;
+}
+
+function parseBool(value: string): boolean {
+	if (value === "true") return true;
+	if (value === "false") return false;
+	throw new Error(`invalid boolean: ${value} (expected true|false)`);
+}
+
+function splitCSV(value: string): string[] {
+	return value
+		.split(",")
+		.map((v) => v.trim())
+		.filter((v) => v.length > 0);
 }
 
 function searchResultsToCsv(
