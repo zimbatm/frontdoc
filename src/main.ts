@@ -196,6 +196,9 @@ program
 					throw new Error(`unknown collection: ${collection}`);
 				}
 				const fields = normalizeFieldInputs(parseFields(opts.field), schema);
+				for (const key of opts.unset) {
+					assertUserFieldInput(key);
+				}
 				const updated = await manager.Documents().UpdateByID(id, {
 					fields,
 					unsetFields: opts.unset,
@@ -890,7 +893,7 @@ function renderWriteOutput(
 			console.log(record.path);
 			return;
 		default:
-			console.log(`Created ${record.path} (${String(record.document.metadata.id ?? "")})`);
+			console.log(`Created ${record.path} (${String(record.document.metadata._id ?? "")})`);
 	}
 }
 
@@ -902,6 +905,7 @@ function parseFields(values: string[]): Record<string, string> {
 	const fields: Record<string, string> = {};
 	for (const entry of values) {
 		const [key, value] = splitFieldArg(entry);
+		assertUserFieldInput(key);
 		fields[key] = value;
 	}
 	return fields;
@@ -918,6 +922,12 @@ function splitFieldArg(entry: string): [string, string] {
 		throw new Error(`invalid field argument: '${entry}', empty key`);
 	}
 	return [key, value];
+}
+
+function assertUserFieldInput(field: string): void {
+	if (field.startsWith("_")) {
+		throw new Error(`reserved field prefix '_': ${field}`);
+	}
 }
 
 function firstSlugField(slugTemplate: string): string | null {
@@ -1119,8 +1129,13 @@ function listResultsToCsv(
 	const lines = ["path,collection,id,name"];
 	for (const row of results) {
 		const collection = row.path.split("/")[0] ?? "";
-		const id = String(row.document.metadata.id ?? "");
-		const name = String(row.document.metadata.name ?? row.document.metadata.title ?? "");
+		const id = String(row.document.metadata._id ?? "");
+		const name = String(
+			row.document.metadata.name ??
+				row.document.metadata._title ??
+				row.document.metadata.title ??
+				"",
+		);
 		lines.push(`${csv(row.path)},${csv(collection)},${csv(id)},${csv(name)}`);
 	}
 	return lines.join("\n");
@@ -1131,8 +1146,13 @@ function listResultsToTable(
 ): string {
 	const rows = results.map((row) => {
 		const collection = row.path.split("/")[0] ?? "";
-		const id = String(row.document.metadata.id ?? "");
-		const name = String(row.document.metadata.name ?? row.document.metadata.title ?? "");
+		const id = String(row.document.metadata._id ?? "");
+		const name = String(
+			row.document.metadata.name ??
+				row.document.metadata._title ??
+				row.document.metadata.title ??
+				"",
+		);
 		return { path: row.path, collection, id, name };
 	});
 

@@ -57,14 +57,18 @@ export function parseFrontmatter(raw: string): {
 
 /**
  * Serialize metadata and content into a document string with YAML frontmatter.
- * Field ordering: `id` first, `created_at` second, remaining fields alphabetically.
+ * Field ordering: `_id` first, `_created_at` second, remaining fields alphabetically.
  */
 export function serializeFrontmatter(metadata: Record<string, unknown>, content: string): string {
-	if (Object.keys(metadata).length === 0) {
+	const persisted = { ...metadata };
+	// _title is virtual and derived from markdown content.
+	delete persisted._title;
+
+	if (Object.keys(persisted).length === 0) {
 		return content;
 	}
 
-	const ordered = orderMetadata(metadata);
+	const ordered = orderMetadata(persisted);
 	const yamlStr = stringifyYaml(ordered);
 
 	let result = `---\n${yamlStr}---\n`;
@@ -76,18 +80,18 @@ export function serializeFrontmatter(metadata: Record<string, unknown>, content:
 }
 
 /**
- * Order metadata: id first, created_at second, rest alphabetically.
+ * Order metadata: _id first, _created_at second, rest alphabetically.
  */
 function orderMetadata(metadata: Record<string, unknown>): Record<string, unknown> {
 	const ordered: Record<string, unknown> = {};
-	if ("id" in metadata) {
-		ordered.id = metadata.id;
+	if ("_id" in metadata) {
+		ordered._id = metadata._id;
 	}
-	if ("created_at" in metadata) {
-		ordered.created_at = metadata.created_at;
+	if ("_created_at" in metadata) {
+		ordered._created_at = metadata._created_at;
 	}
 	const remaining = Object.keys(metadata)
-		.filter((k) => k !== "id" && k !== "created_at")
+		.filter((k) => k !== "_id" && k !== "_created_at")
 		.sort();
 	for (const key of remaining) {
 		ordered[key] = metadata[key];

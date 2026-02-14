@@ -3,6 +3,7 @@ import {
 	excludeTemplatesFilter,
 	type Repository,
 } from "../repository/repository.js";
+import { extractTitleFromContent } from "../document/document.js";
 
 export interface SearchMatch {
 	field: string;
@@ -176,9 +177,15 @@ function evaluateExpression(
 	if (expr.field === null) {
 		const needle = expr.value.toLowerCase();
 		const content = record.document.content.toLowerCase();
+		const virtualTitle = extractTitleFromContent(record.document.content).toLowerCase();
 		const title = String(record.document.metadata.title ?? "").toLowerCase();
 		const name = String(record.document.metadata.name ?? "").toLowerCase();
-		if (content.includes(needle) || title.includes(needle) || name.includes(needle)) {
+		if (
+			content.includes(needle) ||
+			virtualTitle.includes(needle) ||
+			title.includes(needle) ||
+			name.includes(needle)
+		) {
 			matches.push({ field: "content", context: expr.value });
 			return true;
 		}
@@ -271,14 +278,16 @@ function scoreDocument(
 	const path = record.path.toLowerCase();
 	const content = record.document.content.toLowerCase();
 	const name = String(record.document.metadata.name ?? "").toLowerCase();
+	const virtualTitle = extractTitleFromContent(record.document.content).toLowerCase();
 	const title = String(record.document.metadata.title ?? "").toLowerCase();
 	const metadataStrings = Object.entries(record.document.metadata)
 		.filter(([, v]) => typeof v === "string")
 		.map(([k, v]) => [k, String(v).toLowerCase()] as const);
 
 	// Tier 1
-	if (name === fullQuery || title === fullQuery) {
-		matches.push({ field: name === fullQuery ? "name" : "title", context: fullQuery });
+	if (name === fullQuery || virtualTitle === fullQuery || title === fullQuery) {
+		const field = name === fullQuery ? "name" : virtualTitle === fullQuery ? "_title" : "title";
+		matches.push({ field, context: fullQuery });
 		return mkResult(record, matches, 1);
 	}
 
@@ -353,8 +362,8 @@ function sortResults(results: SearchResult[]): SearchResult[] {
 	return [...results].sort((a, b) => {
 		if (a.tier !== b.tier) return a.tier - b.tier;
 		if (a.matchCount !== b.matchCount) return b.matchCount - a.matchCount;
-		const aID = String(a.document.document.metadata.id ?? "");
-		const bID = String(b.document.document.metadata.id ?? "");
+		const aID = String(a.document.document.metadata._id ?? "");
+		const bID = String(b.document.document.metadata._id ?? "");
 		return bID.localeCompare(aID);
 	});
 }

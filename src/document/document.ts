@@ -14,6 +14,11 @@ export interface Document {
 	isFolder: boolean;
 }
 
+export const RESERVED_FIELD_PREFIX = "_";
+export const SYSTEM_PERSISTED_FIELDS = new Set(["_id", "_created_at"]);
+export const SYSTEM_VIRTUAL_FIELDS = new Set(["_title"]);
+export const SYSTEM_FIELDS = new Set([...SYSTEM_PERSISTED_FIELDS, ...SYSTEM_VIRTUAL_FIELDS]);
+
 /**
  * Returns the path to the actual content file.
  * For folder docs: path/index.md
@@ -42,7 +47,7 @@ export function getCollection(doc: Document): string {
  * Returns the document ID from metadata, or empty string.
  */
 export function getID(doc: Document): string {
-	const id = doc.metadata.id;
+	const id = doc.metadata._id;
 	if (typeof id === "string") {
 		return id;
 	}
@@ -83,11 +88,16 @@ export function displayName(doc: Document, slugTemplate?: string, shortIdLength 
 	}
 
 	// Fallback fields
-	for (const field of ["name", "title", "subject", "summary"]) {
+	for (const field of ["name", "_title", "title", "subject", "summary"]) {
 		const val = doc.metadata[field];
 		if (typeof val === "string" && val.length > 0) {
 			return val;
 		}
+	}
+
+	const virtualTitle = extractTitleFromContent(doc.content);
+	if (virtualTitle.length > 0) {
+		return virtualTitle;
 	}
 
 	// Filename without extension
@@ -120,5 +130,29 @@ export function buildDocument(doc: Document): string {
  */
 export function parseDocument(raw: string, path: string, isFolder: boolean): Document {
 	const { metadata, content } = parseFrontmatter(raw);
+	const title = extractTitleFromContent(content);
+	if (title.length > 0) {
+		metadata._title = title;
+	}
 	return { path, metadata, content, isFolder };
+}
+
+export function extractTitleFromContent(content: string): string {
+	const trimmedLeading = content.replace(/^\s+/u, "");
+	if (trimmedLeading.length === 0) {
+		return "";
+	}
+
+	const lines = trimmedLeading.split(/\r?\n/);
+	const firstNonEmpty = lines.find((line) => line.trim().length > 0);
+	if (!firstNonEmpty) {
+		return "";
+	}
+
+	const match = firstNonEmpty.match(/^#{1,6}[ \t]+(.+?)(?:[ \t]+#+[ \t]*)?$/);
+	if (!match) {
+		return "";
+	}
+
+	return match[1].trim();
 }

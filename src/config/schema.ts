@@ -19,6 +19,7 @@ export function parseCollectionSchema(content: string): CollectionSchema {
 	const fields: Record<string, FieldDefinition> = {};
 	if (data.fields && typeof data.fields === "object") {
 		for (const [name, def] of Object.entries(data.fields as Record<string, unknown>)) {
+			assertUserFieldName(name, "field");
 			fields[name] = parseFieldDefinition(def);
 		}
 	}
@@ -26,6 +27,7 @@ export function parseCollectionSchema(content: string): CollectionSchema {
 	const references: Record<string, string> = {};
 	if (data.references && typeof data.references === "object") {
 		for (const [name, target] of Object.entries(data.references as Record<string, unknown>)) {
+			assertUserFieldName(name, "reference");
 			if (typeof target === "string") {
 				references[name] = target;
 			}
@@ -144,6 +146,12 @@ function validateFieldDefault(name: string, def: FieldDefinition): void {
 			if (typeof value !== "string") {
 				fail("must be a string");
 			}
+	}
+}
+
+function assertUserFieldName(name: string, kind: "field" | "reference"): void {
+	if (name.startsWith("_")) {
+		throw new Error(`invalid _schema.yaml: ${kind} '${name}' uses reserved '_' prefix`);
 	}
 }
 

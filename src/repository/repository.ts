@@ -93,7 +93,7 @@ export class Repository {
 			}
 
 			const record = await this.parseCandidate(candidate.path, candidate.info, candidate.isFolder);
-			const metadataID = String(record.document.metadata.id ?? "").toLowerCase();
+			const metadataID = String(record.document.metadata._id ?? "").toLowerCase();
 			if (matchesMetadataID(metadataID, needle)) {
 				matches.push(record);
 			}

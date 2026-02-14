@@ -2,8 +2,14 @@ import { readFile as readHostFile } from "node:fs/promises";
 import { basename, dirname } from "node:path";
 import { resolveAlias } from "../config/alias.js";
 import type { CollectionSchema } from "../config/types.js";
-import { buildDocument, type Document, displayName, parseDocument } from "../document/document.js";
-import { generateFilename } from "../document/slug.js";
+import {
+	buildDocument,
+	type Document,
+	displayName,
+	extractTitleFromContent,
+	parseDocument,
+} from "../document/document.js";
+import { generateFilename, slugify } from "../document/slug.js";
 import { processTemplate } from "../document/template-engine.js";
 import { byCollection, type DocumentRecord, type Repository } from "../repository/repository.js";
 import type { DocumentService } from "./document-service.js";
@@ -296,7 +302,7 @@ export class ValidationService {
 	}
 
 	private expectedPath(doc: Document, schema: CollectionSchema, collection: string): string {
-		const id = String(doc.metadata.id ?? "");
+		const id = String(doc.metadata._id ?? "");
 		const shortLength = schema.short_id_length ?? 6;
 		const shortID = id.length >= shortLength ? id.slice(-shortLength) : id;
 		const values: Record<string, string> = {
@@ -305,12 +311,13 @@ export class ValidationService {
 				typeof doc.metadata.date === "string"
 					? doc.metadata.date
 					: new Date().toISOString().slice(0, 10),
+			_title: extractTitleFromContent(doc.content),
 		};
 		for (const [key, value] of Object.entries(doc.metadata)) {
 			if (value === undefined || value === null) continue;
 			values[key] = String(value);
 		}
-		const rendered = processTemplate(schema.slug, values);
+		const rendered = processTemplate(schema.slug, slugifyTemplateValues(values));
 		const filename = generateFilename(rendered);
 		const path = `${collection}/${filename}`;
 		return doc.isFolder ? stripMd(path) : path;
@@ -431,6 +438,14 @@ export class ValidationService {
 		const schema = this.schemas.get(collection);
 		return displayName(record.document, schema?.slug, schema?.short_id_length ?? 6);
 	}
+}
+
+function slugifyTemplateValues(values: Record<string, string>): Record<string, string> {
+	const slugValues: Record<string, string> = {};
+	for (const [key, value] of Object.entries(values)) {
+		slugValues[key] = slugify(value);
+	}
+	return slugValues;
 }
 
 function hasValue(value: unknown): boolean {

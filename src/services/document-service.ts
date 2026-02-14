@@ -4,8 +4,15 @@ import { ulid } from "ulidx";
 import { resolveAlias } from "../config/alias.js";
 import { normalizeDateInput, normalizeDatetimeInput } from "../config/date-input.js";
 import type { CollectionSchema } from "../config/types.js";
-import { buildDocument, type Document, parseDocument } from "../document/document.js";
-import { generateFilename } from "../document/slug.js";
+import {
+	buildDocument,
+	type Document,
+	extractTitleFromContent,
+	parseDocument,
+	RESERVED_FIELD_PREFIX,
+	SYSTEM_FIELDS,
+} from "../document/document.js";
+import { generateFilename, slugify } from "../document/slug.js";
 import { extractPlaceholders, processTemplate } from "../document/template-engine.js";
 import {
 	byCollection,
@@ -48,26 +55,26 @@ export class DocumentService {
 		const collection = this.ResolveCollection(options.collection);
 		const schema = this.getCollectionSchema(collection);
 		const fields = { ...(options.fields ?? {}) };
+		assertNoReservedFields(fields, "create");
 
 		injectFieldDefaults(fields, schema);
 		ensureRequiredFields(fields, schema, collection);
 
-		const id = stringOrNull(fields.id) ?? ulid().toLowerCase();
-		const createdAt = stringOrNull(fields.created_at) ?? new Date().toISOString();
-		fields.id = id;
-		fields.created_at = createdAt;
+		const id = ulid().toLowerCase();
+		const createdAt = new Date().toISOString();
+		fields._id = id;
+		fields._created_at = createdAt;
 
-		const templateValues = buildTemplateValues(fields, schema, id);
+		const content = options.templateContent
+			? processTemplate(options.templateContent, buildTemplateValues(fields, schema, id))
+			: (options.content ?? "");
+		const templateValues = buildTemplateValues(fields, schema, id, content);
 		const filename = this.generateFilename(schema, templateValues);
 		const path = `${collection}/${filename}`;
 
 		if (!options.overwrite && (await this.repository.fileSystem().exists(path))) {
 			throw new Error(`document already exists: ${path}`);
 		}
-
-		const content = options.templateContent
-			? processTemplate(options.templateContent, templateValues)
-			: (options.content ?? "");
 
 		const doc: Document = {
 			path,
@@ -98,10 +105,14 @@ export class DocumentService {
 		const schema = this.getCollectionSchema(collection);
 
 		const fields = options.fields ?? {};
+		assertNoReservedFields(fields, "update");
 		for (const [key, value] of Object.entries(fields)) {
 			doc.metadata[key] = value;
 		}
 		for (const key of options.unsetFields ?? []) {
+			if (key.startsWith(RESERVED_FIELD_PREFIX)) {
+				throw new Error(`cannot unset reserved field: ${key}`);
+			}
 			delete doc.metadata[key];
 		}
 		ensureRequiredFields(doc.metadata, schema, collection);
@@ -190,8 +201,8 @@ export class DocumentService {
 		const record = await this.loadByPath(path);
 		const collection = record.path.split("/")[0];
 		const schema = this.getCollectionSchema(collection);
-		const id = String(record.document.metadata.id ?? "");
-		const templateValues = buildTemplateValues(record.document.metadata, schema, id);
+		const id = String(record.document.metadata._id ?? "");
+		const templateValues = buildTemplateValues(record.document.metadata, schema, id, record.document.content);
 		const expectedFilePath = `${collection}/${this.generateFilename(schema, templateValues)}`;
 		const targetPath = record.document.isFolder
 			? stripMdExtension(expectedFilePath)
@@ -218,7 +229,7 @@ export class DocumentService {
 	}
 
 	private generateFilename(schema: CollectionSchema, values: Record<string, string>): string {
-		const rendered = processTemplate(schema.slug, values);
+		const rendered = processTemplate(schema.slug, slugifyTemplateValues(values));
 		return generateFilename(rendered);
 	}
 
@@ -231,6 +242,14 @@ export class DocumentService {
 			let allMatch = true;
 			for (const [key, value] of Object.entries(fields)) {
 				if (key === "short_id") continue;
+				if (key === "_title") {
+					const title = extractTitleFromContent(record.document.content);
+					if (title !== value) {
+						allMatch = false;
+						break;
+					}
+					continue;
+				}
 				if (record.document.metadata[key] !== value) {
 					allMatch = false;
 					break;
@@ -298,12 +317,14 @@ function buildTemplateValues(
 	fields: Record<string, unknown>,
 	schema: CollectionSchema,
 	id: string,
+	content = "",
 ): Record<string, string> {
 	const shortLength = schema.short_id_length ?? 6;
 	const shortID = id.length >= shortLength ? id.slice(-shortLength) : id;
 	const values: Record<string, string> = {
 		short_id: shortID,
 		date: resolveDateString(fields.date),
+		_title: extractTitleFromContent(content),
 	};
 
 	for (const [key, value] of Object.entries(fields)) {
@@ -312,6 +333,14 @@ function buildTemplateValues(
 	}
 
 	return values;
+}
+
+function slugifyTemplateValues(values: Record<string, string>): Record<string, string> {
+	const slugValues: Record<string, string> = {};
+	for (const [key, value] of Object.entries(values)) {
+		slugValues[key] = slugify(value);
+	}
+	return slugValues;
 }
 
 function resolveDateString(value: unknown): string {
@@ -333,9 +362,14 @@ function stripMdExtension(path: string): string {
 	return path;
 }
 
-function stringOrNull(value: unknown): string | null {
-	if (typeof value === "string" && value.length > 0) {
-		return value;
+function assertNoReservedFields(fields: Record<string, unknown>, operation: string): void {
+	for (const key of Object.keys(fields)) {
+		if (!key.startsWith(RESERVED_FIELD_PREFIX)) {
+			continue;
+		}
+		if (SYSTEM_FIELDS.has(key)) {
+			throw new Error(`cannot ${operation} reserved field: ${key}`);
+		}
+		throw new Error(`invalid field '${key}': '_' prefix is reserved`);
 	}
-	return null;
 }

@@ -243,6 +243,7 @@ export class SchemaService {
 		referenceTarget?: string,
 	): Promise<SchemaReadResult> {
 		const collection = this.ResolveCollectionAlias(collectionNameOrAlias);
+		assertSchemaFieldName(fieldName);
 		const schema = this.requireSchema(collection);
 		if (schema.fields[fieldName]) {
 			throw new Error(`field already exists: ${fieldName}`);
@@ -261,6 +262,7 @@ export class SchemaService {
 		update: Partial<FieldDefinition>,
 	): Promise<SchemaReadResult> {
 		const collection = this.ResolveCollectionAlias(collectionNameOrAlias);
+		assertSchemaFieldName(fieldName);
 		const schema = this.requireSchema(collection);
 		const current = schema.fields[fieldName];
 		if (!current) {
@@ -276,6 +278,7 @@ export class SchemaService {
 		fieldName: string,
 	): Promise<SchemaReadResult> {
 		const collection = this.ResolveCollectionAlias(collectionNameOrAlias);
+		assertSchemaFieldName(fieldName);
 		const schema = this.requireSchema(collection);
 		if (!schema.fields[fieldName]) {
 			throw new Error(`field not found: ${fieldName}`);
@@ -407,4 +410,10 @@ function validateCollectionName(name: string): void {
 
 function removeUndefined<T extends object>(value: T): T {
 	return Object.fromEntries(Object.entries(value).filter(([, v]) => v !== undefined)) as T;
+}
+
+function assertSchemaFieldName(name: string): void {
+	if (name.startsWith("_")) {
+		throw new Error(`invalid field name: '${name}' uses reserved '_' prefix`);
+	}
 }

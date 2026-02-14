@@ -1,5 +1,6 @@
 import { writeFile as writeHostFile } from "node:fs/promises";
 import type { CollectionSchema } from "../config/types.js";
+import { extractTitleFromContent } from "../document/document.js";
 import {
 	type DocumentRecord,
 	excludeTemplatesFilter,
@@ -137,11 +138,15 @@ export class RelationshipService {
 	}
 
 	private extractIncoming(target: DocumentRecord, all: DocumentRecord[]): RelationshipEdge[] {
-		const targetID = String(target.document.metadata.id ?? "");
+		const targetID = String(target.document.metadata._id ?? "");
 		const shortID = shortIDOf(targetID);
 		const targetCollection = target.path.split("/")[0];
 		const targetName = String(
-			target.document.metadata.name ?? target.document.metadata.title ?? "",
+			target.document.metadata.name ??
+				target.document.metadata._title ??
+				extractTitleFromContent(target.document.content) ??
+				target.document.metadata.title ??
+				"",
 		).toLowerCase();
 		const edges: RelationshipEdge[] = [];
 
@@ -195,7 +200,7 @@ function parseWikiLinks(content: string): WikiLinkToken[] {
 function findByIDToken(records: DocumentRecord[], token: string): DocumentRecord | null {
 	const n = token.toLowerCase();
 	const matches = records.filter((record) => {
-		const id = String(record.document.metadata.id ?? "").toLowerCase();
+		const id = String(record.document.metadata._id ?? "").toLowerCase();
 		if (!id) return false;
 		if (id === n || id.startsWith(n)) return true;
 		const sid = shortIDOf(id).toLowerCase();
@@ -221,7 +226,7 @@ function matchesTarget(
 }
 
 function idOf(record: DocumentRecord): string {
-	return String(record.document.metadata.id ?? record.path);
+	return String(record.document.metadata._id ?? record.path);
 }
 
 function shortIDOf(id: string, length = 6): string {
