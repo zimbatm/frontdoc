@@ -5,10 +5,12 @@ import { findRepositoryRoot } from "./config/root-discovery.js";
 import { discoverCollections } from "./config/schema.js";
 import type { CollectionSchema, RepoConfig } from "./config/types.js";
 import { Repository } from "./repository/repository.js";
+import { DocumentService } from "./services/document-service.js";
 import { SchemaService } from "./services/schema-service.js";
 import { BoundVFS } from "./storage/bound-vfs.js";
 
 export class Manager {
+	private readonly documentService: DocumentService;
 	private readonly schemaService: SchemaService;
 
 	private constructor(
@@ -17,6 +19,11 @@ export class Manager {
 		private readonly repoConfig: RepoConfig,
 		private readonly schemas: Map<string, CollectionSchema>,
 	) {
+		this.documentService = new DocumentService(
+			this.schemas,
+			this.repoConfig.aliases,
+			this.repository,
+		);
 		this.schemaService = new SchemaService(this.schemas, this.repoConfig);
 	}
 
@@ -61,6 +68,10 @@ export class Manager {
 
 	Schema(): SchemaService {
 		return this.schemaService;
+	}
+
+	Documents(): DocumentService {
+		return this.documentService;
 	}
 
 	RootPath(): string {

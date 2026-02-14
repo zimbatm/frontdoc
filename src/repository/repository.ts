@@ -83,7 +83,12 @@ export class Repository {
 			}
 
 			const idSegment = extractIDSegment(candidate.path, candidate.isFolder);
-			if (!idSegment.toLowerCase().startsWith(needle)) {
+			const idPrefix = idSegment.toLowerCase();
+			if (
+				!idPrefix.startsWith(needle) &&
+				!needle.startsWith(idPrefix) &&
+				!needle.endsWith(idPrefix)
+			) {
 				continue;
 			}
 

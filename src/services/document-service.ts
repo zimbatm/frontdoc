@@ -1,0 +1,291 @@
+import { dirname } from "node:path";
+import { ulid } from "ulidx";
+import { resolveAlias } from "../config/alias.js";
+import type { CollectionSchema } from "../config/types.js";
+import { buildDocument, type Document, parseDocument } from "../document/document.js";
+import { generateFilename } from "../document/slug.js";
+import { extractPlaceholders, processTemplate } from "../document/template-engine.js";
+import {
+	byCollection,
+	type DocumentRecord,
+	type Filter,
+	type Repository,
+} from "../repository/repository.js";
+
+export interface CreateOptions {
+	collection: string;
+	fields?: Record<string, unknown>;
+	content?: string;
+	templateContent?: string;
+	overwrite?: boolean;
+}
+
+export interface UpdateOptions {
+	fields?: Record<string, unknown>;
+	unsetFields?: string[];
+	content?: string;
+}
+
+export interface UpsertResult {
+	record: DocumentRecord;
+	created: boolean;
+}
+
+export class DocumentService {
+	constructor(
+		private readonly schemas: Map<string, CollectionSchema>,
+		private readonly aliases: Record<string, string>,
+		private readonly repository: Repository,
+	) {}
+
+	ResolveCollection(nameOrAlias: string): string {
+		return resolveAlias(nameOrAlias, this.aliases, new Set(this.schemas.keys()));
+	}
+
+	async Create(options: CreateOptions): Promise<DocumentRecord> {
+		const collection = this.ResolveCollection(options.collection);
+		const schema = this.getCollectionSchema(collection);
+		const fields = { ...(options.fields ?? {}) };
+
+		injectFieldDefaults(fields, schema);
+		ensureRequiredFields(fields, schema, collection);
+
+		const id = stringOrNull(fields.id) ?? ulid().toLowerCase();
+		const createdAt = stringOrNull(fields.created_at) ?? new Date().toISOString();
+		fields.id = id;
+		fields.created_at = createdAt;
+
+		const templateValues = buildTemplateValues(fields, schema, id);
+		const filename = this.generateFilename(schema, templateValues);
+		const path = `${collection}/${filename}`;
+
+		if (!options.overwrite && (await this.repository.fileSystem().exists(path))) {
+			throw new Error(`document already exists: ${path}`);
+		}
+
+		const content = options.templateContent
+			? processTemplate(options.templateContent, templateValues)
+			: (options.content ?? "");
+
+		const doc: Document = {
+			path,
+			metadata: fields,
+			content,
+			isFolder: false,
+		};
+		await this.save(doc);
+
+		const info = await this.repository.fileSystem().stat(path);
+		return { document: doc, path, info };
+	}
+
+	async ReadByID(id: string): Promise<DocumentRecord> {
+		return await this.repository.findByID(id);
+	}
+
+	async ReadRawByID(id: string): Promise<string> {
+		const record = await this.ReadByID(id);
+		const contentPath = record.document.isFolder ? `${record.path}/index.md` : record.path;
+		return await this.repository.fileSystem().readFile(contentPath);
+	}
+
+	async UpdateByID(id: string, options: UpdateOptions): Promise<DocumentRecord> {
+		const record = await this.ReadByID(id);
+		const doc = record.document;
+		const collection = this.ResolveCollection(doc.path.split("/")[0]);
+		const schema = this.getCollectionSchema(collection);
+
+		const fields = options.fields ?? {};
+		for (const [key, value] of Object.entries(fields)) {
+			doc.metadata[key] = value;
+		}
+		for (const key of options.unsetFields ?? []) {
+			delete doc.metadata[key];
+		}
+		ensureRequiredFields(doc.metadata, schema, collection);
+		if (options.content !== undefined) {
+			doc.content = options.content;
+		}
+
+		await this.save(doc);
+		const renamedPath = await this.AutoRenamePath(doc.path);
+		const updated = await this.loadByPath(renamedPath);
+		return updated;
+	}
+
+	async DeleteByID(id: string): Promise<void> {
+		const record = await this.ReadByID(id);
+		if (record.document.isFolder) {
+			await this.repository.fileSystem().removeAll(record.path);
+			return;
+		}
+		await this.repository.fileSystem().remove(record.path);
+	}
+
+	async List(filters: Filter[] = []): Promise<DocumentRecord[]> {
+		const records = await this.repository.collectAll(...filters);
+		return records.sort((a, b) => a.path.localeCompare(b.path));
+	}
+
+	async UpsertBySlug(collectionInput: string, args: string[]): Promise<UpsertResult> {
+		const collection = this.ResolveCollection(collectionInput);
+		const schema = this.getCollectionSchema(collection);
+		const variables = extractTemplateVariables(schema.slug);
+		const mapped: Record<string, unknown> = {};
+
+		for (let i = 0; i < Math.min(args.length, variables.length); i++) {
+			mapped[variables[i]] = args[i];
+		}
+
+		const existing = await this.findByMetadataMatch(collection, mapped);
+		if (existing) {
+			return { record: existing, created: false };
+		}
+
+		const created = await this.Create({
+			collection,
+			fields: mapped,
+		});
+		return { record: created, created: true };
+	}
+
+	async AutoRenamePath(path: string): Promise<string> {
+		const record = await this.loadByPath(path);
+		const collection = record.path.split("/")[0];
+		const schema = this.getCollectionSchema(collection);
+		const id = String(record.document.metadata.id ?? "");
+		const templateValues = buildTemplateValues(record.document.metadata, schema, id);
+		const expectedFilePath = `${collection}/${this.generateFilename(schema, templateValues)}`;
+		const targetPath = record.document.isFolder
+			? stripMdExtension(expectedFilePath)
+			: expectedFilePath;
+
+		if (targetPath === record.path) {
+			return record.path;
+		}
+
+		const parent = dirname(targetPath);
+		if (parent !== ".") {
+			await this.repository.fileSystem().mkdirAll(parent);
+		}
+		await this.repository.fileSystem().rename(record.path, targetPath);
+		return targetPath;
+	}
+
+	private getCollectionSchema(collection: string): CollectionSchema {
+		const schema = this.schemas.get(collection);
+		if (!schema) {
+			throw new Error(`unknown collection: ${collection}`);
+		}
+		return schema;
+	}
+
+	private generateFilename(schema: CollectionSchema, values: Record<string, string>): string {
+		const rendered = processTemplate(schema.slug, values);
+		return generateFilename(rendered);
+	}
+
+	private async findByMetadataMatch(
+		collection: string,
+		fields: Record<string, unknown>,
+	): Promise<DocumentRecord | null> {
+		const docs = await this.repository.collectAll(byCollection(collection));
+		for (const record of docs) {
+			let allMatch = true;
+			for (const [key, value] of Object.entries(fields)) {
+				if (key === "short_id") continue;
+				if (record.document.metadata[key] !== value) {
+					allMatch = false;
+					break;
+				}
+			}
+			if (allMatch) return record;
+		}
+		return null;
+	}
+
+	private async save(doc: Document): Promise<void> {
+		const contentPath = doc.isFolder ? `${doc.path}/index.md` : doc.path;
+		const parent = dirname(contentPath);
+		if (parent !== ".") {
+			await this.repository.fileSystem().mkdirAll(parent);
+		}
+		await this.repository.fileSystem().writeFile(contentPath, buildDocument(doc));
+	}
+
+	private async loadByPath(path: string): Promise<DocumentRecord> {
+		const isFolder = await this.repository.fileSystem().isDir(path);
+		const contentPath = isFolder ? `${path}/index.md` : path;
+		const raw = await this.repository.fileSystem().readFile(contentPath);
+		const document = parseDocument(raw, path, isFolder);
+		const info = await this.repository.fileSystem().stat(path);
+		return { document, path, info };
+	}
+}
+
+function ensureRequiredFields(
+	fields: Record<string, unknown>,
+	schema: CollectionSchema,
+	collection: string,
+): void {
+	for (const [fieldName, field] of Object.entries(schema.fields)) {
+		if (!field.required) continue;
+		if (!(fieldName in fields)) {
+			throw new Error(`missing required field '${fieldName}' for collection '${collection}'`);
+		}
+	}
+}
+
+function injectFieldDefaults(fields: Record<string, unknown>, schema: CollectionSchema): void {
+	for (const [fieldName, field] of Object.entries(schema.fields)) {
+		if (fields[fieldName] === undefined && field.default !== undefined) {
+			fields[fieldName] = field.default;
+		}
+	}
+}
+
+function buildTemplateValues(
+	fields: Record<string, unknown>,
+	schema: CollectionSchema,
+	id: string,
+): Record<string, string> {
+	const shortLength = schema.short_id_length ?? 6;
+	const shortID = id.length >= shortLength ? id.slice(-shortLength) : id;
+	const values: Record<string, string> = {
+		short_id: shortID,
+		date: resolveDateString(fields.date),
+	};
+
+	for (const [key, value] of Object.entries(fields)) {
+		if (value === undefined || value === null) continue;
+		values[key] = String(value);
+	}
+
+	return values;
+}
+
+function resolveDateString(value: unknown): string {
+	if (typeof value === "string" && value.length > 0) {
+		return value;
+	}
+	return new Date().toISOString().slice(0, 10);
+}
+
+function extractTemplateVariables(slugTemplate: string): string[] {
+	const fields = extractPlaceholders(slugTemplate);
+	return fields.filter((f) => f !== "short_id");
+}
+
+function stripMdExtension(path: string): string {
+	if (path.endsWith(".md")) {
+		return path.slice(0, -3);
+	}
+	return path;
+}
+
+function stringOrNull(value: unknown): string | null {
+	if (typeof value === "string" && value.length > 0) {
+		return value;
+	}
+	return null;
+}
