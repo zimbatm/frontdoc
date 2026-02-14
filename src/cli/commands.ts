@@ -357,6 +357,7 @@ program
 					if (result.status !== 0) {
 						throw new Error(`editor exited with status ${result.status}`);
 					}
+					manager.Repository().invalidateCache();
 				}
 
 				const check = await manager.Validation().Check({
@@ -427,6 +428,7 @@ program
 				if (result.status !== 0) {
 					throw new Error(`editor exited with status ${result.status}`);
 				}
+				manager.Repository().invalidateCache();
 			}
 				const raw = await manager.Drafts().Read(draftPath);
 				if (raw === baselineRaw) {
