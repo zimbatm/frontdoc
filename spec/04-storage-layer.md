@@ -130,7 +130,9 @@ The Repository wraps VFS and provides document-specific operations.
 
 Walks the entire VFS from root, collecting all documents:
 
-1. For each entry encountered during the walk:
+1. Discover known collections by scanning top-level directories for
+   `<collection>/_schema.yaml`.
+2. For each entry encountered during the walk:
    - Skip `_schema.yaml` files (reserved metadata, not documents).
    - Skip temporary open drafts with basename prefix `.tdo-`
      (reserved staging files, not documents).
@@ -138,17 +140,19 @@ Walks the entire VFS from root, collecting all documents:
    - If it is a `.md` file (not `README.md`, not `index.md`, not hidden),
      treat as a file document.
    - Otherwise, skip.
-2. Parse each qualifying entry into a Document.
-3. Wrap in a DocumentRecord (Document + path + FileInfo).
-4. Apply all filter functions. If any filter returns false, skip the document.
-5. Return all passing documents.
+3. Keep only candidates whose first path segment is a known collection.
+   Root-level markdown files and files under directories without `_schema.yaml`
+   are ignored.
+4. Parse each qualifying entry into a Document.
+5. Wrap in a DocumentRecord (Document + path + FileInfo).
+6. Apply all filter functions. If any filter returns false, skip the document.
+7. Return all passing documents.
 
 A document's collection is derived from the first segment of its path. For
 example, `clients/9g5fav-acme-corp.md` belongs to the `clients` collection.
 
 A directory is only recognized as a collection if it contains `_schema.yaml`.
-Documents found in directories without `_schema.yaml` are not in a known
-collection and will fail collection membership validation.
+Documents outside known collections are excluded from `CollectAll`.
 
 ### Document Lookup
 

@@ -82,6 +82,7 @@ export class Repository {
 		Array<{ path: string; info: FileInfo; isFolder: boolean }>
 	> {
 		const candidates: Array<{ path: string; info: FileInfo; isFolder: boolean }> = [];
+		const collections = new Set<string>();
 
 		await this.vfs.walk(".", async (path, info) => {
 			if (info.isDirectory) {
@@ -92,6 +93,8 @@ export class Repository {
 			}
 
 			if (info.name === "_schema.yaml") {
+				const collection = collectionDirFromSchemaPath(path);
+				if (collection) collections.add(collection);
 				return;
 			}
 
@@ -102,7 +105,7 @@ export class Repository {
 			candidates.push({ path, info, isFolder: false });
 		});
 
-		return candidates;
+		return candidates.filter((candidate) => isInKnownCollection(candidate.path, collections));
 	}
 
 	private async parseCandidate(
@@ -217,4 +220,17 @@ function isDocumentMarkdownFile(path: string, name: string): boolean {
 	if (name === "index.md") return false;
 	if (name.startsWith(".")) return false;
 	return true;
+}
+
+function collectionDirFromSchemaPath(path: string): string | null {
+	if (!path.endsWith("/_schema.yaml")) return null;
+	const parts = path.split("/");
+	if (parts.length !== 2) return null;
+	return parts[0];
+}
+
+function isInKnownCollection(path: string, collections: Set<string>): boolean {
+	const [first] = path.split("/");
+	if (!first) return false;
+	return collections.has(first);
 }

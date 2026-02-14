@@ -489,8 +489,8 @@ frontdoc attach 9g5fav /path/to/banner.jpg --force
 frontdoc check
 ```
 
-Reports: collection membership, field types, filename mismatches, broken
-references, broken wiki links, stale wiki link titles.
+Reports: field types, filename mismatches, broken references, broken wiki
+links, stale wiki link titles (for documents in known collections).
 
 ### 11b. Validate a single collection
 

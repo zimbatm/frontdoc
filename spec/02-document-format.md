@@ -59,7 +59,8 @@ A document's collection membership is determined by its location in the
 filesystem: the top-level folder containing the document is its collection.
 For example, a document at `clients/acme-corp-9g5fav.md` belongs to the
 `clients` collection. There is no `type` field in metadata -- the collection
-is always derived from the path.
+is always derived from the path. A top-level folder is considered a valid
+collection only when it contains `_schema.yaml`.
 
 **Datetime representation**: All datetime values (including `_created_at`)
 are stored and handled as RFC 3339 strings. YAML values must be quoted

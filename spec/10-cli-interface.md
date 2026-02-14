@@ -328,6 +328,8 @@ collection are validated. Otherwise, all documents are validated.
 
 **Behavior**:
 1. Collect documents (all, or filtered by collection).
+   `CollectAll` only includes documents under known collections
+   (`<collection>/_schema.yaml` exists).
 2. For each document, run:
    a. Collection membership validation (document in a directory with
       `_schema.yaml`).

@@ -31,6 +31,7 @@ describe("DocumentService", () => {
 	test("create injects id/created_at/defaults and writes document", async () => {
 		const vfs = new MemoryVFS();
 		await vfs.mkdirAll("clients");
+		await vfs.writeFile("clients/_schema.yaml", 'slug: "{{name}}-{{short_id}}"\n');
 		const service = makeService(vfs);
 
 		const created = await service.Create({
@@ -55,6 +56,7 @@ describe("DocumentService", () => {
 	test("update applies fields/unset/content and auto-renames", async () => {
 		const vfs = new MemoryVFS();
 		await vfs.mkdirAll("clients");
+		await vfs.writeFile("clients/_schema.yaml", 'slug: "{{name}}-{{short_id}}"\n');
 		const service = makeService(vfs);
 		const created = await service.Create({
 			collection: "clients",
@@ -78,6 +80,7 @@ describe("DocumentService", () => {
 	test("delete removes document by id", async () => {
 		const vfs = new MemoryVFS();
 		await vfs.mkdirAll("clients");
+		await vfs.writeFile("clients/_schema.yaml", 'slug: "{{name}}-{{short_id}}"\n');
 		const service = makeService(vfs);
 		const created = await service.Create({
 			collection: "clients",
@@ -92,6 +95,7 @@ describe("DocumentService", () => {
 	test("upsert by slug returns existing then creates new", async () => {
 		const vfs = new MemoryVFS();
 		await vfs.mkdirAll("clients");
+		await vfs.writeFile("clients/_schema.yaml", 'slug: "{{name}}-{{short_id}}"\n');
 		const service = makeService(vfs);
 
 		const first = await service.UpsertBySlug("clients", ["Acme Corp"]);
@@ -109,6 +113,7 @@ describe("DocumentService", () => {
 	test("auto-appends short id when slug template omits short_id", async () => {
 		const vfs = new MemoryVFS();
 		await vfs.mkdirAll("clients");
+		await vfs.writeFile("clients/_schema.yaml", 'slug: "{{name}}"\n');
 		const schemas = new Map<string, CollectionSchema>([
 			[
 				"clients",
@@ -130,6 +135,7 @@ describe("DocumentService", () => {
 	test("attach writes binary bytes without utf8 conversion", async () => {
 		const vfs = new MemoryVFS();
 		await vfs.mkdirAll("clients");
+		await vfs.writeFile("clients/_schema.yaml", 'slug: "{{name}}-{{short_id}}"\n');
 		const service = makeService(vfs);
 		const created = await service.Create({
 			collection: "clients",
@@ -141,7 +147,11 @@ describe("DocumentService", () => {
 		const payload = new Uint8Array([0, 255, 16, 128, 65, 66, 67]);
 		await writeFile(source, payload);
 
-		const attachedPath = await service.AttachFileByID(String(created.document.metadata._id), source, false);
+		const attachedPath = await service.AttachFileByID(
+			String(created.document.metadata._id),
+			source,
+			false,
+		);
 		const saved = await vfs.readFileBytes(attachedPath);
 		expect(saved).toEqual(payload);
 	});

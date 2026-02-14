@@ -88,12 +88,12 @@ Every document must reside in a known collection folder. A directory is a
 known collection if and only if it contains `_schema.yaml`. During
 validation:
 
-1. Extract the first path segment from the document's path.
-2. Verify that directory contains `_schema.yaml`.
+1. `check` validates documents returned by `Repository.CollectAll`, which only
+   returns documents inside known collections.
+2. For explicitly validated raw documents (`ValidateRaw`), extract the first
+   path segment and verify that directory is a known collection.
 3. If not, report an error (severity: error, not warning): document is not in
-   a known collection. This covers both root-level documents (where the first
-   path segment is the filename itself) and documents in directories without
-   `_schema.yaml`.
+   a known collection.
 4. `check --fix` does NOT auto-fix this (moving files between directories is
    destructive). The user must either move the document manually or run
    `schema create <folder-name>` to register the folder as a collection

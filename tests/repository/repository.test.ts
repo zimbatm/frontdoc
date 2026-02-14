@@ -12,6 +12,9 @@ describe("Repository", () => {
 		await vfs.mkdirAll("clients");
 		await vfs.writeFile("clients/_schema.yaml", 'slug: "{{name}}-{{short_id}}"\n');
 		await vfs.writeFile("clients/abc123-acme.md", doc("01arz3ndektsv4rrffq6abc123", "Acme"));
+		await vfs.writeFile("README-not-a-doc.md", doc("01arz3ndektsv4rrffq6zzz001", "Root"));
+		await vfs.mkdirAll("scratch");
+		await vfs.writeFile("scratch/note.md", doc("01arz3ndektsv4rrffq6zzz002", "Scratch"));
 
 		await vfs.mkdirAll("projects/proj001-roadmap");
 		await vfs.writeFile("projects/_schema.yaml", 'slug: "{{name}}-{{short_id}}"\n');

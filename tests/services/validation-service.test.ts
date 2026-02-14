@@ -39,12 +39,7 @@ function makeServices(vfs: MemoryVFS): {
 	const aliases = { cli: "clients", tpl: "templates" };
 	const repo = new Repository(vfs);
 	const documents = new DocumentService(schemas, aliases, repo);
-	const validation = new ValidationService(
-		schemas,
-		aliases,
-		[".DS_Store", "Thumbs.db"],
-		repo,
-	);
+	const validation = new ValidationService(schemas, aliases, [".DS_Store", "Thumbs.db"], repo);
 	return { documents, validation };
 }
 
@@ -52,6 +47,7 @@ describe("ValidationService", () => {
 	test("check detects and fixes filename mismatch", async () => {
 		const vfs = new MemoryVFS();
 		await vfs.mkdirAll("clients");
+		await vfs.writeFile("clients/_schema.yaml", 'slug: "{{name}}-{{short_id}}"\n');
 		const { documents, validation } = makeServices(vfs);
 		const created = await documents.Create({
 			collection: "clients",
@@ -76,6 +72,7 @@ describe("ValidationService", () => {
 
 		const vfs = new MemoryVFS();
 		await vfs.mkdirAll("clients");
+		await vfs.writeFile("clients/_schema.yaml", 'slug: "{{name}}-{{short_id}}"\n');
 		const { documents, validation } = makeServices(vfs);
 		const created = await documents.Create({
 			collection: "clients",
@@ -98,6 +95,7 @@ describe("ValidationService", () => {
 	test("check validates wiki links and fixes stale link titles", async () => {
 		const vfs = new MemoryVFS();
 		await vfs.mkdirAll("clients");
+		await vfs.writeFile("clients/_schema.yaml", 'slug: "{{name}}-{{short_id}}"\n');
 		const { documents, validation } = makeServices(vfs);
 		const target = await documents.Create({
 			collection: "clients",
@@ -124,7 +122,10 @@ describe("ValidationService", () => {
 	test("check validates template 'for' collection values", async () => {
 		const vfs = new MemoryVFS();
 		await vfs.mkdirAll("templates");
+		await vfs.writeFile("templates/_schema.yaml", 'slug: "{{name}}-{{short_id}}"\n');
 		const { documents, validation } = makeServices(vfs);
+		await vfs.mkdirAll("clients");
+		await vfs.writeFile("clients/_schema.yaml", 'slug: "{{name}}-{{short_id}}"\n');
 
 		await documents.Create({
 			collection: "templates",
@@ -149,5 +150,16 @@ describe("ValidationService", () => {
 		const invalidTargetIssues = result.issues.filter((i) => i.code === "template.for.invalid");
 		expect(invalidTargetIssues).toHaveLength(1);
 		expect(invalidTargetIssues[0].message).toContain("unknown_collection");
+	});
+
+	test("check ignores root-level markdown outside collections", async () => {
+		const vfs = new MemoryVFS();
+		await vfs.mkdirAll("clients");
+		await vfs.writeFile("clients/_schema.yaml", 'slug: "{{name}}-{{short_id}}"\n');
+		await vfs.writeFile("CLAUDE.md", "---\n_id: 01arz3ndektsv4rrffq69g5fb2\n---\n");
+		const { validation } = makeServices(vfs);
+
+		const result = await validation.Check({});
+		expect(result.issues.some((i) => i.path === "CLAUDE.md")).toBe(false);
 	});
 });
