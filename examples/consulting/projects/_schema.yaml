@@ -1,0 +1,16 @@
+slug: "{{name}}"
+fields:
+  name:
+    type: string
+    required: true
+  client_id:
+    type: reference
+    required: true
+  status:
+    type: enum
+    enum_values:
+      - planned
+      - active
+      - done
+references:
+  client_id: clients

@@ -1,0 +1,9 @@
+aliases:
+  jrn: journal
+  tsk: tasks
+  ctc: contacts
+  area: areas
+  tpl: templates
+ignore:
+  - .DS_Store
+  - Thumbs.db

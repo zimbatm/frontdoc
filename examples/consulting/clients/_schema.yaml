@@ -1,0 +1,13 @@
+slug: "{{name}}"
+fields:
+  name:
+    type: string
+    required: true
+  email:
+    type: email
+  status:
+    type: enum
+    enum_values:
+      - lead
+      - active
+      - paused

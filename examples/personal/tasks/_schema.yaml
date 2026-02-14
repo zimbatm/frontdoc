@@ -1,0 +1,18 @@
+slug: "{{title}}"
+fields:
+  title:
+    type: string
+    required: true
+  status:
+    type: enum
+    required: true
+    enum_values:
+      - todo
+      - doing
+      - done
+  due_date:
+    type: date
+  area_id:
+    type: reference
+references:
+  area_id: areas

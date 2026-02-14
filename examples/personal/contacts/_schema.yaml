@@ -1,0 +1,9 @@
+slug: "{{name}}"
+fields:
+  name:
+    type: string
+    required: true
+  email:
+    type: email
+  notes:
+    type: string

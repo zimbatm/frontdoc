@@ -1,0 +1,27 @@
+slug: "{{number}}"
+fields:
+  number:
+    type: string
+    required: true
+  client_id:
+    type: reference
+    required: true
+  project_id:
+    type: reference
+  amount:
+    type: number
+  currency:
+    type: currency
+  issue_date:
+    type: date
+  due_date:
+    type: date
+  status:
+    type: enum
+    enum_values:
+      - draft
+      - sent
+      - paid
+references:
+  client_id: clients
+  project_id: projects

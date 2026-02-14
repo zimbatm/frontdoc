@@ -1,0 +1,8 @@
+aliases:
+  cli: clients
+  prj: projects
+  inv: invoices
+  tpl: templates
+ignore:
+  - .DS_Store
+  - Thumbs.db

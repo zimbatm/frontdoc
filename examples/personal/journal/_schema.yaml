@@ -1,0 +1,18 @@
+slug: "{{date}}"
+fields:
+  title:
+    type: string
+    required: false
+  date:
+    type: date
+    required: true
+    default: today
+  mood:
+    type: enum
+    enum_values:
+      - focused
+      - calm
+      - tired
+      - stressed
+  tags:
+    type: array

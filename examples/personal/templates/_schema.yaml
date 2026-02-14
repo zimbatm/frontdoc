@@ -1,0 +1,8 @@
+slug: "{{name}}"
+fields:
+  name:
+    type: string
+    required: true
+  for:
+    type: string
+    required: true
