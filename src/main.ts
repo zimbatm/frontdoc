@@ -4,6 +4,7 @@ import { writeFile } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { Command } from "commander";
+import { createDocumentUseCase, updateDocumentUseCase } from "./app/document-use-cases.js";
 import { withWriteLock } from "./app/write-lock.js";
 import { registerSchemaCommands } from "./cli/schema-commands.js";
 import { normalizeDateInput, normalizeDatetimeInput } from "./config/date-input.js";
@@ -121,16 +122,13 @@ program
 					}
 				}
 
-				const created = await manager.Documents().Create({
+				const created = await createDocumentUseCase(manager, {
 					collection: resolvedCollection,
 					fields: normalizedFields,
 					content: opts.content,
 					templateContent,
 					skipValidation: opts.skipValidation,
 				});
-				if (!opts.skipValidation) {
-					await assertNoValidationErrors(manager, resolvedCollection, created.path);
-				}
 				return created;
 			});
 
@@ -198,16 +196,13 @@ program
 				for (const key of opts.unset) {
 					assertUserFieldInput(key);
 				}
-				const updated = await manager.Documents().UpdateByID(id, {
+				const updated = await updateDocumentUseCase(manager, {
+					id,
 					fields,
 					unsetFields: opts.unset,
 					content,
 					skipValidation: opts.skipValidation,
 				});
-				if (!opts.skipValidation) {
-					const collection = updated.path.split("/")[0] ?? "";
-					await assertNoValidationErrors(manager, collection, updated.path);
-				}
 				return updated;
 			});
 			renderWriteOutput(updated, opts.output);
@@ -840,24 +835,6 @@ function normalizeFieldValue(name: string, value: string, schema: CollectionSche
 		}
 	}
 	return value;
-}
-
-async function assertNoValidationErrors(
-	manager: Manager,
-	collection: string,
-	path: string,
-): Promise<void> {
-	const result = await manager.Validation().Check({
-		collection,
-		fix: false,
-		pruneAttachments: false,
-	});
-	const errors = result.issues.filter((issue) => issue.path === path && issue.severity === "error");
-	if (errors.length === 0) {
-		return;
-	}
-	const details = errors.map((issue) => `${issue.code}: ${issue.message}`).join("; ");
-	throw new Error(`validation failed: ${details}`);
 }
 
 async function readFromStdin(): Promise<string> {

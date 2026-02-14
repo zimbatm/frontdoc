@@ -3,6 +3,11 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+	collectionFromPath,
+	createDocumentUseCase,
+	updateDocumentUseCase,
+} from "../app/document-use-cases.js";
 import { withWriteLock } from "../app/write-lock.js";
 import { normalizeDateInput, normalizeDatetimeInput } from "../config/date-input.js";
 import type { CollectionSchema } from "../config/types.js";
@@ -376,14 +381,12 @@ async function handleCreateDocument(
 		const templateContent = asOptionalString(body.templateContent, "templateContent");
 
 		const created = await withWriteLock(manager, async () => {
-			const record = await manager.Documents().Create({
+			return await createDocumentUseCase(manager, {
 				collection,
 				fields,
 				content,
 				templateContent,
 			});
-			await assertNoValidationErrors(manager, collection, record.path);
-			return record;
 		});
 
 		return json(201, { document: listItemFromRecord(created, manager.Schemas()) });
@@ -497,12 +500,16 @@ async function handleUpdateDocument(
 		};
 
 		const updated = await withWriteLock(manager, async () => {
-			const record = await manager.Documents().UpdateByID(id, update);
+			const record = await updateDocumentUseCase(manager, {
+				id,
+				fields: update.fields,
+				unsetFields: update.unsetFields,
+				content: update.content,
+			});
 			const collection = record.path.split("/")[0] ?? "";
 			if (!isCollectionAllowed(collection, scope)) {
 				throw new Error(`collection not served: ${collection}`);
 			}
-			await assertNoValidationErrors(manager, collection, record.path);
 			return record;
 		});
 
@@ -720,24 +727,6 @@ function normalizeFieldsForSchema(
 	return normalized;
 }
 
-async function assertNoValidationErrors(
-	manager: Manager,
-	collection: string,
-	path: string,
-): Promise<void> {
-	const result = await manager.Validation().Check({
-		collection,
-		fix: false,
-		pruneAttachments: false,
-	});
-	const errors = result.issues.filter((issue) => issue.path === path && issue.severity === "error");
-	if (errors.length === 0) {
-		return;
-	}
-	const details = errors.map((issue) => `${issue.code}: ${issue.message}`).join("; ");
-	throw new Error(`validation failed: ${details}`);
-}
-
 async function loadByPath(manager: Manager, path: string): Promise<DocumentRecord> {
 	const raw = await manager.Repository().fileSystem().readFile(path);
 	const document = parseDocument(raw, path, false);
@@ -863,10 +852,6 @@ function collectionScopeSet(allowedCollections: string[]): Set<string> | null {
 
 function isCollectionAllowed(collection: string, scope: Set<string> | null): boolean {
 	return scope === null || scope.has(collection);
-}
-
-function collectionFromPath(path: string): string {
-	return path.split("/")[0] ?? "";
 }
 
 function draftPathFromEditID(id: string): string | null {
