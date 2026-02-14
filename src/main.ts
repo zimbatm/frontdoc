@@ -392,11 +392,17 @@ program
 	.argument("[collection]", "Optional collection scope")
 	.option("--fix", "Auto-fix fixable issues", false)
 	.option("--prune-attachments", "Remove unreferenced attachments (implies --fix)", false)
+	.option("--verbose", "Show detailed issue output", false)
 	.option("-o, --output <format>", "Output format: text|json", "text")
 	.action(
 		async (
 			collection: string | undefined,
-			opts: { fix: boolean; pruneAttachments: boolean; output: CheckOutputFormat },
+			opts: {
+				fix: boolean;
+				pruneAttachments: boolean;
+				verbose: boolean;
+				output: CheckOutputFormat;
+			},
 		) => {
 			const manager = await Manager.New(getWorkDir(program));
 			const mutate = opts.fix || opts.pruneAttachments;
@@ -423,8 +429,10 @@ program
 			if (opts.fix || opts.pruneAttachments) {
 				console.log(`Fixed: ${result.fixed}`);
 			}
-			for (const issue of result.issues) {
-				console.log(`${issue.severity.toUpperCase()} ${issue.path}: ${issue.message}`);
+			if (opts.verbose) {
+				for (const issue of result.issues) {
+					console.log(`${issue.severity.toUpperCase()} ${issue.path}: ${issue.message}`);
+				}
 			}
 		},
 	);

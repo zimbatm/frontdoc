@@ -586,4 +586,56 @@ fi
 		const raw = await runOk(["-C", root, "read", id, "-o", "raw"], root);
 		expect(raw).toContain("name: Repaired Name");
 	});
+
+	test("check prints details only with --verbose", async () => {
+		const root = await mkdtemp(join(tmpdir(), "tmdoc-cli-check-verbose-"));
+		await runOk(["-C", root, "init"], root);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"create",
+				"clients",
+				"--prefix",
+				"cli",
+				"--slug",
+				"{{short_id}}-{{name}}",
+			],
+			root,
+		);
+		await runOk(
+			[
+				"-C",
+				root,
+				"schema",
+				"field",
+				"create",
+				"clients",
+				"name",
+				"--type",
+				"string",
+				"--required",
+			],
+			root,
+		);
+		const created = JSON.parse(
+			await runOk(["-C", root, "create", "cli", "Acme", "-o", "json"], root),
+		) as {
+			document: { metadata: { id: string } };
+		};
+		const shortID = created.document.metadata.id.slice(-6);
+		await runOk(
+			["-C", root, "create", "cli", "Broken", "--content", `[[${shortID}x:Missing]]`],
+			root,
+		);
+
+		const plain = await runOk(["-C", root, "check"], root);
+		expect(plain).not.toContain("ERROR ");
+		expect(plain).toContain("Issues:");
+
+		const verbose = await runOk(["-C", root, "check", "--verbose"], root);
+		expect(verbose).toContain("ERROR ");
+		expect(verbose).toContain("broken wiki-style link");
+	});
 });
