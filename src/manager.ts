@@ -9,6 +9,7 @@ import { DocumentService } from "./services/document-service.js";
 import { RelationshipService } from "./services/relationship-service.js";
 import { SchemaService } from "./services/schema-service.js";
 import { SearchService } from "./services/search-service.js";
+import { TemplateService } from "./services/template-service.js";
 import { ValidationService } from "./services/validation-service.js";
 import { BoundVFS } from "./storage/bound-vfs.js";
 
@@ -17,6 +18,7 @@ export class Manager {
 	private readonly relationshipService: RelationshipService;
 	private readonly schemaService: SchemaService;
 	private readonly searchService: SearchService;
+	private readonly templateService: TemplateService;
 	private readonly validationService: ValidationService;
 
 	private constructor(
@@ -33,6 +35,11 @@ export class Manager {
 		this.schemaService = new SchemaService(this.schemas, this.repoConfig, this.repository);
 		this.searchService = new SearchService(this.repository);
 		this.relationshipService = new RelationshipService(this.schemas, this.repository);
+		this.templateService = new TemplateService(
+			new Set(this.schemas.keys()),
+			this.repoConfig.aliases,
+			this.repository,
+		);
 		this.validationService = new ValidationService(
 			this.schemas,
 			this.repoConfig.aliases,
@@ -95,6 +102,10 @@ export class Manager {
 
 	Relationships(): RelationshipService {
 		return this.relationshipService;
+	}
+
+	Templates(): TemplateService {
+		return this.templateService;
 	}
 
 	Validation(): ValidationService {

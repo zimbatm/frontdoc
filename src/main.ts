@@ -55,13 +55,21 @@ program
 	.argument("[title]", "Optional title mapped to first slug field")
 	.option("-c, --collection <name>", "Collection name")
 	.option("-f, --field <key=value>", "Field value", collectRepeated, [])
+	.option("--template <name>", "Template name")
+	.option("--no-template", "Skip template selection and processing")
 	.option("--content <text>", "Initial content")
 	.option("-o, --output <format>", "Output format: default|json|path", "default")
 	.action(
 		async (
 			argCollection: string | undefined,
 			title: string | undefined,
-			opts: { collection?: string; field: string[]; content?: string; output: WriteOutputFormat },
+			opts: {
+				collection?: string;
+				field: string[];
+				template?: string | boolean;
+				content?: string;
+				output: WriteOutputFormat;
+			},
 		) => {
 			const manager = await Manager.New(getWorkDir(program));
 			const collection = opts.collection ?? argCollection;
@@ -83,10 +91,33 @@ program
 				}
 			}
 
+			let templateContent: string | undefined;
+			const noTemplate = opts.template === false;
+			const templateName = typeof opts.template === "string" ? opts.template : undefined;
+			if (!noTemplate) {
+				const templates = await manager.Templates().GetTemplatesForCollection(resolvedCollection);
+				if (templateName) {
+					const found = templates.find((template) => template.name === templateName);
+					if (!found) {
+						throw new Error(
+							`template not found for collection '${resolvedCollection}': ${templateName}`,
+						);
+					}
+					templateContent = found.content;
+				} else if (templates.length === 1) {
+					templateContent = templates[0].content;
+				} else if (templates.length > 1) {
+					throw new Error(
+						`multiple templates found for '${resolvedCollection}', use --template or --no-template`,
+					);
+				}
+			}
+
 			const created = await manager.Documents().Create({
 				collection: resolvedCollection,
 				fields,
 				content: opts.content,
+				templateContent,
 			});
 
 			renderWriteOutput(created, opts.output);
