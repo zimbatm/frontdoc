@@ -14,8 +14,8 @@ function makeDoc(overrides: Partial<Document> = {}): Document {
 	return {
 		path: "clients/9g5fav-acme-corp.md",
 		metadata: {
-			id: "01arz3ndektsv4rrffq69g5fav",
-			created_at: "2024-03-15T10:30:00Z",
+			_id: "01arz3ndektsv4rrffq69g5fav",
+			_created_at: "2024-03-15T10:30:00Z",
 			name: "Acme Corporation",
 		},
 		content: "\n# Acme Corporation\n",
@@ -79,7 +79,7 @@ describe("getShortID", () => {
 	});
 
 	test("returns full id if shorter than length", () => {
-		const doc = makeDoc({ metadata: { id: "abc" } });
+		const doc = makeDoc({ metadata: { _id: "abc" } });
 		expect(getShortID(doc)).toBe("abc");
 	});
 });
@@ -96,27 +96,28 @@ describe("displayName", () => {
 	});
 
 	test("falls back to title field", () => {
-		const doc = makeDoc({ metadata: { id: "abc", title: "My Title" } });
+		const doc = makeDoc({ metadata: { _id: "abc", title: "My Title" }, content: "" });
 		expect(displayName(doc)).toBe("My Title");
 	});
 
 	test("falls back to filename", () => {
-		const doc = makeDoc({ metadata: { id: "abc" }, path: "col/my-document.md" });
+		const doc = makeDoc({ metadata: { _id: "abc" }, path: "col/my-document.md", content: "" });
 		expect(displayName(doc)).toBe("my-document");
 	});
 
 	test("falls back to short id", () => {
 		const doc = makeDoc({
-			metadata: { id: "01arz3ndektsv4rrffq69g5fav" },
+			metadata: { _id: "01arz3ndektsv4rrffq69g5fav" },
 			path: "col/some-doc",
 			isFolder: true,
+			content: "",
 		});
 		// folder doc: basename is "some-doc" (not index.md), returns "some-doc"
 		expect(displayName(doc)).toBe("some-doc");
 	});
 
 	test("returns Untitled as last resort", () => {
-		const doc = makeDoc({ metadata: {}, path: "col/something", isFolder: true });
+		const doc = makeDoc({ metadata: {}, path: "col/something", isFolder: true, content: "" });
 		// folder doc with no metadata fields; basename is "something"
 		expect(displayName(doc)).toBe("something");
 	});
@@ -133,7 +134,7 @@ describe("buildDocument", () => {
 		const doc = makeDoc();
 		const result = buildDocument(doc);
 		expect(result).toContain("---\n");
-		expect(result).toContain("id:");
+		expect(result).toContain("_id:");
 		expect(result).toContain("# Acme Corporation");
 	});
 
@@ -151,7 +152,7 @@ describe("parseDocument", () => {
 		const parsed = parseDocument(serialized, doc.path, doc.isFolder);
 
 		expect(parsed.path).toBe(doc.path);
-		expect(parsed.metadata.id).toBe(doc.metadata.id);
+		expect(parsed.metadata._id).toBe(doc.metadata._id);
 		expect(parsed.metadata.name).toBe(doc.metadata.name);
 		expect(parsed.isFolder).toBe(false);
 	});

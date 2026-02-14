@@ -4,16 +4,16 @@ import { parseFrontmatter, serializeFrontmatter } from "../../src/document/front
 describe("parseFrontmatter", () => {
 	test("parses basic frontmatter", () => {
 		const raw = `---
-id: "01arz3ndektsv4rrffq69g5fav"
-created_at: "2024-03-15T10:30:00Z"
+_id: "01arz3ndektsv4rrffq69g5fav"
+_created_at: "2024-03-15T10:30:00Z"
 name: Acme Corporation
 ---
 
 # Acme Corporation`;
 
 		const { metadata, content } = parseFrontmatter(raw);
-		expect(metadata.id).toBe("01arz3ndektsv4rrffq69g5fav");
-		expect(metadata.created_at).toBe("2024-03-15T10:30:00Z");
+		expect(metadata._id).toBe("01arz3ndektsv4rrffq69g5fav");
+		expect(metadata._created_at).toBe("2024-03-15T10:30:00Z");
 		expect(metadata.name).toBe("Acme Corporation");
 		expect(content).toBe("\n# Acme Corporation");
 	});
@@ -26,7 +26,7 @@ name: Acme Corporation
 	});
 
 	test("throws on unclosed frontmatter", () => {
-		const raw = "---\nid: foo\nno closing delimiter";
+		const raw = "---\n_id: foo\nno closing delimiter";
 		expect(() => parseFrontmatter(raw)).toThrow("unclosed frontmatter");
 	});
 
@@ -39,11 +39,11 @@ name: Acme Corporation
 
 	test("handles datetime values as strings", () => {
 		const raw = `---
-created_at: "2024-03-15T10:30:00Z"
+_created_at: "2024-03-15T10:30:00Z"
 ---
 `;
 		const { metadata } = parseFrontmatter(raw);
-		expect(typeof metadata.created_at).toBe("string");
+		expect(typeof metadata._created_at).toBe("string");
 	});
 
 	test("handles numeric values", () => {
@@ -73,8 +73,8 @@ describe("serializeFrontmatter", () => {
 	test("serializes with correct field ordering", () => {
 		const metadata = {
 			name: "Acme",
-			created_at: "2024-03-15T10:30:00Z",
-			id: "01arz3ndektsv4rrffq69g5fav",
+			_created_at: "2024-03-15T10:30:00Z",
+			_id: "01arz3ndektsv4rrffq69g5fav",
 			status: "active",
 		};
 		const content = "\n# Acme Corporation\n";
@@ -82,8 +82,8 @@ describe("serializeFrontmatter", () => {
 
 		const lines = result.split("\n");
 		expect(lines[0]).toBe("---");
-		expect(lines[1]).toContain("id:");
-		expect(lines[2]).toContain("created_at:");
+		expect(lines[1]).toContain("_id:");
+		expect(lines[2]).toContain("_created_at:");
 		// remaining fields alphabetically: name, status
 		expect(lines[3]).toContain("name:");
 		expect(lines[4]).toContain("status:");
@@ -95,24 +95,24 @@ describe("serializeFrontmatter", () => {
 	});
 
 	test("adds blank line between closing delimiter and content", () => {
-		const result = serializeFrontmatter({ id: "abc" }, "# Hello");
+		const result = serializeFrontmatter({ _id: "abc" }, "# Hello");
 		expect(result).toContain("---\n\n# Hello");
 	});
 
 	test("does not double blank line when content starts with newline", () => {
-		const result = serializeFrontmatter({ id: "abc" }, "\n# Hello");
+		const result = serializeFrontmatter({ _id: "abc" }, "\n# Hello");
 		expect(result).toContain("---\n\n# Hello");
 	});
 
 	test("quotes datetime values", () => {
-		const result = serializeFrontmatter({ created_at: "2024-03-15T10:30:00Z" }, "content");
+		const result = serializeFrontmatter({ _created_at: "2024-03-15T10:30:00Z" }, "content");
 		expect(result).toContain('"2024-03-15T10:30:00Z"');
 	});
 
 	test("roundtrips correctly", () => {
 		const originalMeta = {
-			id: "01arz3ndektsv4rrffq69g5fav",
-			created_at: "2024-03-15T10:30:00Z",
+			_id: "01arz3ndektsv4rrffq69g5fav",
+			_created_at: "2024-03-15T10:30:00Z",
 			name: "Test Doc",
 			status: "active",
 		};
@@ -121,8 +121,8 @@ describe("serializeFrontmatter", () => {
 		const serialized = serializeFrontmatter(originalMeta, originalContent);
 		const { metadata, content } = parseFrontmatter(serialized);
 
-		expect(metadata.id).toBe(originalMeta.id);
-		expect(metadata.created_at).toBe(originalMeta.created_at);
+		expect(metadata._id).toBe(originalMeta._id);
+		expect(metadata._created_at).toBe(originalMeta._created_at);
 		expect(metadata.name).toBe(originalMeta.name);
 		expect(metadata.status).toBe(originalMeta.status);
 		expect(content).toBe(originalContent);

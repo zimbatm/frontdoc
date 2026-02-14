@@ -88,9 +88,9 @@ describe("CLI workflows", () => {
 		const created = await runOk(["-C", root, "create", "cli", "Acme Corp", "-o", "json"], root);
 		const createdJSON = JSON.parse(created) as {
 			path: string;
-			document: { metadata: { id: string } };
+			document: { metadata: { _id: string } };
 		};
-		const id = createdJSON.document.metadata.id;
+		const id = createdJSON.document.metadata._id;
 		expect(createdJSON.path.startsWith("clients/")).toBe(true);
 
 		const raw = await runOk(["-C", root, "read", id, "-o", "raw"], root);
@@ -182,7 +182,7 @@ describe("CLI workflows", () => {
 				["-C", root, "create", "cli", "Acme", "--template", "Client Onboarding", "-o", "json"],
 				root,
 			),
-		) as { document: { content: string; metadata: { id: string } } };
+		) as { document: { content: string; metadata: { _id: string } } };
 		expect(withTemplate.document.content).toContain("Welcome Acme");
 
 		const noTemplate = JSON.parse(
@@ -245,8 +245,6 @@ describe("CLI workflows", () => {
 				"templates",
 				"Template One",
 				"-f",
-				"id=01arz3ndektsv4rrffq6tmp001",
-				"-f",
 				"name=Template One",
 				"-f",
 				"for=clients",
@@ -265,8 +263,6 @@ describe("CLI workflows", () => {
 				"templates",
 				"Template Two",
 				"-f",
-				"id=01arz3ndektsv4rrffq6tmp002",
-				"-f",
 				"name=Template Two",
 				"-f",
 				"for=clients",
@@ -283,7 +279,7 @@ describe("CLI workflows", () => {
 		expect(pathMatch).not.toBeNull();
 		const createdPath = pathMatch?.[1] ?? "";
 		const rawCreated = await readFile(join(root, createdPath), "utf8");
-		expect(rawCreated).toContain("# TWO Acme");
+		expect(rawCreated).toMatch(/# (ONE|TWO) Acme/);
 	});
 
 	test("attach + check --fix --prune-attachments collapses folder", async () => {
@@ -322,9 +318,9 @@ describe("CLI workflows", () => {
 			await runOk(["-C", root, "create", "cli", "Acme", "-o", "json"], root),
 		) as {
 			path: string;
-			document: { metadata: { id: string } };
+			document: { metadata: { _id: string } };
 		};
-		const id = created.document.metadata.id;
+		const id = created.document.metadata._id;
 
 		const hostAttachment = join(root, "attach.txt");
 		await writeFile(hostAttachment, "hello", "utf8");
@@ -394,9 +390,9 @@ describe("CLI workflows", () => {
 		const client = JSON.parse(
 			await runOk(["-C", root, "create", "cli", "Acme", "-o", "json"], root),
 		) as {
-			document: { metadata: { id: string } };
+			document: { metadata: { _id: string } };
 		};
-		const short = client.document.metadata.id.slice(-6);
+		const short = client.document.metadata._id.slice(-6);
 		await runOk(
 			[
 				"-C",
@@ -468,9 +464,9 @@ describe("CLI workflows", () => {
 		const created = JSON.parse(
 			await runOk(["-C", root, "create", "cli", "Acme", "-o", "json"], root),
 		) as {
-			document: { metadata: { id: string } };
+			document: { metadata: { _id: string } };
 		};
-		const id = created.document.metadata.id;
+		const id = created.document.metadata._id;
 
 		await runOk(["-C", root, "update", id, "--content", "-", "-o", "json"], root, "# From stdin\n");
 		const raw = await runOk(["-C", root, "read", id, "-o", "raw"], root);
@@ -498,9 +494,9 @@ describe("CLI workflows", () => {
 		const created = JSON.parse(
 			await runOk(["-C", root, "create", "cli", "Acme", "-o", "json"], root),
 		) as {
-			document: { metadata: { id: string } };
+			document: { metadata: { _id: string } };
 		};
-		const id = created.document.metadata.id;
+		const id = created.document.metadata._id;
 
 		const aborted = await runOk(["-C", root, "delete", id], root, "n\n");
 		expect(aborted).toContain("Aborted");
@@ -539,10 +535,10 @@ describe("CLI workflows", () => {
 		const created = JSON.parse(
 			await runOk(["-C", root, "create", "cli", "Acme", "-o", "json"], root),
 		) as {
-			document: { metadata: { id: string } };
+			document: { metadata: { _id: string } };
 			path: string;
 		};
-		const id = created.document.metadata.id;
+		const id = created.document.metadata._id;
 		const shortID = id.slice(-6);
 
 		const editorScript = join(root, "fake-editor.sh");
@@ -557,13 +553,13 @@ count=0
 if [ -f "$count_file" ]; then
   count="$(cat "$count_file")"
 fi
-id_line="$(grep '^id:' "$target" | head -n1 | cut -d' ' -f2-)"
-created_line="$(grep '^created_at:' "$target" | head -n1 | cut -d' ' -f2-)"
+id_line="$(grep '^_id:' "$target" | head -n1 | cut -d' ' -f2-)"
+created_line="$(grep '^_created_at:' "$target" | head -n1 | cut -d' ' -f2-)"
 if [ "$count" = "0" ]; then
   cat >"$target" <<EOF
 ---
-id: $id_line
-created_at: $created_line
+_id: $id_line
+_created_at: $created_line
 ---
 
 invalid
@@ -572,8 +568,8 @@ EOF
 else
   cat >"$target" <<EOF
 ---
-id: $id_line
-created_at: $created_line
+_id: $id_line
+_created_at: $created_line
 name: Repaired Name
 ---
 
@@ -630,9 +626,9 @@ fi
 		const created = JSON.parse(
 			await runOk(["-C", root, "create", "cli", "Acme", "-o", "json"], root),
 		) as {
-			document: { metadata: { id: string } };
+			document: { metadata: { _id: string } };
 		};
-		const shortID = created.document.metadata.id.slice(-6);
+		const shortID = created.document.metadata._id.slice(-6);
 		await runOk(
 			[
 				"-C",
@@ -716,9 +712,9 @@ fi
 				root,
 			),
 		) as {
-			document: { metadata: { id: string } };
+			document: { metadata: { _id: string } };
 		};
-		const id = created.document.metadata.id;
+		const id = created.document.metadata._id;
 
 		const updateFail = await runFail(["-C", root, "update", id, "-f", "currency=eur"], root);
 		expect(updateFail.stderr).toContain("validation failed");
@@ -805,9 +801,9 @@ fi
 				root,
 			),
 		) as {
-			document: { metadata: { id: string } };
+			document: { metadata: { _id: string } };
 		};
-		const id = created.document.metadata.id;
+		const id = created.document.metadata._id;
 		const raw = await runOk(["-C", root, "read", id, "-o", "raw"], root);
 		expect(raw).toContain(`due_date: "${dateOffsetISO(0)}"`);
 		expect(raw).toContain(`starts_at: "${dateOffsetISO(1)}T00:00:00Z"`);

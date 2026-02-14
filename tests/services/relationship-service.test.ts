@@ -20,12 +20,12 @@ async function setup(): Promise<RelationshipService> {
 
 	await vfs.writeFile(
 		"clients/abc123-acme.md",
-		doc("id: 01arz3ndektsv4rrffq6abc123\nname: Acme\n", "# Acme"),
+		doc("_id: 01arz3ndektsv4rrffq6abc123\nname: Acme\n", "# Acme"),
 	);
 	await vfs.writeFile(
 		"projects/proj01-roadmap.md",
 		doc(
-			"id: 01arz3ndektsv4rrffq6proj01\nname: Roadmap\nclient_id: abc123\n",
+			"_id: 01arz3ndektsv4rrffq6proj01\nname: Roadmap\nclient_id: abc123\n",
 			"See [[abc123:Acme]]",
 		),
 	);

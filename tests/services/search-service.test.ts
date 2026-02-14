@@ -4,7 +4,7 @@ import { SearchService } from "../../src/services/search-service.js";
 import { MemoryVFS } from "../../src/storage/memory-vfs.js";
 
 function doc(id: string, name: string, body: string, extra = ""): string {
-	return `---\nid: ${id}\nname: ${name}\n${extra}---\n\n${body}\n`;
+	return `---\n_id: ${id}\nname: ${name}\n${extra}---\n\n${body}\n`;
 }
 
 async function setup(): Promise<SearchService> {

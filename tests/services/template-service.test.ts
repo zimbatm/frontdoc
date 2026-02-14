@@ -9,11 +9,11 @@ async function setup(): Promise<TemplateService> {
 	await vfs.writeFile("templates/_schema.yaml", 'slug: "{{short_id}}-{{name}}"\n');
 	await vfs.writeFile(
 		"templates/tmp001-client.md",
-		"---\nid: 01arz3ndektsv4rrffq6tmp001\nname: Client Onboarding\nfor: clients\n---\n\n# Client: {{name}}\n",
+		"---\n_id: 01arz3ndektsv4rrffq6tmp001\nname: Client Onboarding\nfor: clients\n---\n\n# Client: {{name}}\n",
 	);
 	await vfs.writeFile(
 		"templates/tmp002-project.md",
-		"---\nid: 01arz3ndektsv4rrffq6tmp002\nname: Project Kickoff\nfor: prj\n---\n\n# Project: {{name}}\n",
+		"---\n_id: 01arz3ndektsv4rrffq6tmp002\nname: Project Kickoff\nfor: prj\n---\n\n# Project: {{name}}\n",
 	);
 	const service = new TemplateService(
 		new Set(["templates", "clients", "projects"]),

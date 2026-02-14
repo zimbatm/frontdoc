@@ -37,8 +37,8 @@ describe("DocumentService", () => {
 		});
 
 		expect(created.path.startsWith("clients/")).toBe(true);
-		expect(typeof created.document.metadata.id).toBe("string");
-		expect(typeof created.document.metadata.created_at).toBe("string");
+		expect(typeof created.document.metadata._id).toBe("string");
+		expect(typeof created.document.metadata._created_at).toBe("string");
 		expect(created.document.metadata.status).toBe("active");
 		expect(created.document.metadata.due_date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
 		expect(created.document.metadata.due_date).not.toBe("today");
@@ -57,7 +57,7 @@ describe("DocumentService", () => {
 			collection: "clients",
 			fields: { name: "Acme Corp" },
 		});
-		const id = String(created.document.metadata.id);
+		const id = String(created.document.metadata._id);
 
 		const updated = await service.UpdateByID(id, {
 			fields: { name: "Beta Corp", notes: "hello" },
@@ -79,7 +79,7 @@ describe("DocumentService", () => {
 			collection: "clients",
 			fields: { name: "Acme Corp" },
 		});
-		const id = String(created.document.metadata.id);
+		const id = String(created.document.metadata._id);
 
 		await service.DeleteByID(id);
 		await expect(vfs.exists(created.path)).resolves.toBe(false);

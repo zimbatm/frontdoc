@@ -18,8 +18,8 @@ describe("slugify", () => {
 		expect(slugify("")).toBe("");
 	});
 
-	test("preserves forward slashes", () => {
-		expect(slugify("2024/My Post")).toBe("2024/my-post");
+	test("removes forward slashes from values", () => {
+		expect(slugify("2024/My Post")).toBe("2024-my-post");
 	});
 
 	test("handles special characters", () => {

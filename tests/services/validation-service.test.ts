@@ -83,7 +83,7 @@ describe("ValidationService", () => {
 			fields: { name: "Acme" },
 			content: "# Acme",
 		});
-		await documents.AttachFileByID(String(created.document.metadata.id), source, false, false);
+		await documents.AttachFileByID(String(created.document.metadata._id), source, false, false);
 
 		const folderPath = created.path.slice(0, -3);
 		expect(await vfs.isDir(folderPath)).toBe(true);
@@ -107,7 +107,7 @@ describe("ValidationService", () => {
 		const source = await documents.Create({
 			collection: "clients",
 			fields: { id: "01arz3ndektsv4rrffq69g5faw", name: "Source Document" },
-			content: `[[${target.document.metadata.id}:Stale Title]]\n[[missing123:Broken]]`,
+			content: `[[${target.document.metadata._id}:Stale Title]]\n[[missing123:Broken]]`,
 		});
 
 		const before = await validation.Check({});
@@ -117,8 +117,8 @@ describe("ValidationService", () => {
 		const fixed = await validation.Check({ fix: true });
 		expect(fixed.fixed).toBeGreaterThanOrEqual(1);
 
-		const updatedRaw = await documents.ReadRawByID(String(source.document.metadata.id));
-		expect(updatedRaw).toContain(`[[${target.document.metadata.id}:Target Document]]`);
+		const updatedRaw = await documents.ReadRawByID(String(source.document.metadata._id));
+		expect(updatedRaw).toContain(`[[${target.document.metadata._id}:Target Document]]`);
 		expect(updatedRaw).toContain("[[missing123:Broken]]");
 	});
 

@@ -25,7 +25,7 @@ async function setup(): Promise<{
 	);
 	await vfs.writeFile(
 		"clients/abc123-acme.md",
-		"---\nid: 01arz3ndektsv4rrffq6abc123\nname: Acme\n---\n\n# Acme\n",
+		"---\n_id: 01arz3ndektsv4rrffq6abc123\nname: Acme\n---\n\n# Acme\n",
 	);
 
 	const repoConfig = parseRepoConfig(await vfs.readFile("tmdoc.yaml"));

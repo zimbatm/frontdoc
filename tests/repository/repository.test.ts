@@ -3,7 +3,7 @@ import { byCollection, byField, hasField, Repository } from "../../src/repositor
 import { MemoryVFS } from "../../src/storage/memory-vfs.js";
 
 function doc(id: string, name: string): string {
-	return `---\nid: ${id}\nname: ${name}\n---\n\n# ${name}\n`;
+	return `---\n_id: ${id}\nname: ${name}\n---\n\n# ${name}\n`;
 }
 
 describe("Repository", () => {
@@ -37,11 +37,11 @@ describe("Repository", () => {
 		await vfs.writeFile("clients/_schema.yaml", 'slug: "{{short_id}}-{{name}}"\n');
 		await vfs.writeFile(
 			"clients/abc123-acme.md",
-			"---\nid: 01arz3ndektsv4rrffq6abc123\nname: Acme\nstatus: active\n---\n",
+			"---\n_id: 01arz3ndektsv4rrffq6abc123\nname: Acme\nstatus: active\n---\n",
 		);
 		await vfs.writeFile(
 			"clients/def456-beta.md",
-			"---\nid: 01arz3ndektsv4rrffq69def45\nname: Beta\nstatus: archived\n---\n",
+			"---\n_id: 01arz3ndektsv4rrffq69def45\nname: Beta\nstatus: archived\n---\n",
 		);
 
 		const repo = new Repository(vfs);
