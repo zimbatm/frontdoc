@@ -1,4 +1,5 @@
-import { dirname } from "node:path";
+import { readFile as readHostFile } from "node:fs/promises";
+import { basename, dirname } from "node:path";
 import { ulid } from "ulidx";
 import { resolveAlias } from "../config/alias.js";
 import type { CollectionSchema } from "../config/types.js";
@@ -120,6 +121,41 @@ export class DocumentService {
 			return;
 		}
 		await this.repository.fileSystem().remove(record.path);
+	}
+
+	async AttachFileByID(
+		id: string,
+		sourcePath: string,
+		addReference = true,
+		force = false,
+	): Promise<string> {
+		const record = await this.ReadByID(id);
+		let docPath = record.path;
+
+		if (!record.document.isFolder) {
+			const folderPath = stripMdExtension(record.path);
+			await this.repository.fileSystem().mkdirAll(folderPath);
+			await this.repository.fileSystem().rename(record.path, `${folderPath}/index.md`);
+			docPath = folderPath;
+		}
+
+		const fileName = basename(sourcePath);
+		const destPath = `${docPath}/${fileName}`;
+		if (!force && (await this.repository.fileSystem().exists(destPath))) {
+			throw new Error(`attachment already exists: ${destPath}`);
+		}
+
+		const content = await readHostFile(sourcePath, "utf8");
+		await this.repository.fileSystem().writeFile(destPath, content);
+
+		if (addReference) {
+			const loaded = await this.loadByPath(docPath);
+			const suffix = loaded.document.content.endsWith("\n") ? "" : "\n";
+			loaded.document.content = `${loaded.document.content}${suffix}\n[${fileName}](${fileName})\n`;
+			await this.save(loaded.document);
+		}
+
+		return destPath;
 	}
 
 	async List(filters: Filter[] = []): Promise<DocumentRecord[]> {

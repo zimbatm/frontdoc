@@ -7,11 +7,13 @@ import type { CollectionSchema, RepoConfig } from "./config/types.js";
 import { Repository } from "./repository/repository.js";
 import { DocumentService } from "./services/document-service.js";
 import { SchemaService } from "./services/schema-service.js";
+import { ValidationService } from "./services/validation-service.js";
 import { BoundVFS } from "./storage/bound-vfs.js";
 
 export class Manager {
 	private readonly documentService: DocumentService;
 	private readonly schemaService: SchemaService;
+	private readonly validationService: ValidationService;
 
 	private constructor(
 		private readonly rootPath: string,
@@ -25,6 +27,13 @@ export class Manager {
 			this.repository,
 		);
 		this.schemaService = new SchemaService(this.schemas, this.repoConfig);
+		this.validationService = new ValidationService(
+			this.schemas,
+			this.repoConfig.aliases,
+			this.repoConfig.ignore,
+			this.repository,
+			this.documentService,
+		);
 	}
 
 	static async New(workDir: string): Promise<Manager> {
@@ -72,6 +81,10 @@ export class Manager {
 
 	Documents(): DocumentService {
 		return this.documentService;
+	}
+
+	Validation(): ValidationService {
+		return this.validationService;
 	}
 
 	RootPath(): string {

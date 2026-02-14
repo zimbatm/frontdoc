@@ -19,6 +19,7 @@ type SchemaOutputFormat = "text" | "json" | "yaml";
 type ReadOutputFormat = "markdown" | "json" | "raw";
 type ListOutputFormat = "table" | "json";
 type WriteOutputFormat = "default" | "json" | "path";
+type CheckOutputFormat = "text" | "json";
 
 const program = new Command();
 
@@ -250,6 +251,75 @@ program
 		const renamedPath = await manager.Documents().AutoRenamePath(record.path);
 		console.log(renamedPath);
 	});
+
+program
+	.command("attach")
+	.description("Attach a file to a document")
+	.argument("<id>", "Document id")
+	.argument("<filePath>", "Path to source file on host filesystem")
+	.option("--force", "Overwrite existing attachment", false)
+	.option("--no-reference", "Do not append markdown reference")
+	.option("-o, --output <format>", "Output format: default|json|path", "default")
+	.action(
+		async (
+			id: string,
+			filePath: string,
+			opts: {
+				force: boolean;
+				reference: boolean;
+				output: WriteOutputFormat;
+			},
+		) => {
+			const manager = await Manager.New(getWorkDir(program));
+			const attachmentPath = await manager
+				.Documents()
+				.AttachFileByID(id, filePath, opts.reference, opts.force);
+			const record = await manager.Documents().ReadByID(id);
+			if (opts.output === "json") {
+				console.log(JSON.stringify({ path: attachmentPath, document: record.path, id }, null, 2));
+				return;
+			}
+			if (opts.output === "path") {
+				console.log(attachmentPath);
+				return;
+			}
+			console.log(`Attached ${attachmentPath}`);
+		},
+	);
+
+program
+	.command("check")
+	.description("Validate documents")
+	.argument("[collection]", "Optional collection scope")
+	.option("--fix", "Auto-fix fixable issues", false)
+	.option("--prune-attachments", "Remove unreferenced attachments (implies --fix)", false)
+	.option("-o, --output <format>", "Output format: text|json", "text")
+	.action(
+		async (
+			collection: string | undefined,
+			opts: { fix: boolean; pruneAttachments: boolean; output: CheckOutputFormat },
+		) => {
+			const manager = await Manager.New(getWorkDir(program));
+			const result = await manager.Validation().Check({
+				collection,
+				fix: opts.fix || opts.pruneAttachments,
+				pruneAttachments: opts.pruneAttachments,
+			});
+			if (opts.output === "json") {
+				console.log(JSON.stringify(result, null, 2));
+				return;
+			}
+
+			console.log(`Scanned: ${result.scanned}`);
+			console.log(`Issues: ${result.issues.length}`);
+			if (opts.fix || opts.pruneAttachments) {
+				console.log(`Fixed: ${result.fixed}`);
+			}
+			for (const issue of result.issues) {
+				console.log(`${issue.severity.toUpperCase()} ${issue.path}: ${issue.message}`);
+			}
+		},
+	);
 
 const schema = program.command("schema").description("Manage the schema");
 
