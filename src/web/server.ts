@@ -3,13 +3,13 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { withWriteLock } from "../app/write-lock.js";
 import { normalizeDateInput, normalizeDatetimeInput } from "../config/date-input.js";
 import type { CollectionSchema } from "../config/types.js";
 import { buildDocument, displayName, parseDocument, SYSTEM_FIELDS } from "../document/document.js";
 import { extractPlaceholders } from "../document/template-engine.js";
 import type { Manager } from "../manager.js";
 import { byCollection, type DocumentRecord } from "../repository/repository.js";
-import { FileLock } from "../storage/lock.js";
 
 export interface WebServerOptions {
 	host: string;
@@ -748,16 +748,6 @@ async function loadByPath(manager: Manager, path: string): Promise<DocumentRecor
 async function removeIfExists(manager: Manager, path: string): Promise<void> {
 	if (await manager.Repository().fileSystem().exists(path)) {
 		await manager.Repository().fileSystem().remove(path);
-	}
-}
-
-async function withWriteLock<T>(manager: Manager, fn: () => Promise<T>): Promise<T> {
-	const lock = new FileLock(manager.RootPath());
-	await lock.acquire();
-	try {
-		return await fn();
-	} finally {
-		await lock.release();
 	}
 }
 

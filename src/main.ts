@@ -5,6 +5,7 @@ import { basename, dirname, join, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { Command } from "commander";
 import { stringify } from "yaml";
+import { withWriteLock } from "./app/write-lock.js";
 import { normalizeDateInput, normalizeDatetimeInput } from "./config/date-input.js";
 import type { CollectionSchema } from "./config/types.js";
 import { buildDocument, contentPath as documentContentPath } from "./document/document.js";
@@ -19,7 +20,6 @@ import {
 } from "./repository/repository.js";
 import { formatSchemaReadText, formatSchemaShowText } from "./services/schema-service.js";
 import type { TemplateRecord } from "./services/template-service.js";
-import { FileLock } from "./storage/lock.js";
 import type { VFS } from "./storage/vfs.js";
 import { runWebServer } from "./web/server.js";
 
@@ -128,6 +128,7 @@ program
 					fields: normalizedFields,
 					content: opts.content,
 					templateContent,
+					skipValidation: opts.skipValidation,
 				});
 				if (!opts.skipValidation) {
 					await assertNoValidationErrors(manager, resolvedCollection, created.path);
@@ -203,6 +204,7 @@ program
 					fields,
 					unsetFields: opts.unset,
 					content,
+					skipValidation: opts.skipValidation,
 				});
 				if (!opts.skipValidation) {
 					const collection = updated.path.split("/")[0] ?? "";
@@ -1271,16 +1273,6 @@ function splitCSV(value: string): string[] {
 		.split(",")
 		.map((v) => v.trim())
 		.filter((v) => v.length > 0);
-}
-
-async function withWriteLock<T>(manager: Manager, fn: () => Promise<T>): Promise<T> {
-	const lock = new FileLock(manager.RootPath());
-	await lock.acquire();
-	try {
-		return await fn();
-	} finally {
-		await lock.release();
-	}
 }
 
 function searchResultsToCsv(
