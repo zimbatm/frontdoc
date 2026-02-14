@@ -32,7 +32,7 @@ This specification uses the following terms consistently:
 - **File Document**: A single `.md` file document.
 - **Folder Document**: A directory document whose content file is `index.md`
   (used for attachments).
-- **ID**: The full ULID stored in frontmatter (`id` field).
+- **ID**: The full ULID stored in frontmatter (`_id` field).
 - **Short ID**: The last N characters of the ULID (default N=6, configurable
   per collection).
 - **Reference**: A metadata field value that points to another document by ID.

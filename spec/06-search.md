@@ -24,8 +24,8 @@ For each document, every expression must pass:
 
 - **Field expressions** (e.g. `collection:clients`): evaluate against the
   document's metadata or virtual fields.
-- **Text expressions** (no field): search in content, then in `title` field,
-  then in `name` field. If found anywhere, the expression passes.
+- **Text expressions** (no field): search in content, then virtual `_title`,
+  then `title`, then `name`. If found anywhere, the expression passes.
 
 The `collection` field is a virtual field: it is not stored in metadata but
 is derived from the document's path (first path segment). Querying
@@ -46,7 +46,7 @@ Scoring uses relative priority tiers. Higher tiers dominate lower tiers:
 
 | Priority | Component                | Condition                                           |
 |----------|--------------------------|-----------------------------------------------------|
-| 1 (highest) | Exact match in title/name | `title` or `name` field equals the full query (case-insensitive) |
+| 1 (highest) | Exact match in title/name | `_title`, `title`, or `name` equals the full query (case-insensitive) |
 | 2        | Exact match in metadata  | Full query appears in a metadata string field       |
 | 3        | Filename match           | File path contains the full query                   |
 | 4        | Content exact match      | Full query appears in content (case-insensitive)    |

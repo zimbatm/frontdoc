@@ -160,7 +160,7 @@ Finds a document by full or partial ID:
    if no `-` exists) and check if it starts with the partial ID
    (case-insensitive prefix match). Substring matches in the middle of slugs
    are not considered.
-3. If the filename matches, parse the document and check if the metadata `id`
+3. If the filename matches, parse the document and check if the metadata `_id`
    field starts with the partial ID or equals it exactly.
 4. If exactly one match: return it.
 5. If multiple matches: return an error ("multiple documents match").

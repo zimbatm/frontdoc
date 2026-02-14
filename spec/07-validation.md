@@ -17,6 +17,15 @@ Validation happens at multiple levels:
 6. **Filename validation** (FilenameValidator) -- filenames match expected
    patterns.
 
+## Reserved Fields
+
+The `_` prefix is reserved for system fields.
+
+- Documents may contain system fields `_id` and `_created_at`.
+- `_title` is virtual (derived from content) and is never persisted.
+- User-defined schema fields and `references` keys MUST NOT start with `_`.
+- User input MUST NOT set, unset, or modify `_id`, `_created_at`, or `_title`.
+
 ## Validator
 
 The core Validator holds a map of field names to FieldValidator rules. It

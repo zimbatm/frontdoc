@@ -10,8 +10,8 @@ sections:
 
 ```
 ---
-id: "01arz3ndektsv4rrffq69g5fav"
-created_at: "2024-03-15T10:30:00Z"
+_id: "01arz3ndektsv4rrffq69g5fav"
+_created_at: "2024-03-15T10:30:00Z"
 name: Acme Corporation
 status: active
 ---
@@ -37,10 +37,23 @@ Every document automatically receives these fields on creation:
 
 | Field        | Type   | Description                        |
 |--------------|--------|------------------------------------|
-| `id`         | string | ULID (Universally Unique Lexicographically Sortable Identifier) |
-| `created_at` | string | RFC 3339 timestamp of creation |
+| `_id`         | string | ULID (Universally Unique Lexicographically Sortable Identifier) |
+| `_created_at` | string | RFC 3339 timestamp of creation |
+| `_title`      | string | Virtual title extracted from markdown content |
 
 Additional fields are defined per collection in `_schema.yaml`.
+
+The `_title` field is virtual and is never written to frontmatter. It is
+derived from content by:
+
+1. Stripping leading whitespace from content (`\n`, `\r`, spaces, tabs, etc).
+2. Taking the first non-empty line.
+3. If that line is an ATX heading (`#` through `######`), using its text
+   (with surrounding whitespace stripped) as `_title`.
+4. Otherwise, `_title` is empty.
+
+Any frontmatter key beginning with `_` is reserved for system fields. User
+schemas (`fields` and `references`) MUST NOT declare keys with `_` prefix.
 
 A document's collection membership is determined by its location in the
 filesystem: the top-level folder containing the document is its collection.
@@ -48,9 +61,9 @@ For example, a document at `clients/9g5fav-acme-corp.md` belongs to the
 `clients` collection. There is no `type` field in metadata -- the collection
 is always derived from the path.
 
-**Datetime representation**: All datetime values (including `created_at`)
+**Datetime representation**: All datetime values (including `_created_at`)
 are stored and handled as RFC 3339 strings. YAML values must be quoted
-(e.g. `created_at: "2024-03-15T10:30:00Z"`) to prevent YAML parsers from
+(e.g. `_created_at: "2024-03-15T10:30:00Z"`) to prevent YAML parsers from
 auto-converting them to native datetime objects. The parser must be
 configured to disable automatic datetime conversion if the YAML library
 does not respect quoting.
@@ -59,8 +72,8 @@ does not respect quoting.
 
 When writing frontmatter back to disk, fields are ordered:
 
-1. `id` -- always first
-2. `created_at` -- always second
+1. `_id` -- always first
+2. `_created_at` -- always second
 3. All remaining fields -- alphabetically
 
 This ensures deterministic output suitable for version control diffs.
@@ -74,12 +87,14 @@ template uses `{{variable_name}}` syntax:
 
 - `{{short_id}}` -- short ID derived from the document's ULID
 - `{{date}}` -- value of the `date` field, or today's date as fallback
-- `{{field_name}}` -- value of any metadata field, slugified
+- `{{field_name}}` -- value of any metadata field (or virtual `_title`),
+  slugified
 
 Templates support the same `{{field}}` and `{{field | filter}}` syntax as
 content templates (see 09-template-system.md for the full processing rules
-and available filters). After template processing, slug values are
-slugified.
+and available filters). Placeholder values are slugified before
+interpolation. Slugification removes/replaces `/` in values, so placeholder
+values never create path separators.
 
 Examples:
 
@@ -90,14 +105,15 @@ Examples:
 | `{{short_id}}` | `9g5fav.md` |
 | `{{date | year}}/{{short_id}}-{{name}}` | `2024/9g5fav-acme-corp.md` (see Subdirectory Slugs) |
 
-Slugification: field values are lowercased, non-alphanumerics replaced with
-hyphens, consecutive hyphens collapsed, trailing hyphens trimmed. The `.md`
-extension is appended if not already present.
+Slugification: field values are lowercased, `/` is replaced, non-alphanumerics
+are replaced with hyphens, consecutive hyphens are collapsed, trailing hyphens
+are trimmed. The `.md` extension is appended if not already present.
 
 ### Subdirectory Slugs
 
 Slug templates may contain `/` to place documents in subdirectories within
-the collection folder. For example, `{{date | year}}/{{short_id}}-{{name}}`
+the collection folder. Only `/` that appears literally in the slug template
+creates subdirectories. For example, `{{date | year}}/{{short_id}}-{{name}}`
 produces `clients/2024/9g5fav-acme-corp.md`. The subdirectory is created
 automatically. The document still belongs to the `clients` collection
 (collection membership is determined by the top-level folder).

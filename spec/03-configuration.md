@@ -74,8 +74,8 @@ fields:
   email:
     type: email
 references:
-  project_id: projects             # references projects collection by id
-  client_id: clients               # references clients collection by id
+  project_id: projects             # references projects collection by ID
+  client_id: clients               # references clients collection by ID
 ```
 
 ### Schema Properties
@@ -163,10 +163,10 @@ Lower weight = higher priority (shown first). Default weights by name:
 
 | Weight | Fields                                    |
 |--------|-------------------------------------------|
-| 10-20  | name, title, subject, id                  |
+| 10-20  | name, title, subject, _id                 |
 | 30-35  | email, contact_email, username            |
 | 40-45  | status, priority                          |
-| 50-55  | date, due_date, created_at                |
+| 50-55  | date, due_date, _created_at               |
 | 60     | (unknown fields -- default)               |
 | 70-75  | description, notes, content               |
 | 90-95  | tags, categories, labels                  |
@@ -195,6 +195,8 @@ On load, each `_schema.yaml` is validated:
 
 - Field defaults must match their declared type (e.g. an enum default must be
   in `enum_values`, a number default must be numeric).
+- Field and reference names beginning with `_` are rejected (`_*` is a
+  reserved system namespace).
 - Invalid defaults produce a load error with field path and expected type.
 
 `tmdoc.yaml` is validated for alias uniqueness -- duplicate prefixes or

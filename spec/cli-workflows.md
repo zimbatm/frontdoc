@@ -291,7 +291,7 @@ tmdoc list clients -f status=active -f country=US
 
 ```
 tmdoc list clients "status:active amount>1000"
-tmdoc list clients "created_at>=2024-01-01 created_at<=2024-12-31"
+tmdoc list clients "_created_at>=2024-01-01 _created_at<=2024-12-31"
 ```
 
 Supports all operators: `:`, `=`, `!=`, `>`, `<`, `>=`, `<=`.
@@ -344,7 +344,7 @@ tmdoc search "collection:clients name:\"Acme Corp\""
 
 ```
 tmdoc search "collection:invoices amount>1000"
-tmdoc search "created_at>=2024-01-01"
+tmdoc search "_created_at>=2024-01-01"
 ```
 
 ### 8d. Mixed query (structured + text)

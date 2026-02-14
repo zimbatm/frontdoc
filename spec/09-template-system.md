@@ -105,15 +105,16 @@ When creating a document:
    - If no templates: create with empty content (or user-provided content).
 4. The template's content goes through ProcessTemplate with the document's
    field values before being set as the new document's content.
-5. Template metadata fields (id, created_at, name, for) are NOT carried
+5. Template metadata fields (`_id`, `_created_at`, `_title`, `name`, `for`)
+   are NOT carried
    over -- only the content body is used.
 
 ## Template Document Format
 
 ```
 ---
-id: "..."
-created_at: "..."
+_id: "..."
+_created_at: "..."
 name: Project Kickoff
 for: projects
 ---

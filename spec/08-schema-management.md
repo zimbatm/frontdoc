@@ -109,8 +109,10 @@ Collection names can only contain: letters, digits, underscore, dash.
 
 1. Verify collection exists (`<collectionName>/_schema.yaml` present).
 2. Verify field doesn't already exist.
-3. Add field to the schema's fields map.
-4. Write updated `<collectionName>/_schema.yaml`. On failure, rollback.
+3. Reject field names beginning with `_` (`_*` is reserved for system
+   fields).
+4. Add field to the schema's fields map.
+5. Write updated `<collectionName>/_schema.yaml`. On failure, rollback.
 
 ### Update Field
 

@@ -94,6 +94,7 @@ the `name` field. If the slug template does not reference a field (e.g.
    interactive prompt.
 2. Resolve collection aliases (prefix -> collection name).
 3. Gather fields from `--field` flags and positional title.
+   Fields beginning with `_` are reserved and rejected.
 4. Find templates for the collection. If `--no-template` specified, skip
    template selection. If `--template` specified, use it. Otherwise:
    - One template: use automatically.
@@ -136,7 +137,8 @@ Update document fields and/or content programmatically.
    error: "no fields or content to update".
 3. Parse field flags. Fields set via `-f key=value` update or add the field.
    Fields set via `-f key=` set the field to an empty string. Fields named
-   in `--unset` are removed from metadata.
+   in `--unset` are removed from metadata. Fields beginning with `_` are
+   reserved and cannot be set or unset.
 4. If `--content` is provided, replace the document content. If the value is
    `-`, read content from stdin.
 5. Update via DocumentService.
@@ -174,7 +176,7 @@ List documents.
 
 **Query syntax**: An optional positional query string after the collection
 name uses the same syntax as `search` (see 06-search.md). Field expressions
-(e.g. `status:active`, `amount>1000`, `created_at>=2024-01-01`) and text
+(e.g. `status:active`, `amount>1000`, `_created_at>=2024-01-01`) and text
 expressions are supported. The `--filter` flag is a convenience shorthand
 for simple `key=value` equality; both can be combined.
 

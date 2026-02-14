@@ -20,21 +20,22 @@ A Document has four properties:
   `clients`). Root-level documents have no valid collection; their path has no
   `/`, so `GetCollection()` returns the filename itself, which will fail
   collection membership validation
-- `GetID()` -- returns `metadata["id"]` or `""`
+- `GetID()` -- returns `metadata["_id"]` or `""`
 - `GetShortID()` -- last N characters of the full ULID (the random portion),
   where N is the collection's `short_id_length` (default 6)
 - `DisplayName()` -- first checks the collection's slug template for a
   field reference (e.g. if slug is `{{short_id}}-{{name}}`, uses `name`);
-  then falls back to `name`, `title`, `subject`, `summary` in order; then
-  to filename (without extension), then short ID, then `"Untitled"`
+  then falls back to `name`, `_title`, `title`, `subject`, `summary` in
+  order; then to filename (without extension), then short ID, then
+  `"Untitled"`
 
 ### Serialization (Build)
 
 `Build()` produces the full document text:
 
 1. If metadata is non-empty, emit `---\n`.
-2. Marshal metadata as YAML with `id` first, `created_at` second, then
-   remaining fields.
+2. Marshal metadata as YAML with `_id` first, `_created_at` second, then
+   remaining persisted fields (excluding virtual `_title`).
 3. Emit `---\n`.
 4. If content doesn't start with `\n`, emit one blank line.
 5. Emit content.
@@ -53,7 +54,8 @@ All writes use 0644 permissions for files, 0755 for directories.
   (e.g. `01arz3ndektsv4rrffq69g5fav`)
 - Short ID: last N characters of the ULID (the random portion), where N is
   the collection's `short_id_length` (default 6).
-- IDs are generated on document creation if not already present in metadata.
+- IDs are generated on document creation if `_id` is not already present in
+  metadata.
 - ULIDs are time-sortable: documents created later have lexicographically
   greater IDs.
 
@@ -71,12 +73,14 @@ NewBuilder(collections, collection)
 
 ### Build Steps
 
-1. Generate a ULID `id` if not already set.
-2. Set `created_at` to current time in RFC 3339 if not already set.
+1. Generate a ULID `_id` if not already set.
+2. Set `_created_at` to current time in RFC 3339 if not already set.
 3. Unless validation is skipped or the collection is "templates":
    a. Verify every provided field exists in the collection's schema (except
-      built-in fields `id`, `created_at`). Reference fields ending in `_id`
-      are allowed if defined in the collection's `references` map.
+      built-in fields `_id`, `_created_at`, `_title`). Any user-provided
+      field starting with `_` is rejected as reserved/read-only. Reference
+      fields ending in `_id` are allowed if defined in the collection's
+      `references` map.
    b. Verify all required fields (per schema) are present.
 4. Return the Document.
 
@@ -86,12 +90,15 @@ NewBuilder(collections, collection)
 
 1. Get the collection's `slug` template from its `_schema.yaml`.
 2. Render the template: replace `{{field_name}}` placeholders with
-   slugified metadata values, `{{short_id}}` with the short ID, `{{date}}`
-   with the date field or today. Apply any filters (e.g. `{{date | year}}`
-   extracts the year). If a placeholder references a field not present in
-   the document's metadata, return an error.
+   slugified metadata values, `{{short_id}}` with the short ID, and
+   `{{date}}` with the date field or today. `_title` is available as a
+   virtual field from markdown content. Apply any filters (e.g.
+   `{{date | year}}` extracts the year). If a placeholder references a
+   field not present in metadata or virtual fields, return an error.
 3. Slugify each path segment: lowercase, replace non-alphanumerics (except
    `/`) with hyphens, collapse consecutive hyphens, trim trailing hyphens.
+   Placeholder values are slugified before interpolation and `/` is removed,
+   so only literal `/` in the slug template creates path segments.
 4. Append `.md` if not already present.
 5. If the slug contains `/`, ensure parent directories exist (created
    automatically during Save).
@@ -148,9 +155,10 @@ relative path within the collection folder, not just the basename.
 1. Parse the existing document from the given path.
 2. Determine the document's collection from its path (first path segment).
 3. Unless SkipValidation, verify all provided field names exist in the
-   collection's schema.
+   collection's schema. Reject any field name starting with `_` as
+   reserved/read-only.
 4. Apply field updates: set new values from Fields, remove fields listed in
-   UnsetFields.
+   UnsetFields. Unsetting reserved fields (`_*`) is not allowed.
 5. If Content is provided, replace the document content.
 6. Unless SkipValidation, run document validation.
 7. Save back to disk. For folder documents, write to `{path}/index.md`.
@@ -203,7 +211,7 @@ Auto-rename is triggered by:
 
 1. Look up the collection config from the document's path (first path
    segment) and regenerate the expected filename from the current metadata
-   (short ID, current name/title).
+   (short ID, current name/_title/title).
 2. If the expected path matches the current path, do nothing.
 3. If the expected path differs, rename via VFS.
 4. For folder documents, the target is the folder name (filename without

@@ -92,8 +92,9 @@ sequentially.
 
 When creating a document from a template, only the template's markdown
 content body is used (with `{{field}}` placeholders replaced). The
-template's own metadata fields (`id`, `name`, `for`) are never carried over
-to the new document. The new document gets a fresh `id` and `created_at`,
+template's own metadata fields (`_id`, `_created_at`, `_title`, `name`,
+`for`) are never carried over to the new document. The new document gets a
+fresh `_id` and `_created_at`,
 and is placed in the target collection's folder.
 
 ## Circular Dependency Avoidance
