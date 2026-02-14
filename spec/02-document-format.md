@@ -108,6 +108,9 @@ Examples:
 Slugification: field values are lowercased, `/` is replaced, non-alphanumerics
 are replaced with hyphens, consecutive hyphens are collapsed, trailing hyphens
 are trimmed. The `.md` extension is appended if not already present.
+Generated document basenames MUST NOT start with `.`.
+If slug processing would produce a dot-prefixed basename (for example `.md`),
+the operation must fail with a filename error.
 
 ### Subdirectory Slugs
 

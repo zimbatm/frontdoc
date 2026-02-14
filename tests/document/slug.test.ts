@@ -47,4 +47,8 @@ describe("generateFilename", () => {
 	test("slugifies each segment independently", () => {
 		expect(generateFilename("My Year/My Post")).toBe("my-year/my-post.md");
 	});
+
+	test("rejects generated basenames that start with dot", () => {
+		expect(() => generateFilename("")).toThrow("generated filename must not start with '.'");
+	});
 });

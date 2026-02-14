@@ -132,6 +132,8 @@ Walks the entire VFS from root, collecting all documents:
 
 1. For each entry encountered during the walk:
    - Skip `_schema.yaml` files (reserved metadata, not documents).
+   - Skip temporary open drafts with basename prefix `.tmdoc-open-`
+     (reserved staging files, not documents).
    - If it is a directory containing `index.md`, treat as a folder document.
    - If it is a `.md` file (not `README.md`, not `index.md`, not hidden),
      treat as a file document.

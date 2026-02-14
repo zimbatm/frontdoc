@@ -99,6 +99,14 @@ validation:
    `schema create <folder-name>` to register the folder as a collection
    (which creates `_schema.yaml` in that directory).
 
+Temporary open drafts are excluded from validation entirely. Files with
+basename prefix `.tmdoc-open-` are staging artifacts and are not treated as
+documents until persisted to their final path.
+
+For non-draft documents, dot-prefixed basenames are invalid. If expected
+filename generation yields a basename beginning with `.`, report
+`filename.invalid`.
+
 ## Reference Validation
 
 `ReferenceValidator.ValidateReferences(metadata, references)`:

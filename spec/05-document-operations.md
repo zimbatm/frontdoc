@@ -175,8 +175,9 @@ relative path within the collection folder, not just the basename.
 
 `DocumentService.UpsertBySlug(collection, args, options)`:
 
-Used by the `open` command to find-or-create documents based on slug template
-variables (e.g. `tmdoc open journals 2024-03-22`).
+Used by the `open` command to resolve slug-target documents based on template
+variables (e.g. `tmdoc open journals 2024-03-22`), and by internal create
+paths that still need immediate upsert behavior.
 
 **Steps**:
 
@@ -193,6 +194,23 @@ variables (e.g. `tmdoc open journals 2024-03-22`).
    (directly or via resolver), process and apply it as initial document
    content.
 8. Return the new document with a "created" flag.
+
+## Open Draft Staging
+
+When `open` resolves a missing target, it stages edits via a temporary draft
+path inside the same collection before creating the real document.
+
+**Rules**:
+
+1. Draft filename must use reserved prefix `.tmdoc-open-`.
+2. Draft lives under the same collection root as the final target.
+3. Draft files are excluded from normal document collection/listing and are
+   not considered real documents.
+4. If edited draft content is unchanged from initial baseline, discard draft
+   and do not create target.
+5. If edited draft content changes and passes validation, persist to target
+   and remove draft.
+6. If validation fails, user may re-open draft, keep draft, or discard.
 
 ## Auto-Rename
 

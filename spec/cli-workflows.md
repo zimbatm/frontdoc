@@ -392,7 +392,9 @@ If `journals` has slug `journal-{{date}}`, this opens the existing
 `journal-2024-03-22.md` or creates it.
 When creation is needed, `open` applies the collection template selection
 rules (single template auto-applies, multiple templates prompt, none uses
-empty content).
+empty content). The initial content is edited through a temporary draft file
+in `journal/` with reserved prefix `.tmdoc-open-`, and only persisted to
+`journal-YYYY-MM-DD.md` if edited content changed and passes validation.
 
 ### 9c. Open with default slug values
 
@@ -403,14 +405,22 @@ tmdoc open journals
 If the `date` field has `default: today` in the schema, the date is filled
 automatically. If any template variable has no default and no argument,
 returns an error.
-If this path creates a document, the selected template content is applied.
+If this path creates a document, the selected template content is applied to
+the draft baseline before editing.
 
 ### 9d. Post-edit behavior
 
 After the editor closes:
-1. Validation runs on the modified document. If errors are found, the user
-   is warned and offered the chance to re-open the editor to fix.
-2. If a slug-relevant field changed, the file is automatically renamed.
+1. For existing documents, validation runs on the modified document. If errors
+   are found, the user is warned and offered the chance to re-open the editor
+   to fix.
+2. For new documents opened via slug/default resolution, unchanged draft
+   content is discarded and no file is created.
+3. If draft content changed and validation fails, the user can:
+   re-open the draft, keep the draft file under `.tmdoc-open-*`, or discard.
+4. If draft content changed and validation passes, the final document is
+   created from the draft and the draft is removed.
+5. If a slug-relevant field changed, the file is automatically renamed.
 
 ---
 

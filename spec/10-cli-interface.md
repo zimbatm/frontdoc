@@ -182,7 +182,8 @@ for simple `key=value` equality; both can be combined.
 
 **Behavior**:
 1. Build filters from collection, query, --filter, --has, --lacks.
-2. Collect documents via Repository.
+2. Collect documents via Repository. Temporary open drafts with basename
+   prefix `.tmdoc-open-` are excluded.
 3. Sort results alphabetically by path.
 4. Format and display.
 
@@ -214,10 +215,8 @@ provides a slug template argument for find-or-create.
 2. If a second argument is provided:
    a. Try to find an existing document by ID (short or full) within the
       collection.
-   b. If not found by ID, use UpsertBySlug: map the argument to the first
-      slug template variable and find-or-create the document. If creation is
-      needed, resolve template content (single template auto, multiple prompt,
-      none empty) and apply it.
+   b. If not found by ID, resolve a slug-target candidate by mapping the
+      argument to the first slug template variable.
 3. If no second argument is provided:
    a. For each unfilled slug template variable, check if the corresponding
       field has a `default` value in the schema. If so, use it (processing
@@ -225,15 +224,28 @@ provides a slug template argument for find-or-create.
       date).
    b. If any template variable has no default and no argument, return an
       error: "missing argument for template variable `{{field}}`".
-   c. Use UpsertBySlug with the resolved values. If creation is needed,
-      resolve template content (single template auto, multiple prompt, none
-      empty) and apply it.
-4. Open the document's content path in `$EDITOR` (falls back to `vi`).
-5. After the editor closes, run validation on the modified document. If
-   validation errors are found, warn the user and offer to re-open the
-   editor to fix the issues.
-6. If a slug-relevant field changed, automatically rename the file to match
+   c. Resolve the slug-target candidate from the resolved values.
+4. If the target already exists, open its real content path in `$EDITOR`
+   (falls back to `vi`).
+5. If the target does not exist, create a temporary draft file inside the same
+   collection folder using a reserved filename prefix
+   (`.tmdoc-open-<nonce>-<target>.md`), then open that draft in `$EDITOR`.
+6. For draft opens, compare edited draft content to the initial draft content:
+   if unchanged, discard the draft and exit without creating a document.
+7. If the edited content changed, validate it as the target collection
+   document. If validation fails, present options:
+   - Re-open draft to fix and validate again.
+   - Keep draft under reserved prefix and exit without creating/updating.
+   - Discard draft and abort.
+8. If validation passes for a draft open, persist to the final target path
+   (create new document). Remove the draft file afterward.
+9. After the editor closes for existing documents, run validation on the
+   modified document. If validation errors are found, warn the user and offer
+   to re-open the editor to fix the issues.
+10. If a slug-relevant field changed, automatically rename the file to match
    the new expected filename.
+11. Persisted document basenames must not start with `.`. Dot-prefixed names
+   are reserved for system staging files such as `.tmdoc-open-*`.
 
 ### attach
 

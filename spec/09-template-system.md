@@ -92,22 +92,26 @@ Delegates to the template engine's ProcessTemplate.
 
 ## Template Usage in Document Creation and Open-Creation
 
-When creating a document via `create`, or when `open` needs to create a new
-document (find-or-create by slug):
+When creating a document via `create`, or when `open` targets a missing
+document (find-or-create by slug/defaults):
 
 1. For `create`: if `--no-template` is specified, skip template selection entirely and
    create with empty content (or user-provided `--content`). This bypasses
    auto-selection even when exactly one template exists for the collection.
 2. For `create`: if `--template "Name"` is specified, find the matching template and use its
    content.
-3. For `create` (without flags) and `open` (on create path), if templates
+3. For `create` (without flags) and `open` (missing-target path), if templates
    exist for the collection:
    - If exactly one template: use it automatically.
    - If multiple templates: prompt the user to choose (interactive mode).
    - If no templates: create with empty content (or user-provided content).
 4. The template's content goes through ProcessTemplate with the document's
    field values before being set as the new document's content.
-5. Template metadata fields (`_id`, `_created_at`, `_title`, `name`, `for`)
+5. For `open` missing-target path, rendered content is first written to a
+   temporary draft file under the target collection with reserved prefix
+   `.tmdoc-open-`. The real document is created only if edited draft content
+   changed and passes validation.
+6. Template metadata fields (`_id`, `_created_at`, `_title`, `name`, `for`)
    are NOT carried
    over -- only the content body is used.
 

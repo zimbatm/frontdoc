@@ -28,6 +28,10 @@ export function generateFilename(slugOutput: string): string {
 	let result = slugified.join("/");
 
 	result += ".md";
+	const basename = result.slice(result.lastIndexOf("/") + 1);
+	if (basename.startsWith(".")) {
+		throw new Error("generated filename must not start with '.'");
+	}
 
 	return result;
 }
