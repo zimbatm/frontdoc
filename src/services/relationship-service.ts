@@ -25,10 +25,13 @@ export interface RelationshipView {
 	incoming: RelationshipEdge[];
 }
 
+export type HostFileWriter = (path: string, content: string) => Promise<void>;
+
 export class RelationshipService {
 	constructor(
 		private readonly schemas: Map<string, CollectionSchema>,
 		private readonly repository: Repository,
+		private readonly hostFileWriter: HostFileWriter = defaultHostFileWriter,
 	) {}
 
 	async GetRelationships(id: string): Promise<RelationshipView> {
@@ -88,7 +91,7 @@ export class RelationshipService {
 	}
 
 	async WriteGraphFile(path: string, content: string): Promise<void> {
-		await writeHostFile(path, content, "utf8");
+		await this.hostFileWriter(path, content);
 	}
 
 	async Stats(): Promise<{ total: number; byCollection: Record<string, number> }> {
@@ -173,6 +176,10 @@ export class RelationshipService {
 
 		return dedupeEdges(edges);
 	}
+}
+
+async function defaultHostFileWriter(path: string, content: string): Promise<void> {
+	await writeHostFile(path, content, "utf8");
 }
 
 function findByIDToken(records: DocumentRecord[], token: string): DocumentRecord | null {

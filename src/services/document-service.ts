@@ -57,6 +57,8 @@ export interface PlanBySlugResult {
 	draft: Document | null;
 }
 
+export type HostFileReader = (path: string) => Promise<Uint8Array>;
+
 export class DocumentService {
 	constructor(
 		private readonly schemas: Map<string, CollectionSchema>,
@@ -64,6 +66,7 @@ export class DocumentService {
 		private readonly repository: Repository,
 		private readonly validationService?: ValidationService,
 		private readonly templateService?: TemplateService,
+		private readonly hostFileReader: HostFileReader = defaultHostFileReader,
 	) {}
 
 	ResolveCollection(nameOrAlias: string): string {
@@ -169,7 +172,7 @@ export class DocumentService {
 			throw new Error(`attachment already exists: ${destPath}`);
 		}
 
-		const content = new Uint8Array(await readHostFile(sourcePath));
+		const content = await this.hostFileReader(sourcePath);
 		await this.repository.fileSystem().writeFileBytes(destPath, content);
 
 		if (addReference) {
@@ -345,6 +348,10 @@ export class DocumentService {
 		const details = errors.map((issue) => `${issue.code}: ${issue.message}`).join("; ");
 		throw new Error(`validation failed: ${details}`);
 	}
+}
+
+async function defaultHostFileReader(path: string): Promise<Uint8Array> {
+	return new Uint8Array(await readHostFile(path));
 }
 
 function ensureRequiredFields(
