@@ -2,8 +2,10 @@ import { describe, expect, test } from "bun:test";
 import {
 	collectionFromPath,
 	createDocumentUseCase,
+	normalizeFieldsForSchema,
 	updateDocumentUseCase,
 } from "../../src/app/document-use-cases.js";
+import type { CollectionSchema } from "../../src/config/types.js";
 import type { DocumentRecord } from "../../src/repository/repository.js";
 
 function record(path: string): DocumentRecord {
@@ -93,5 +95,30 @@ describe("document use cases", () => {
 	test("extracts collection from path", () => {
 		expect(collectionFromPath("clients/acme.md")).toBe("clients");
 		expect(collectionFromPath("acme.md")).toBe("acme.md");
+	});
+
+	test("normalizes boolean fields from string-like input", () => {
+		const schema: CollectionSchema = {
+			slug: "{{short_id}}",
+			fields: {
+				enabled: { type: "boolean" },
+			},
+			references: {},
+		};
+		const normalized = normalizeFieldsForSchema({ enabled: "yes" }, schema);
+		expect(normalized.enabled).toBe(true);
+	});
+
+	test("rejects invalid boolean input", () => {
+		const schema: CollectionSchema = {
+			slug: "{{short_id}}",
+			fields: {
+				enabled: { type: "boolean" },
+			},
+			references: {},
+		};
+		expect(() => normalizeFieldsForSchema({ enabled: "sometimes" }, schema)).toThrow(
+			"invalid boolean input",
+		);
 	});
 });

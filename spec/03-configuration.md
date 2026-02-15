@@ -194,6 +194,7 @@ This means:
 | `date`      | string             | YYYY-MM-DD format                         |
 | `datetime`  | string             | RFC 3339 format (always quoted in YAML)   |
 | `number`    | int/float          | optional min/max constraints               |
+| `boolean`   | bool               | true/false (supports common CLI boolean inputs) |
 | `enum`      | string             | must be one of `enum_values`               |
 | `array`     | list               | must be an array                           |
 | `reference` | string             | referenced document must exist and match collection |

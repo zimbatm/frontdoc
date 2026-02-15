@@ -9,6 +9,7 @@ export type FieldType =
 	| "date"
 	| "datetime"
 	| "number"
+	| "boolean"
 	| "enum"
 	| "array"
 	| "reference";

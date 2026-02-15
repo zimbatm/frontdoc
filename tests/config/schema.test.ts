@@ -30,6 +30,9 @@ fields:
   budget:
     type: number
     default: "42.5"
+  enabled:
+    type: boolean
+    default: true
   status:
     type: enum
     enum_values: [Open, Closed]

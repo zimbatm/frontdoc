@@ -55,6 +55,10 @@ parsing are not accepted (datetime values must be quoted in YAML).
 **Number**: Must be numeric (int, float, or string parseable as float).
 Optional min/max constraints.
 
+**Boolean**: Must be a boolean value. During CLI/web input normalization,
+common boolean inputs are accepted and stored canonically as booleans:
+`true/false`, `1/0`, `yes/no`, `on/off` (case-insensitive).
+
 **Enum**: Must be one of the declared `enum_values` (case-insensitive
 comparison).
 

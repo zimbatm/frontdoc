@@ -105,7 +105,7 @@ export function defaultSlugArgsForSchema(schema: CollectionSchema): string[] {
 			defaults.push("");
 			continue;
 		}
-		defaults.push(normalizeInputValue(name, String(value), schema));
+		defaults.push(String(normalizeInputValue(name, String(value), schema)));
 	}
 	return defaults;
 }
@@ -130,7 +130,7 @@ export function normalizeFieldsForSchema(
 				.filter((entry) => entry.length > 0);
 			continue;
 		}
-		normalized[name] = normalizeInputValue(name, String(raw ?? ""), schema);
+		normalized[name] = normalizeInputValue(name, raw, schema);
 	}
 	return normalized;
 }
@@ -139,7 +139,7 @@ export function collectionFromPath(path: string): string {
 	return pathCollectionFromPath(path);
 }
 
-function normalizeInputValue(name: string, value: string, schema: CollectionSchema): string {
+function normalizeInputValue(name: string, value: unknown, schema: CollectionSchema): unknown {
 	try {
 		return normalizeFieldInputValue(schema.fields[name]?.type, value);
 	} catch {
@@ -149,6 +149,9 @@ function normalizeInputValue(name: string, value: string, schema: CollectionSche
 		}
 		if (fieldType === "datetime") {
 			throw new Error(`invalid datetime input for '${name}': ${value}`);
+		}
+		if (fieldType === "boolean") {
+			throw new Error(`invalid boolean input for '${name}': ${value}`);
 		}
 		throw new Error(`invalid value for '${name}': ${value}`);
 	}

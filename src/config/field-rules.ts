@@ -39,6 +39,8 @@ export function validateFieldValue(
 				return null;
 			}
 			return "must be numeric";
+		case "boolean":
+			return typeof value === "boolean" ? null : "must be boolean";
 		case "enum":
 			if (typeof value !== "string") return "must be a string";
 			if (!enumValues || enumValues.length === 0) return "enum_values must be configured";
@@ -103,6 +105,13 @@ export function validateFieldDefaultDefinition(name: string, def: FieldDefinitio
 				return `field '${name}' default must be numeric`;
 			}
 			return null;
+		case "boolean":
+			try {
+				parseBooleanInput(value);
+				return null;
+			} catch {
+				return `field '${name}' default must be boolean`;
+			}
 		case "enum":
 			if (typeof value !== "string") {
 				return `field '${name}' default must be a string from enum_values`;
@@ -121,19 +130,45 @@ export function validateFieldDefaultDefinition(name: string, def: FieldDefinitio
 	}
 }
 
-export function normalizeFieldInputValue(type: FieldType | undefined, value: string): string {
+export function normalizeFieldInputValue(type: FieldType | undefined, value: unknown): unknown {
 	if (type === "date") {
+		if (typeof value !== "string") {
+			throw new Error("must be a date string");
+		}
 		return normalizeDateInput(value);
 	}
 	if (type === "datetime") {
+		if (typeof value !== "string") {
+			throw new Error("must be a datetime string");
+		}
 		return normalizeDatetimeInput(value);
+	}
+	if (type === "boolean") {
+		return parseBooleanInput(value);
+	}
+	if (typeof value === "string") {
+		return value;
 	}
 	return value;
 }
 
 export function normalizeFieldDefaultValue(type: FieldType, value: unknown): unknown {
-	if (typeof value !== "string") {
+	return normalizeFieldInputValue(type, value);
+}
+
+function parseBooleanInput(value: unknown): boolean {
+	if (typeof value === "boolean") {
 		return value;
 	}
-	return normalizeFieldInputValue(type, value);
+	if (typeof value !== "string") {
+		throw new Error("must be a boolean value");
+	}
+	const normalized = value.trim().toLowerCase();
+	if (["true", "1", "yes", "y", "on"].includes(normalized)) {
+		return true;
+	}
+	if (["false", "0", "no", "n", "off"].includes(normalized)) {
+		return false;
+	}
+	throw new Error("must be a boolean value");
 }
