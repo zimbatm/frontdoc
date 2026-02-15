@@ -14,4 +14,4 @@ Use this skill when working with a frontdoc repository.
 - Run `frontdoc check --verbose` before committing changes.
 - Use `frontdoc open <collection> [args...]` to create or open documents.
 - Follow the collection schemas defined in `_schema.yaml` files.
-- Wiki links use `[[short_id:Display Name]]` syntax.
+- Wiki links use the double-bracket syntax with short IDs.
