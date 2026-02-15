@@ -77,12 +77,22 @@ The URL is the source of truth for navigation state.
 - `/recent` -- recently updated documents
 - `/validation` -- validation issue list
 
-Canonical document URLs use the document slug path (collection-relative path
-without `.md`, preserving subdirectories).
+Canonical document URLs use a slug-with-short-id format:
+`/c/:collection/:slug-shortid`
 
-Legacy ID URLs are still accepted for compatibility. When a document is opened
-via ID (short/full/collection-scoped), the UI/server should resolve the
-document and redirect to the canonical slug URL.
+The URL slug is constructed as `{filesystem-basename}-{short_id}`, where
+the filesystem basename is the document's path without `.md` (or folder
+name for folder documents), and `short_id` comes from the document's ULID.
+
+Example: file `contacts/alice-chen.md` with short\_id `al1ce9` produces URL
+`/c/contacts/alice-chen-al1ce9`.
+
+This decouples the URL slug from the filesystem naming. The web server
+constructs URL slugs at render time by appending `-{short_id}` to the
+path-derived basename.
+
+Legacy ID URLs (short ID or full ULID) are still accepted and redirect
+to the canonical slug URL.
 
 ## Primary Flows
 

@@ -12,8 +12,9 @@ A Document has four properties:
 
 ### Derived Properties
 
-- `ContentPath()` -- returns `Path/index.md` for folder docs, `Path` for file
-  docs
+- `ContentPath()` -- returns `Path/index.md` for folder docs (or
+  `Path/{index_file}` when the collection schema sets `index_file`),
+  `Path` for file docs
 - `GetCollection()` -- returns the first path component (everything before the
   first `/`). Subdirectories within a collection folder are allowed and do not
   affect collection membership (e.g. `clients/archive/doc.md` belongs to
@@ -44,7 +45,8 @@ A Document has four properties:
 
 - File documents: write `Build()` output directly to `Path`.
 - Folder documents: ensure `Path` directory exists, write `Build()` output to
-  `Path/index.md`.
+  `Path/index.md` (or `Path/{index_file}` when the collection schema sets
+  `index_file`).
 
 All writes use 0644 permissions for files, 0755 for directories.
 
@@ -136,8 +138,12 @@ relative path within the collection folder, not just the basename.
    conformance checks (step 6). If errors, return them as a combined error
    message.
 8. Compute the target path: `{collection_name}/{generated_filename}`.
-9. If not Overwrite and the target already exists, return an error.
-10. Save the document (always as a file, never as a folder on initial create).
+9. If the collection schema has `index_file` set, force the document to
+   folder format: strip `.md` from the generated filename to produce the
+   folder name, set `IsFolder = true`, and the content path becomes
+   `{folder}/{index_file}`.
+10. If not Overwrite and the target already exists, return an error.
+11. Save the document.
 11. Return the Document and its path.
 
 ## Update Operation

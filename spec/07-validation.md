@@ -157,6 +157,11 @@ This is a basic sanity check only. Primary filename validation is done by
 regenerating the expected filename from the document's metadata and the
 collection's slug template, then comparing.
 
+### Collision Detection
+
+When a slug template does not include `{{short_id}}`, `check` warns if two
+or more documents in the same collection produce the same expected filename.
+
 ### Validation Steps
 
 `ValidateFilename(docPath, collection, docID, doc)`:
@@ -226,6 +231,9 @@ folder document (ignoring files in the `ignore` list from `frontdoc.yaml`,
 see 03-configuration.md), the folder is collapsed back to a single `.md`
 file. Ignored files are silently removed during collapse. Other non-ignored
 files block collapse.
+
+Folder collapse is suppressed for collections with `index_file` set, since
+those collections always use folder format by design.
 
 ### Currency/Country Case Correction
 

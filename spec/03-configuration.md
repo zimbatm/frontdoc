@@ -95,6 +95,7 @@ references:
 |-------------------|--------|----------|------------------------------------------------|
 | `slug`            | string | yes      | Filename template for documents in this collection. |
 | `short_id_length` | int    | no       | Short ID length (4--16, default 6).            |
+| `index_file`      | string | no       | Entry filename for folder documents (default `index.md`). When set, all documents are forced into folder format. |
 | `fields`          | map    | no       | Field definitions (omitted when empty).        |
 | `references`      | map    | no       | Cross-collection references (omitted when empty). |
 
@@ -115,16 +116,35 @@ generated and persisted to `_schema.yaml`:
 
 1. Check the collection's field definitions for `title`, `name`, or
    `subject` (in that priority order).
-2. If a matching field is found: `{{field_name}}`
+2. If a matching field is found: `{{field_name}}-{{short_id}}`
 3. If no matching field: `{{short_id}}`
 
-Slug templates do not need to include `{{short_id}}`. During filename
-generation, frontdoc automatically appends `-<short_id>` to the basename unless
-the basename already ends with that short ID.
+The slug template is the sole determinant of the generated filename. To
+include the short ID in filenames, add `{{short_id}}` to the slug template
+explicitly. The auto-generated default includes `{{short_id}}` for
+uniqueness, but users who set a custom slug template have full control and
+may omit `{{short_id}}` when the template values are inherently unique
+(e.g. date-based journal entries, or curated collections with unique names).
 
 The auto-generated slug is stored in `_schema.yaml` and can be edited by the
 user at any time. There is no hidden default -- `schema show` always
 displays the effective slug template.
+
+### Folder Document Collections (index_file)
+
+By default, documents are created as flat `.md` files and only become
+folder documents when attachments are added. Setting `index_file`
+changes this:
+
+- All documents are created as folder documents (directory + entry file).
+- The entry filename is the value of `index_file` (e.g. `SKILL.md`)
+  instead of `index.md`.
+- `check --fix` does NOT collapse folder documents back to flat files.
+- The content path is `{slug}/{index_file}`.
+
+This is useful for collections consumed by external tools that expect
+a specific directory layout (e.g. Claude Code skills expect
+`skill-name/SKILL.md`).
 
 ## Short ID
 
@@ -143,13 +163,21 @@ length of 6, the short ID is `9g5fav` (from the random portion
 
 ## Collection Identification
 
-A directory is a collection if and only if it contains `_schema.yaml`. There
-is no auto-discovery of schema-less directories. This means:
+Every top-level directory in the repository root must be a collection
+(i.e., contain a `_schema.yaml` file). If a top-level directory is missing
+`_schema.yaml`, frontdoc reports an error during collection discovery.
+
+Dot-prefixed directories (e.g. `.claude`, `.git`) are exempt from this rule
+and are silently skipped during collection discovery.
+
+This means:
 
 - Before `frontdoc init`, frontdoc cannot operate (no collections recognized).
 - `frontdoc init` creates `frontdoc.yaml` to mark the repository root.
 - `schema create <name>` creates the directory, writes `_schema.yaml`, and
   adds an alias entry to `frontdoc.yaml`.
+- Placing non-collection directories at the top level is an error; use
+  dot-prefixed names for tool-specific directories (e.g. `.claude/`).
 
 ## Field Types
 

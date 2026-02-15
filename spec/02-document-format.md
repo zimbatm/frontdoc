@@ -101,10 +101,11 @@ Examples:
 
 | Slug template | Produced filename |
 |---|---|
-| `{{name}}` | `acme-corp-9g5fav.md` |
-| `journal-{{date}}` | `journal-2024-03-22-9g5fav.md` |
+| `{{name}}` | `acme-corp.md` |
+| `{{name}}-{{short_id}}` | `acme-corp-9g5fav.md` |
 | `{{short_id}}` | `9g5fav.md` |
-| `{{date | year}}/{{name}}` | `2024/acme-corp-9g5fav.md` (see Subdirectory Slugs) |
+| `{{date}}` | `2024-03-22.md` |
+| `{{date | year}}/{{name}}` | `2024/acme-corp.md` (see Subdirectory Slugs) |
 
 Slugification: field values are lowercased, `/` is replaced, non-alphanumerics
 are replaced with hyphens, consecutive hyphens are collapsed, trailing hyphens
@@ -118,7 +119,7 @@ the operation must fail with a filename error.
 Slug templates may contain `/` to place documents in subdirectories within
 the collection folder. Only `/` that appears literally in the slug template
 creates subdirectories. For example, `{{date | year}}/{{name}}`
-produces `clients/2024/acme-corp-9g5fav.md`. The subdirectory is created
+produces `clients/2024/acme-corp.md`. The subdirectory is created
 automatically. The document still belongs to the `clients` collection
 (collection membership is determined by the top-level folder).
 
@@ -146,11 +147,17 @@ blog/
 ```
 
 Detection rule: a path is a folder document if it is a directory AND contains
-an `index.md` file.
+an `index.md` file (or the collection's `index_file` entry filename, see
+03-configuration.md).
 
 When parsing a folder document, the metadata and content are read from
-`index.md`, but the document's logical path is the folder itself (not
-`index.md`).
+`index.md` (or the collection's `index_file`), but the document's logical
+path is the folder itself (not the entry file).
+
+The entry filename defaults to `index.md` but can be overridden
+per-collection via the `index_file` schema property (see
+03-configuration.md). When `index_file` is set, all documents in the
+collection are folder documents.
 
 ### Conversion Between File and Folder
 
