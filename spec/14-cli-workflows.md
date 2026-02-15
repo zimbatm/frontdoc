@@ -13,8 +13,8 @@ and the CLI invocations needed to achieve it.
 frontdoc init
 ```
 
-Creates `frontdoc.yaml` at the current directory (or `-C` path) with an empty
-aliases section. Prerequisite for all other operations.
+Creates `frontdoc.yaml` at the current directory (or `-C` path) with generated
+`repository_id` and an empty aliases section. Prerequisite for all other operations.
 
 **Error case**: If `frontdoc.yaml` already exists, reports "already initialized".
 

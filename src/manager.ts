@@ -1,6 +1,11 @@
 import { access, writeFile as fsWriteFile, mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
-import { defaultRepoConfigContent, parseRepoConfig } from "./config/repo-config.js";
+import { ulid } from "ulidx";
+import {
+	defaultRepoConfigContent,
+	parseRepoConfig,
+	serializeRepoConfig,
+} from "./config/repo-config.js";
 import { findRepositoryRoot } from "./config/root-discovery.js";
 import { discoverCollections } from "./config/schema.js";
 import type { CollectionSchema, RepoConfig } from "./config/types.js";
@@ -56,10 +61,14 @@ export class Manager {
 	static async New(workDir: string): Promise<Manager> {
 		const rootPath = await findRepositoryRoot(workDir);
 		const vfs = new BoundVFS(rootPath);
-		const repository = new Repository(vfs);
 
 		const configRaw = await vfs.readFile("frontdoc.yaml");
 		const repoConfig = parseRepoConfig(configRaw);
+		if (!repoConfig.repository_id) {
+			repoConfig.repository_id = ulid().toLowerCase();
+			await vfs.writeFile("frontdoc.yaml", serializeRepoConfig(repoConfig));
+		}
+		const repository = new Repository(vfs, repoConfig.repository_id);
 		const schemas = await discoverCollections(vfs);
 
 		validateAliases(repoConfig.aliases, schemas);

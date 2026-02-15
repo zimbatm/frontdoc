@@ -2,6 +2,7 @@ import { type Document, parseDocument } from "../document/document.js";
 import { collectionFromPath } from "../document/path-utils.js";
 import { BoundVFS } from "../storage/bound-vfs.js";
 import type { FileInfo, VFS } from "../storage/vfs.js";
+import { ulid } from "ulidx";
 import { findByIDInRecords } from "./id-lookup.js";
 
 export interface DocumentRecord {
@@ -44,11 +45,16 @@ export function excludeTemplatesFilter(): Filter {
  * Repository wraps VFS and provides document-specific operations.
  */
 export class Repository {
-	private cachedRecords: DocumentRecord[] | null = null;
-	private cacheLoad: Promise<DocumentRecord[]> | null = null;
+	private static readonly cachedRecordsByRepoID = new Map<string, DocumentRecord[]>();
+	private static readonly cacheLoadByRepoID = new Map<string, Promise<DocumentRecord[]>>();
+	private readonly repositoryIDValue: string;
 	private readonly proxyVfs: VFS;
 
-	constructor(private readonly vfs: VFS) {
+	constructor(
+		private readonly vfs: VFS,
+		repositoryID?: string,
+	) {
+		this.repositoryIDValue = repositoryID ?? ulid().toLowerCase();
 		this.proxyVfs = createInvalidatingVFS(vfs, () => this.invalidateCache());
 	}
 
@@ -58,6 +64,10 @@ export class Repository {
 
 	fileSystem(): VFS {
 		return this.proxyVfs;
+	}
+
+	repositoryID(): string {
+		return this.repositoryIDValue;
 	}
 
 	async collectAll(...filters: Filter[]): Promise<DocumentRecord[]> {
@@ -74,8 +84,8 @@ export class Repository {
 	}
 
 	invalidateCache(): void {
-		this.cachedRecords = null;
-		this.cacheLoad = null;
+		Repository.cachedRecordsByRepoID.delete(this.repositoryIDValue);
+		Repository.cacheLoadByRepoID.delete(this.repositoryIDValue);
 	}
 
 	private async collectCandidates(): Promise<
@@ -120,15 +130,24 @@ export class Repository {
 	}
 
 	private async getRecordsSnapshot(): Promise<DocumentRecord[]> {
-		if (this.cachedRecords) {
-			return this.cachedRecords;
+		const cached = Repository.cachedRecordsByRepoID.get(this.repositoryIDValue);
+		if (cached) {
+			return cached;
 		}
-		if (!this.cacheLoad) {
-			this.cacheLoad = this.loadRecords();
+
+		let load = Repository.cacheLoadByRepoID.get(this.repositoryIDValue);
+		if (!load) {
+			load = this.loadRecords();
+			Repository.cacheLoadByRepoID.set(this.repositoryIDValue, load);
 		}
-		this.cachedRecords = await this.cacheLoad;
-		this.cacheLoad = null;
-		return this.cachedRecords;
+
+		try {
+			const loaded = await load;
+			Repository.cachedRecordsByRepoID.set(this.repositoryIDValue, loaded);
+			return loaded;
+		} finally {
+			Repository.cacheLoadByRepoID.delete(this.repositoryIDValue);
+		}
 	}
 
 	private async loadRecords(): Promise<DocumentRecord[]> {

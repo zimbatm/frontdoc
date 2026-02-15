@@ -128,4 +128,50 @@ describe("Repository", () => {
 		const second = await repo.findByID("abc123");
 		expect(second.document.metadata.name).toBe("Acme");
 	});
+
+	test("repository ID can be provided and read", async () => {
+		const repo = new Repository(new MemoryVFS(), "repo-123");
+		expect(repo.repositoryID()).toBe("repo-123");
+	});
+
+	test("cache entries are isolated by repository ID", async () => {
+		const vfsA = new MemoryVFS();
+		await vfsA.mkdirAll("clients");
+		await vfsA.writeFile("clients/_schema.yaml", 'slug: "{{name}}-{{short_id}}"\n');
+		await vfsA.writeFile("clients/abc123-acme.md", doc("01arz3ndektsv4rrffq6abc123", "Acme"));
+
+		const vfsB = new MemoryVFS();
+		await vfsB.mkdirAll("clients");
+		await vfsB.writeFile("clients/_schema.yaml", 'slug: "{{name}}-{{short_id}}"\n');
+		await vfsB.writeFile("clients/def456-beta.md", doc("01arz3ndektsv4rrffq69def45", "Beta"));
+
+		const repoA = new Repository(vfsA, "repo-A");
+		const repoB = new Repository(vfsB, "repo-B");
+
+		const recordsA = await repoA.collectAll();
+		const recordsB = await repoB.collectAll();
+
+		expect(recordsA).toHaveLength(1);
+		expect(recordsA[0].document.metadata.name).toBe("Acme");
+		expect(recordsB).toHaveLength(1);
+		expect(recordsB[0].document.metadata.name).toBe("Beta");
+	});
+
+	test("cache entries are shared for same repository ID", async () => {
+		const vfs = new MemoryVFS();
+		await vfs.mkdirAll("clients");
+		await vfs.writeFile("clients/_schema.yaml", 'slug: "{{name}}-{{short_id}}"\n');
+		await vfs.writeFile("clients/abc123-acme.md", doc("01arz3ndektsv4rrffq6abc123", "Acme"));
+
+		const repoA = new Repository(vfs, "repo-shared");
+		const repoB = new Repository(vfs, "repo-shared");
+
+		const first = await repoA.collectAll();
+		expect(first).toHaveLength(1);
+
+		await repoB.fileSystem().writeFile("clients/def456-beta.md", doc("01arz3ndektsv4rrffq69def45", "Beta"));
+
+		const second = await repoA.collectAll();
+		expect(second).toHaveLength(2);
+	});
 });

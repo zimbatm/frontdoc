@@ -1,4 +1,5 @@
 import { parse, stringify } from "yaml";
+import { ulid } from "ulidx";
 import { DEFAULT_IGNORE, type RepoConfig } from "./types.js";
 
 const HEADER_COMMENT =
@@ -12,6 +13,11 @@ export function parseRepoConfig(content: string): RepoConfig {
 	if (!data || typeof data !== "object") {
 		return { aliases: {}, ignore: [...DEFAULT_IGNORE], extra: {} };
 	}
+
+	const repositoryID =
+		typeof data.repository_id === "string" && data.repository_id.length > 0
+			? data.repository_id
+			: undefined;
 
 	const aliases: Record<string, string> = {};
 	if (data.aliases && typeof data.aliases === "object") {
@@ -29,12 +35,12 @@ export function parseRepoConfig(content: string): RepoConfig {
 
 	const extra: Record<string, unknown> = {};
 	for (const [key, value] of Object.entries(data)) {
-		if (key !== "aliases" && key !== "ignore") {
+		if (key !== "repository_id" && key !== "aliases" && key !== "ignore") {
 			extra[key] = value;
 		}
 	}
 
-	return { aliases, ignore, extra };
+	return { repository_id: repositoryID, aliases, ignore, extra };
 }
 
 /**
@@ -43,6 +49,7 @@ export function parseRepoConfig(content: string): RepoConfig {
 export function serializeRepoConfig(config: RepoConfig): string {
 	const data: Record<string, unknown> = {
 		...config.extra,
+		...(config.repository_id ? { repository_id: config.repository_id } : {}),
 		aliases: config.aliases,
 	};
 
@@ -63,5 +70,10 @@ export function serializeRepoConfig(config: RepoConfig): string {
  * Create a default frontdoc.yaml content with empty aliases.
  */
 export function defaultRepoConfigContent(): string {
-	return serializeRepoConfig({ aliases: {}, ignore: [...DEFAULT_IGNORE], extra: {} });
+	return serializeRepoConfig({
+		repository_id: ulid().toLowerCase(),
+		aliases: {},
+		ignore: [...DEFAULT_IGNORE],
+		extra: {},
+	});
 }

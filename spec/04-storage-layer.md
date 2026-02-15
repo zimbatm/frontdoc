@@ -123,6 +123,18 @@ The Repository wraps VFS and provides document-specific operations.
 
 - `NewRepository(rootPath)` -- creates a repo with a disk VFS at the given path.
 - `NewRepositoryWithVFS(vfs)` -- creates a repo with any VFS implementation.
+- `NewRepositoryWithVFS(vfs, repositoryID)` -- repository ID is used to
+  namespace in-process repository caches.
+
+### Repository Identity and Cache Keying
+
+- Each repository has a stable `repository_id` loaded from `frontdoc.yaml`.
+- Repository caches are keyed by `repository_id`.
+- Distinct repository IDs must not share cache entries.
+- Multiple Repository instances using the same `repository_id` may share
+  cache entries.
+- Mutations via `Repository.FileSystem()` invalidate cache entries for that
+  `repository_id`.
 
 ### Document Collection
 

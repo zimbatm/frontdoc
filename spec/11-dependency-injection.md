@@ -15,10 +15,14 @@ with the system exclusively through the Manager.
    If not found, return an error indicating the repository is not
    initialized.
 2. Create a Repository (VFS) at the root.
-3. Load `frontdoc.yaml` via VFS and parse alias mappings.
-4. Scan all top-level subdirectories for `_schema.yaml` files. For each one
+3. Load `frontdoc.yaml` via VFS.
+4. If `repository_id` is missing, generate a ULID, persist it to
+   `frontdoc.yaml`, and continue with the updated config.
+5. Parse alias mappings.
+6. Create Repository with the loaded `repository_id`.
+7. Scan all top-level subdirectories for `_schema.yaml` files. For each one
    found, parse it and register the directory as a collection.
-5. Create services in dependency order:
+8. Create services in dependency order:
    a. TemplateService(schemas, aliases, repo)
    b. ValidationService(schemas, aliases, repo)
    c. DocumentService(schemas, aliases, repo, validationService,
@@ -72,7 +76,7 @@ with the system exclusively through the Manager.
 
 **`Init(path)`**:
 
-1. Write `frontdoc.yaml` with an empty aliases section.
+1. Write `frontdoc.yaml` with generated `repository_id` and empty aliases section.
 2. Call `New(path)` to create a fully initialized Manager.
 
 ## Schemas and Aliases as Shared Mutable State

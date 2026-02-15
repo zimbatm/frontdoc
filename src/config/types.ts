@@ -43,6 +43,7 @@ export interface CollectionSchema {
  * Repository configuration from `frontdoc.yaml`.
  */
 export interface RepoConfig {
+	repository_id?: string;
 	aliases: Record<string, string>;
 	ignore: string[];
 	/** Any unknown keys preserved from file. */

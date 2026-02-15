@@ -65,7 +65,7 @@ Initialize a frontdoc repository in the current directory (or `-C` path).
 
 **Behavior**:
 1. If `frontdoc.yaml` already exists, report "already initialized".
-2. Write `frontdoc.yaml` with an empty aliases section.
+2. Write `frontdoc.yaml` with generated `repository_id` and empty aliases section.
 
 ### create (alias: new)
 
