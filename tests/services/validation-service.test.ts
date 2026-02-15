@@ -267,4 +267,43 @@ describe("ValidationService", () => {
 		const missing = result.issues.filter((i) => i.code === "reference.missing");
 		expect(missing.some((i) => i.message.includes("missing-id"))).toBe(true);
 	});
+
+	test("check reports invalid url field values", async () => {
+		const vfs = new MemoryVFS();
+		await vfs.mkdirAll("clients");
+		await vfs.writeFile(
+			"clients/_schema.yaml",
+			'slug: "{{name}}-{{short_id}}"\nfields:\n  name:\n    type: string\n  homepage:\n    type: url\n',
+		);
+		const schemas = new Map<string, CollectionSchema>([
+			[
+				"clients",
+				{
+					slug: "{{name}}-{{short_id}}",
+					fields: {
+						name: { type: "string", required: true },
+						homepage: { type: "url" },
+					},
+					references: {},
+				},
+			],
+		]);
+		const aliases = { cli: "clients" };
+		const repo = new Repository(vfs);
+		const documents = new DocumentService(schemas, aliases, repo);
+		const validation = new ValidationService(schemas, aliases, [".DS_Store"], repo);
+
+		await documents.Create({
+			collection: "clients",
+			fields: {
+				id: "01arz3ndektsv4rrffq69g5fc5",
+				name: "Bad URL",
+				homepage: "not-a-url",
+			},
+			skipValidation: true,
+		});
+
+		const result = await validation.Check({});
+		expect(result.issues.some((i) => i.code === "field.url")).toBe(true);
+	});
 });

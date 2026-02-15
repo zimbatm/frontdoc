@@ -47,4 +47,18 @@ describe("field-rules", () => {
 			validateFieldDefaultDefinition("scores", { type: "array<number>", default: ["x"] }),
 		).toContain("default item");
 	});
+
+	test("validates url values and defaults", () => {
+		expect(validateFieldValue("url", "https://example.com/path")).toBeNull();
+		expect(validateFieldValue("url", "not-a-url")).toContain("URL");
+		expect(
+			validateFieldDefaultDefinition("homepage", {
+				type: "url",
+				default: "https://frontdoc.dev/docs",
+			}),
+		).toBeNull();
+		expect(
+			validateFieldDefaultDefinition("homepage", { type: "url", default: "relative/path" }),
+		).toContain("URL");
+	});
 });

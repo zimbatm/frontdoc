@@ -53,6 +53,10 @@ export function validateFieldValue(
 			return "must be numeric";
 		case "boolean":
 			return typeof value === "boolean" ? null : "must be boolean";
+		case "url":
+			return typeof value === "string" && isValidAbsoluteUrl(value)
+				? null
+				: "must be a valid absolute URL";
 		case "enum":
 			if (typeof value !== "string") return "must be a string";
 			if (!enumValues || enumValues.length === 0) return "enum_values must be configured";
@@ -137,6 +141,11 @@ export function validateFieldDefaultDefinition(name: string, def: FieldDefinitio
 			} catch {
 				return `field '${name}' default must be boolean`;
 			}
+		case "url":
+			if (typeof value !== "string" || !isValidAbsoluteUrl(value)) {
+				return `field '${name}' default must be a valid absolute URL`;
+			}
+			return null;
 		case "enum":
 			if (typeof value !== "string") {
 				return `field '${name}' default must be a string from enum_values`;
@@ -203,4 +212,13 @@ function parseBooleanInput(value: unknown): boolean {
 		return false;
 	}
 	throw new Error("must be a boolean value");
+}
+
+function isValidAbsoluteUrl(value: string): boolean {
+	try {
+		const parsed = new URL(value);
+		return parsed.protocol.length > 1 && parsed.host.length > 0;
+	} catch {
+		return false;
+	}
 }

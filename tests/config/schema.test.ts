@@ -36,6 +36,9 @@ fields:
   scores:
     type: array<number>
     default: [1, "2.5"]
+  homepage:
+    type: url
+    default: "https://example.com"
   status:
     type: enum
     enum_values: [Open, Closed]

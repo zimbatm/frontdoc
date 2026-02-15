@@ -195,6 +195,7 @@ This means:
 | `datetime`  | string             | RFC 3339 format (always quoted in YAML)   |
 | `number`    | int/float          | optional min/max constraints               |
 | `boolean`   | bool               | true/false (supports common CLI boolean inputs) |
+| `url`       | string             | valid absolute URL                         |
 | `enum`      | string             | must be one of `enum_values`               |
 | `array`     | list               | must be an array (untyped)                 |
 | `array<T>`  | list               | typed array; each item validated as `T`    |
@@ -209,7 +210,7 @@ Fields are `string` by default unless the schema explicitly declares
 
 Arrays may optionally declare an element type using `array<T>`. Supported
 element types: `string`, `email`, `currency`, `country`, `date`, `datetime`,
-`number`, `boolean`, `enum`, and `reference`.
+`number`, `boolean`, `url`, `enum`, and `reference`.
 
 Examples:
 

@@ -59,6 +59,8 @@ Optional min/max constraints.
 common boolean inputs are accepted and stored canonically as booleans:
 `true/false`, `1/0`, `yes/no`, `on/off` (case-insensitive).
 
+**URL**: Must be a valid absolute URL.
+
 **Enum**: Must be one of the declared `enum_values` (case-insensitive
 comparison).
 

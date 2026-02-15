@@ -10,6 +10,7 @@ export type ScalarFieldType =
 	| "datetime"
 	| "number"
 	| "boolean"
+	| "url"
 	| "enum"
 	| "reference";
 
@@ -24,6 +25,7 @@ const SCALAR_FIELD_TYPES: ReadonlySet<string> = new Set([
 	"datetime",
 	"number",
 	"boolean",
+	"url",
 	"enum",
 	"reference",
 ]);
