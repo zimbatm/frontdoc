@@ -8,5 +8,3 @@ review_date: "2026-02-21"
 ## Personal Area
 
 Weekly personal planning and life admin.
-
-[[Foo]]
