@@ -251,7 +251,9 @@ export function registerSchemaCommands(program: Command): void {
 
 function getWorkDir(cmd: Command): string {
 	const directory = cmd.opts<{ directory?: string }>().directory;
-	return resolve(directory ?? process.cwd());
+	const envDirectory = process.env.FRONTDOC_DIRECTORY;
+	const resolved = directory ?? (envDirectory && envDirectory.length > 0 ? envDirectory : undefined);
+	return resolve(resolved ?? process.cwd());
 }
 
 function renderSchemaOutput<T>(

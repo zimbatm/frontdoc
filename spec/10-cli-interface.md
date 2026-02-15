@@ -11,6 +11,12 @@ path. The repository root is discovered by searching upward from that path
 for `frontdoc.yaml`, the same way it searches upward from the current working
 directory. The process working directory is not changed.
 
+## Global Environment Variables
+
+- `FRONTDOC_DIRECTORY`: default start directory used for repository discovery
+  when `-C` / `--directory` is not provided.
+- Precedence: `-C` / `--directory` overrides `FRONTDOC_DIRECTORY`.
+
 ## Document Identifiers
 
 All commands that accept a document identifier use the `<id>` format:
@@ -29,7 +35,7 @@ or content, then use the ID from the results.
 Before any subcommand runs, the manager is created:
 
 1. Use `New(workDir)` where workDir is the resolved `-C` path or the current
-   directory.
+   directory (or `FRONTDOC_DIRECTORY` when set and `-C` is omitted).
 2. The manager discovers the repository root (see Root Discovery in
    03-configuration.md), loads `frontdoc.yaml` for aliases, and scans for
    `_schema.yaml` files to identify collections.

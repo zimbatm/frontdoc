@@ -5,6 +5,57 @@ import { join } from "node:path";
 import { runFail, runOk } from "./test-utils.js";
 
 describe("CLI workflows", () => {
+	test("FRONTDOC_DIRECTORY acts like -C when flag is omitted", async () => {
+		const root = await mkdtemp(join(tmpdir(), "frontdoc-cli-envdir-"));
+
+		await runOk(["init"], root, undefined, { FRONTDOC_DIRECTORY: root });
+		await runOk(
+			[
+				"schema",
+				"create",
+				"clients",
+				"--prefix",
+				"cli",
+				"--slug",
+				"{{name}}-{{short_id}}",
+			],
+			root,
+			undefined,
+			{ FRONTDOC_DIRECTORY: root },
+		);
+		await runOk(
+			["schema", "field", "create", "cli", "name", "--type", "string", "--required"],
+			root,
+			undefined,
+			{ FRONTDOC_DIRECTORY: root },
+		);
+
+		const created = JSON.parse(
+			await runOk(["create", "cli", "Acme Corp", "-o", "json"], root, undefined, {
+				FRONTDOC_DIRECTORY: root,
+			}),
+		) as { path: string };
+		expect(created.path.startsWith("clients/")).toBe(true);
+	});
+
+	test("directory flag takes precedence over FRONTDOC_DIRECTORY", async () => {
+		const rootA = await mkdtemp(join(tmpdir(), "frontdoc-cli-dir-a-"));
+		const rootB = await mkdtemp(join(tmpdir(), "frontdoc-cli-dir-b-"));
+
+		await runOk(["-C", rootA, "init"], rootA);
+		await runOk(["-C", rootB, "init"], rootB);
+		await runOk(["-C", rootA, "schema", "create", "clients", "--prefix", "cli"], rootA);
+		await runOk(["-C", rootB, "schema", "create", "projects", "--prefix", "prj"], rootB);
+
+		const shown = JSON.parse(
+			await runOk(["-C", rootA, "schema", "show", "-o", "json"], rootA, undefined, {
+				FRONTDOC_DIRECTORY: rootB,
+			}),
+		) as { collections: Record<string, unknown> };
+		expect(shown.collections.clients).toBeDefined();
+		expect(shown.collections.projects).toBeUndefined();
+	});
+
 	test("init + schema + create/read/update/delete lifecycle", async () => {
 		const root = await mkdtemp(join(tmpdir(), "frontdoc-cli-"));
 

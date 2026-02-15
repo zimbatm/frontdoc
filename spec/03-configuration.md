@@ -22,6 +22,9 @@ The `--directory` / `-C` flag overrides the starting directory: the upward
 search for `frontdoc.yaml` begins from the specified path instead of the
 current working directory.
 
+If `-C` / `--directory` is omitted, `FRONTDOC_DIRECTORY` may be used as the
+starting directory. `-C` takes precedence when both are set.
+
 ## `frontdoc.yaml` -- Repository Configuration
 
 Located at the repository root. Unknown keys are preserved on read and
