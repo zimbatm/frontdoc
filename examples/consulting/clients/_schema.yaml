@@ -4,6 +4,10 @@ fields:
     required: true
   email:
     type: email
+  website:
+    type: url
+  active:
+    type: boolean
   status:
     type: enum
     enum_values:

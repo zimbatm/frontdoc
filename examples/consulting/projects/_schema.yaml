@@ -5,6 +5,10 @@ fields:
   client_id:
     type: reference
     required: true
+  reviewer_ids:
+    type: array<reference>
+  stack:
+    type: array<string>
   status:
     type: enum
     enum_values:
@@ -13,3 +17,4 @@ fields:
       - done
 references:
   client_id: clients
+  reviewer_ids: clients

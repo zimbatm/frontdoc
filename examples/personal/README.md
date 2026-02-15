@@ -19,6 +19,11 @@ Included collections:
 - `skills`: Claude Code skills (folder documents with `SKILL.md` entry files)
 - `templates`: reusable note templates
 
+Type examples included:
+- `contacts.website` uses `url`
+- `contacts.favorite` uses `boolean`
+- `contacts.tags` and `journal.tags` use `array<string>`
+
 ## Claude Code Integration
 
 The `skills/` collection uses `index_file: SKILL.md` so each skill is a

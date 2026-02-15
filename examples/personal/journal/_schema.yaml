@@ -15,4 +15,4 @@ fields:
       - tired
       - stressed
   tags:
-    type: array
+    type: array<string>

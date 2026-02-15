@@ -4,5 +4,11 @@ fields:
     required: true
   email:
     type: email
+  website:
+    type: url
+  favorite:
+    type: boolean
+  tags:
+    type: array<string>
   notes:
     type: string
