@@ -35,6 +35,7 @@ export interface CollectionSchema {
 	slug: string;
 	short_id_length?: number;
 	title_field?: string;
+	index_file?: string;
 	fields: Record<string, FieldDefinition>;
 	references: Record<string, string>;
 }

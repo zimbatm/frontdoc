@@ -1,3 +1,4 @@
+import { parse } from "yaml";
 import { type Document, parseDocument } from "../document/document.js";
 import { collectionFromPath } from "../document/path-utils.js";
 import { BoundVFS } from "../storage/bound-vfs.js";
@@ -89,30 +90,52 @@ export class Repository {
 	}
 
 	private async collectCandidates(): Promise<
-		Array<{ path: string; info: FileInfo; isFolder: boolean }>
+		Array<{ path: string; info: FileInfo; isFolder: boolean; indexFile: string }>
 	> {
-		const candidates: Array<{ path: string; info: FileInfo; isFolder: boolean }> = [];
+		const candidates: Array<{
+			path: string;
+			info: FileInfo;
+			isFolder: boolean;
+			indexFile: string;
+		}> = [];
 		const collections = new Set<string>();
+		const collectionIndexFiles = new Map<string, string>();
 
 		await this.vfs.walk(".", async (path, info) => {
 			if (info.isDirectory) {
-				if (await this.vfs.isFile(`${path}/index.md`)) {
-					candidates.push({ path, info, isFolder: true });
-				}
 				return;
 			}
 
 			if (info.name === "_schema.yaml") {
 				const collection = collectionDirFromSchemaPath(path);
-				if (collection) collections.add(collection);
+				if (collection) {
+					collections.add(collection);
+					const indexFile = await readIndexFileFromSchema(this.vfs, path);
+					if (indexFile) {
+						collectionIndexFiles.set(collection, indexFile);
+					}
+				}
+				return;
+			}
+		});
+
+		await this.vfs.walk(".", async (path, info) => {
+			if (info.isDirectory) {
+				const collection = collectionFromPath(path);
+				const indexFile = collectionIndexFiles.get(collection) ?? "index.md";
+				if (await this.vfs.isFile(`${path}/${indexFile}`)) {
+					candidates.push({ path, info, isFolder: true, indexFile });
+				}
 				return;
 			}
 
-			if (!isDocumentMarkdownFile(path, info.name)) {
+			const collection = collectionFromPath(path);
+			const indexFile = collectionIndexFiles.get(collection);
+			if (!isDocumentMarkdownFile(path, info.name, indexFile)) {
 				return;
 			}
 
-			candidates.push({ path, info, isFolder: false });
+			candidates.push({ path, info, isFolder: false, indexFile: "index.md" });
 		});
 
 		return candidates.filter((candidate) => isInKnownCollection(candidate.path, collections));
@@ -122,8 +145,9 @@ export class Repository {
 		path: string,
 		info: FileInfo,
 		isFolder: boolean,
+		indexFile = "index.md",
 	): Promise<DocumentRecord> {
-		const contentPath = isFolder ? `${path}/index.md` : path;
+		const contentPath = isFolder ? `${path}/${indexFile}` : path;
 		const raw = await this.vfs.readFile(contentPath);
 		const document = parseDocument(raw, path, isFolder);
 		return { document, path, info };
@@ -155,7 +179,12 @@ export class Repository {
 		const candidates = await this.collectCandidates();
 
 		for (const candidate of candidates) {
-			const record = await this.parseCandidate(candidate.path, candidate.info, candidate.isFolder);
+			const record = await this.parseCandidate(
+				candidate.path,
+				candidate.info,
+				candidate.isFolder,
+				candidate.indexFile,
+			);
 			records.push(record);
 		}
 		return records;
@@ -165,7 +194,12 @@ export class Repository {
 		const records: DocumentRecord[] = [];
 		const candidates = await this.collectCandidates();
 		for (const candidate of candidates) {
-			const record = await this.parseCandidate(candidate.path, candidate.info, candidate.isFolder);
+			const record = await this.parseCandidate(
+				candidate.path,
+				candidate.info,
+				candidate.isFolder,
+				candidate.indexFile,
+			);
 			if (filters.every((fn) => fn(record))) {
 				records.push(cloneDocumentRecord(record));
 			}
@@ -233,10 +267,11 @@ function cloneDocumentRecord(record: DocumentRecord): DocumentRecord {
 	};
 }
 
-function isDocumentMarkdownFile(path: string, name: string): boolean {
+function isDocumentMarkdownFile(path: string, name: string, indexFile?: string): boolean {
 	if (!path.endsWith(".md")) return false;
 	if (name === "README.md") return false;
 	if (name === "index.md") return false;
+	if (indexFile && name === indexFile) return false;
 	if (name.startsWith(".")) return false;
 	return true;
 }
@@ -246,6 +281,19 @@ function collectionDirFromSchemaPath(path: string): string | null {
 	const parts = path.split("/");
 	if (parts.length !== 2) return null;
 	return parts[0];
+}
+
+async function readIndexFileFromSchema(vfs: VFS, schemaPath: string): Promise<string | null> {
+	try {
+		const content = await vfs.readFile(schemaPath);
+		const data = parse(content) as Record<string, unknown> | null;
+		if (data && typeof data.index_file === "string" && data.index_file.trim().length > 0) {
+			return data.index_file.trim();
+		}
+	} catch {
+		// Ignore parse errors; schema validation happens elsewhere.
+	}
+	return null;
 }
 
 function isInKnownCollection(path: string, collections: Set<string>): boolean {

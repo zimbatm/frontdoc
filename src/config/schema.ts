@@ -42,6 +42,15 @@ export function parseCollectionSchema(content: string): CollectionSchema {
 	if (titleField !== undefined && titleField.length === 0) {
 		throw new Error("invalid _schema.yaml: title_field must not be empty");
 	}
+	const indexFile = typeof data.index_file === "string" ? data.index_file.trim() : undefined;
+	if (indexFile !== undefined) {
+		if (indexFile.length === 0) {
+			throw new Error("invalid _schema.yaml: index_file must not be empty");
+		}
+		if (!indexFile.endsWith(".md")) {
+			throw new Error("invalid _schema.yaml: index_file must end with .md");
+		}
+	}
 
 	for (const [name, def] of Object.entries(fields)) {
 		const err = validateFieldDefaultDefinition(name, def);
@@ -54,6 +63,7 @@ export function parseCollectionSchema(content: string): CollectionSchema {
 		slug: data.slug,
 		short_id_length: shortIDLength,
 		title_field: titleField,
+		index_file: indexFile,
 		fields,
 		references,
 	};
@@ -97,6 +107,9 @@ export function serializeCollectionSchema(schema: CollectionSchema): string {
 	if (schema.title_field !== undefined) {
 		data.title_field = schema.title_field;
 	}
+	if (schema.index_file !== undefined) {
+		data.index_file = schema.index_file;
+	}
 	if (Object.keys(schema.fields).length > 0) {
 		data.fields = serializeFields(schema.fields);
 	}
@@ -131,6 +144,7 @@ export async function discoverCollections(vfs: VFS): Promise<Map<string, Collect
 	const entries = await vfs.readDir(".");
 	for (const entry of entries) {
 		if (!entry.isDirectory) continue;
+		if (entry.name.startsWith(".")) continue;
 		const schemaPath = `${entry.name}/_schema.yaml`;
 		if (await vfs.exists(schemaPath)) {
 			const content = await vfs.readFile(schemaPath);

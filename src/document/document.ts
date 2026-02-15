@@ -21,12 +21,12 @@ export const SYSTEM_FIELDS = new Set([...SYSTEM_PERSISTED_FIELDS, ...SYSTEM_VIRT
 
 /**
  * Returns the path to the actual content file.
- * For folder docs: path/index.md
+ * For folder docs: path/index.md (or path/{indexFile} when specified)
  * For file docs: path
  */
-export function contentPath(doc: Document): string {
+export function contentPath(doc: Document, indexFile = "index.md"): string {
 	if (doc.isFolder) {
-		return `${doc.path}/index.md`;
+		return `${doc.path}/${indexFile}`;
 	}
 	return doc.path;
 }
