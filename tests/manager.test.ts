@@ -48,7 +48,11 @@ describe("Manager", () => {
 			"utf8",
 		);
 		await mkdir(join(root, "clients"), { recursive: true });
-		await writeFile(join(root, "clients", "_schema.yaml"), 'slug: "{{name}}-{{short_id}}"\n', "utf8");
+		await writeFile(
+			join(root, "clients", "_schema.yaml"),
+			'slug: "{{name}}-{{short_id}}"\n',
+			"utf8",
+		);
 
 		const manager = await Manager.New(root);
 		expect(manager.Repository().repositoryID()).toBe(repositoryID);

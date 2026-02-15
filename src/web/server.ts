@@ -907,11 +907,7 @@ async function resolveCanonicalDocumentRoute(
 	return null;
 }
 
-function routeTargetFromPath(
-	collection: string,
-	path: string,
-	shortId?: string,
-): string {
+function routeTargetFromPath(collection: string, path: string, shortId?: string): string {
 	const prefix = `${collection}/`;
 	const relative = path.startsWith(prefix) ? path.slice(prefix.length) : path;
 	const base = relative.endsWith(".md") ? relative.slice(0, -3) : relative;

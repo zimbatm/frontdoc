@@ -169,7 +169,9 @@ describe("Repository", () => {
 		const first = await repoA.collectAll();
 		expect(first).toHaveLength(1);
 
-		await repoB.fileSystem().writeFile("clients/def456-beta.md", doc("01arz3ndektsv4rrffq69def45", "Beta"));
+		await repoB
+			.fileSystem()
+			.writeFile("clients/def456-beta.md", doc("01arz3ndektsv4rrffq69def45", "Beta"));
 
 		const second = await repoA.collectAll();
 		expect(second).toHaveLength(2);

@@ -1,9 +1,9 @@
+import { ulid } from "ulidx";
 import { parse } from "yaml";
 import { type Document, parseDocument } from "../document/document.js";
 import { collectionFromPath } from "../document/path-utils.js";
 import { BoundVFS } from "../storage/bound-vfs.js";
 import type { FileInfo, VFS } from "../storage/vfs.js";
-import { ulid } from "ulidx";
 import { findByIDInRecords } from "./id-lookup.js";
 
 export interface DocumentRecord {
