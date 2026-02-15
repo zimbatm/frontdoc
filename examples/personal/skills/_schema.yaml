@@ -1,0 +1,9 @@
+slug: "{{name}}"
+index_file: SKILL.md
+fields:
+  name:
+    type: string
+    required: true
+  description:
+    type: string
+    required: true

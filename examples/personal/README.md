@@ -16,4 +16,18 @@ Included collections:
 - `tasks`: actionable items
 - `areas`: long-lived life/work areas
 - `contacts`: people
+- `skills`: Claude Code skills (folder documents with `SKILL.md` entry files)
 - `templates`: reusable note templates
+
+## Claude Code Integration
+
+The `skills/` collection uses `index_file: SKILL.md` so each skill is a
+folder document matching Claude Code's plugin skill layout. To make skills
+visible to Claude Code, create a symlink:
+
+```bash
+ln -s skills .claude/skills
+```
+
+This keeps the skills managed by frontdoc while Claude Code discovers them
+at its expected `.claude/skills/` path.

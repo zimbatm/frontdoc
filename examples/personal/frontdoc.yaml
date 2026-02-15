@@ -4,6 +4,7 @@ aliases:
   tsk: tasks
   ctc: contacts
   area: areas
+  skl: skills
   tpl: templates
 ignore:
   - .DS_Store
