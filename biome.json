@@ -4,6 +4,20 @@
 		"includes": ["**", "!src/web/static"]
 	},
 	"assist": { "actions": { "source": { "organizeImports": "on" } } },
+	"overrides": [
+		{
+			"includes": ["**/*.vue"],
+			"assist": { "actions": { "source": { "organizeImports": "off" } } },
+			"linter": {
+				"rules": {
+					"correctness": {
+						"noUnusedVariables": "off",
+						"noUnusedImports": "off"
+					}
+				}
+			}
+		}
+	],
 	"linter": {
 		"enabled": true,
 		"rules": {
