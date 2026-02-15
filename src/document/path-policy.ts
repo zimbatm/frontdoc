@@ -31,8 +31,7 @@ export function generateDocumentFilename(
 	values: Record<string, string>,
 ): string {
 	const rendered = processTemplate(schema.slug, slugifyTemplateValues(values));
-	const withShortIDSuffix = appendShortIDSuffix(rendered, values.short_id ?? "");
-	return generateFilename(withShortIDSuffix);
+	return generateFilename(rendered);
 }
 
 export function expectedPathForDocument(
@@ -52,26 +51,6 @@ function slugifyTemplateValues(values: Record<string, string>): Record<string, s
 		slugValues[key] = slugify(value);
 	}
 	return slugValues;
-}
-
-function appendShortIDSuffix(renderedSlug: string, shortID: string): string {
-	const id = slugify(shortID);
-	if (id.length === 0) {
-		return renderedSlug;
-	}
-
-	const hadMd = renderedSlug.endsWith(".md");
-	const withoutExt = hadMd ? renderedSlug.slice(0, -3) : renderedSlug;
-	const segments = withoutExt.split("/");
-	const last = segments.length > 0 ? segments[segments.length - 1] : "";
-
-	if (last === id || last.endsWith(`-${id}`)) {
-		return renderedSlug;
-	}
-
-	segments[segments.length - 1] = last.length > 0 ? `${last}-${id}` : id;
-	const rebuilt = segments.join("/");
-	return hadMd ? `${rebuilt}.md` : rebuilt;
 }
 
 function resolveDateString(value: unknown): string {

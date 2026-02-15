@@ -147,7 +147,7 @@ export async function discoverCollections(vfs: VFS): Promise<Map<string, Collect
 export function generateDefaultSlug(fields: Record<string, FieldDefinition>): string {
 	for (const name of ["title", "name", "subject"]) {
 		if (name in fields) {
-			return `{{${name}}}`;
+			return `{{${name}}}-{{short_id}}`;
 		}
 	}
 	return "{{short_id}}";
