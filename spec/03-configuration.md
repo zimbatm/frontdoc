@@ -93,7 +93,7 @@ references:
 
 | Property          | Type   | Required | Description                                    |
 |-------------------|--------|----------|------------------------------------------------|
-| `slug`            | string | yes      | Filename template for documents in this collection. |
+| `slug`            | string | no       | Filename template for documents in this collection. Auto-generated from fields when omitted (see Slug Auto-Generation). |
 | `short_id_length` | int    | no       | Short ID length (4--16, default 6).            |
 | `index_file`      | string | no       | Entry filename for folder documents (default `index.md`). When set, all documents are forced into folder format. |
 | `fields`          | map    | no       | Field definitions (omitted when empty).        |
@@ -103,10 +103,14 @@ The collection name is the directory name -- it is not stored in
 `_schema.yaml`. The alias (prefix) is not stored here either; it lives in
 `frontdoc.yaml`.
 
-A minimal valid `_schema.yaml` needs only `slug`:
+A minimal valid `_schema.yaml` can be empty (or contain only `fields`).
+When `slug` is omitted, it is auto-generated from the field definitions
+(see Slug Auto-Generation):
 
 ```yaml
-slug: "{{short_id}}"
+fields:
+  name:
+    type: string
 ```
 
 ### Slug Auto-Generation

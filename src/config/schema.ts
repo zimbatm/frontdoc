@@ -12,10 +12,6 @@ export function parseCollectionSchema(content: string): CollectionSchema {
 		throw new Error("invalid _schema.yaml: empty or not an object");
 	}
 
-	if (typeof data.slug !== "string") {
-		throw new Error("invalid _schema.yaml: missing required 'slug' field");
-	}
-
 	const fields: Record<string, FieldDefinition> = {};
 	if (data.fields && typeof data.fields === "object") {
 		for (const [name, def] of Object.entries(data.fields as Record<string, unknown>)) {
@@ -59,8 +55,10 @@ export function parseCollectionSchema(content: string): CollectionSchema {
 		}
 	}
 
+	const slug = typeof data.slug === "string" ? data.slug : generateDefaultSlug(fields);
+
 	return {
-		slug: data.slug,
+		slug,
 		short_id_length: shortIDLength,
 		title_field: titleField,
 		index_file: indexFile,

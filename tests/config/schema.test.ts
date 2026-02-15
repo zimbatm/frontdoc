@@ -60,6 +60,23 @@ fields:
 		expect(schema.slug).toBe("{{name}}");
 	});
 
+	test("uses default slug when slug field is omitted", () => {
+		const schema = parseCollectionSchema(`fields:
+  name:
+    type: string
+    required: true
+`);
+		expect(schema.slug).toBe("{{name}}-{{short_id}}");
+	});
+
+	test("uses {{short_id}} default slug when no title/name/subject field", () => {
+		const schema = parseCollectionSchema(`fields:
+  email:
+    type: email
+`);
+		expect(schema.slug).toBe("{{short_id}}");
+	});
+
 	test("rejects out-of-range short_id_length", () => {
 		expect(() =>
 			parseCollectionSchema(`slug: "{{short_id}}"
