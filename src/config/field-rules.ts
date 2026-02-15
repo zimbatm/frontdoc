@@ -1,11 +1,23 @@
 import { normalizeDateInput, normalizeDatetimeInput } from "./date-input.js";
-import type { FieldDefinition, FieldType } from "./types.js";
+import { parseArrayElementType, type FieldDefinition, type FieldType } from "./types.js";
 
 export function validateFieldValue(
 	type: FieldType,
 	value: unknown,
 	enumValues?: string[],
 ): string | null {
+	const arrayElementType = parseArrayElementType(type);
+	if (arrayElementType) {
+		if (!Array.isArray(value)) return "must be an array";
+		for (let i = 0; i < value.length; i++) {
+			const itemErr = validateFieldValue(arrayElementType, value[i], enumValues);
+			if (itemErr) {
+				return `array item ${i}: ${itemErr}`;
+			}
+		}
+		return null;
+	}
+
 	switch (type) {
 		case "email":
 			return typeof value === "string" &&
@@ -57,6 +69,19 @@ export function validateFieldValue(
 export function validateFieldDefaultDefinition(name: string, def: FieldDefinition): string | null {
 	if (def.default === undefined) return null;
 	const value = def.default;
+	const arrayElementType = parseArrayElementType(def.type);
+	if (arrayElementType) {
+		if (!Array.isArray(value)) {
+			return `field '${name}' default must be an array`;
+		}
+		for (let i = 0; i < value.length; i++) {
+			const itemErr = validateFieldValue(arrayElementType, value[i], def.enum_values);
+			if (itemErr) {
+				return `field '${name}' default item at index ${i} ${itemErr}`;
+			}
+		}
+		return null;
+	}
 
 	switch (def.type) {
 		case "email":
@@ -153,6 +178,13 @@ export function normalizeFieldInputValue(type: FieldType | undefined, value: unk
 }
 
 export function normalizeFieldDefaultValue(type: FieldType, value: unknown): unknown {
+	const arrayElementType = parseArrayElementType(type);
+	if (arrayElementType) {
+		if (!Array.isArray(value)) {
+			return value;
+		}
+		return value.map((item) => normalizeFieldInputValue(arrayElementType, item));
+	}
 	return normalizeFieldInputValue(type, value);
 }
 

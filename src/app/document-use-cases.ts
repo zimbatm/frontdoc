@@ -1,5 +1,5 @@
 import { normalizeFieldInputValue } from "../config/field-rules.js";
-import type { CollectionSchema } from "../config/types.js";
+import { isArrayFieldType, parseArrayElementType, type CollectionSchema } from "../config/types.js";
 import { SYSTEM_FIELDS } from "../document/document.js";
 import { collectionFromPath as pathCollectionFromPath } from "../document/path-utils.js";
 import { extractPlaceholders } from "../document/template-engine.js";
@@ -118,9 +118,10 @@ export function normalizeFieldsForSchema(
 	for (const [name, raw] of Object.entries(fields)) {
 		assertUserFieldInput(name);
 		const type = schema.fields[name]?.type;
-		if (type === "array") {
+		if (isArrayFieldType(type)) {
+			const itemType = parseArrayElementType(type);
 			if (Array.isArray(raw)) {
-				normalized[name] = raw.map((entry) => String(entry));
+				normalized[name] = raw.map((entry) => normalizeArrayItem(entry, itemType));
 				continue;
 			}
 			const value = String(raw ?? "");
@@ -128,6 +129,11 @@ export function normalizeFieldsForSchema(
 				.split(/\n|,/g)
 				.map((entry) => entry.trim())
 				.filter((entry) => entry.length > 0);
+			if (itemType) {
+				normalized[name] = (normalized[name] as unknown[]).map((entry) =>
+					normalizeArrayItem(entry, itemType),
+				);
+			}
 			continue;
 		}
 		normalized[name] = normalizeInputValue(name, raw, schema);
@@ -161,4 +167,14 @@ function assertUserFieldInput(field: string): void {
 	if (SYSTEM_FIELDS.has(field) || field.startsWith("_")) {
 		throw new Error(`reserved field prefix '_': ${field}`);
 	}
+}
+
+function normalizeArrayItem(
+	value: unknown,
+	itemType: ReturnType<typeof parseArrayElementType>,
+): unknown {
+	if (!itemType) {
+		return String(value);
+	}
+	return normalizeFieldInputValue(itemType, value);
 }

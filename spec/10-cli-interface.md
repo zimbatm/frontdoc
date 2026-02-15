@@ -382,7 +382,7 @@ Manage the schema.
   `<collection>/_schema.yaml`.
   - `--type` (field type), `--required`, `--default`, `--enum-values`,
     `--min`, `--max`, `--weight`, `--target` (required when type is
-    `reference`: specifies the target collection for the reference)
+    `reference` or `array<reference>`: specifies the target collection)
 - `schema field update <collection> <field>` -- update a field in
   `<collection>/_schema.yaml`.
 - `schema field delete <collection> <field>` -- remove a field from

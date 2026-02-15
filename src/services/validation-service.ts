@@ -2,7 +2,7 @@ import { readFile as readHostFile } from "node:fs/promises";
 import { basename } from "node:path";
 import { resolveCollection } from "../config/collection-resolver.js";
 import { validateFieldValue } from "../config/field-rules.js";
-import type { CollectionSchema } from "../config/types.js";
+import { parseArrayElementType, type CollectionSchema } from "../config/types.js";
 import { type Document, displayName, parseDocument } from "../document/document.js";
 import { expectedPathForDocument } from "../document/path-policy.js";
 import { collectionFromPath } from "../document/path-utils.js";
@@ -161,27 +161,40 @@ export class ValidationService {
 
 		for (const [fieldName, targetCollectionRaw] of Object.entries(schema.references)) {
 			const value = record.document.metadata[fieldName];
-			if (typeof value !== "string" || value.length === 0) continue;
+			const isReferenceArray = parseArrayElementType(schema.fields[fieldName]?.type) === "reference";
+			const rawValues = isReferenceArray ? (Array.isArray(value) ? value : [value]) : [value];
 			const targetCollection = this.resolveCollection(targetCollectionRaw);
-			let target: DocumentRecord;
-			try {
-				target = resolveByID(value);
-			} catch {
-				issues.push({
-					severity: "error",
-					path: record.path,
-					code: "reference.missing",
-					message: `${fieldName}: referenced document not found: ${value}`,
-				});
-				continue;
-			}
-			if (collectionFromPath(target.path) !== targetCollection) {
-				issues.push({
-					severity: "error",
-					path: record.path,
-					code: "reference.collection",
-					message: `${fieldName}: expected collection '${targetCollection}'`,
-				});
+			for (const candidate of rawValues) {
+				if (candidate === undefined || candidate === null || candidate === "") continue;
+				if (typeof candidate !== "string") {
+					issues.push({
+						severity: "error",
+						path: record.path,
+						code: "reference.type",
+						message: `${fieldName}: reference value must be a string ID`,
+					});
+					continue;
+				}
+				let target: DocumentRecord;
+				try {
+					target = resolveByID(candidate);
+				} catch {
+					issues.push({
+						severity: "error",
+						path: record.path,
+						code: "reference.missing",
+						message: `${fieldName}: referenced document not found: ${candidate}`,
+					});
+					continue;
+				}
+				if (collectionFromPath(target.path) !== targetCollection) {
+					issues.push({
+						severity: "error",
+						path: record.path,
+						code: "reference.collection",
+						message: `${fieldName}: expected collection '${targetCollection}'`,
+					});
+				}
 			}
 		}
 

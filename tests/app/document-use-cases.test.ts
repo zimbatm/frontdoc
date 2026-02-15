@@ -121,4 +121,16 @@ describe("document use cases", () => {
 			"invalid boolean input",
 		);
 	});
+
+	test("normalizes typed array fields from csv input", () => {
+		const schema: CollectionSchema = {
+			slug: "{{short_id}}",
+			fields: {
+				flags: { type: "array<boolean>" },
+			},
+			references: {},
+		};
+		const normalized = normalizeFieldsForSchema({ flags: "true,0,yes" }, schema);
+		expect(normalized.flags).toEqual([true, false, true]);
+	});
 });

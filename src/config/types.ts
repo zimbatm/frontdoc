@@ -1,7 +1,7 @@
 /**
  * Field types supported by frontdoc.
  */
-export type FieldType =
+export type ScalarFieldType =
 	| "string"
 	| "email"
 	| "currency"
@@ -11,8 +11,43 @@ export type FieldType =
 	| "number"
 	| "boolean"
 	| "enum"
-	| "array"
 	| "reference";
+
+export type FieldType = ScalarFieldType | "array" | `array<${ScalarFieldType}>`;
+
+const SCALAR_FIELD_TYPES: ReadonlySet<string> = new Set([
+	"string",
+	"email",
+	"currency",
+	"country",
+	"date",
+	"datetime",
+	"number",
+	"boolean",
+	"enum",
+	"reference",
+]);
+
+/**
+ * Parse array element type from `array<T>` declarations.
+ */
+export function parseArrayElementType(type: string | undefined): ScalarFieldType | undefined {
+	if (!type || !type.startsWith("array<") || !type.endsWith(">")) {
+		return undefined;
+	}
+	const inner = type.slice("array<".length, -1).trim();
+	if (!SCALAR_FIELD_TYPES.has(inner)) {
+		return undefined;
+	}
+	return inner as ScalarFieldType;
+}
+
+/**
+ * Whether a field type is array-like (`array` or `array<T>`).
+ */
+export function isArrayFieldType(type: string | undefined): boolean {
+	return type === "array" || parseArrayElementType(type) !== undefined;
+}
 
 /**
  * Field definition within a collection schema.

@@ -64,6 +64,10 @@ comparison).
 
 **Array**: Must be a list (array of any values or array of strings).
 
+**Typed Array (`array<T>`)**: Must be a list, and each item must satisfy
+validation rules for `T`. For `array<reference>`, reference resolution is
+applied to each item.
+
 **Reference**: No type-level validation (deferred to ReferenceValidator).
 
 **String**: No validation.
@@ -125,6 +129,9 @@ References always resolve by document ID. For each reference definition
    short ID prefix match.
 5. If not found: error.
 6. If found but in the wrong collection (checked by path): error.
+
+For `array<reference>` fields, apply the same checks to each string item in
+the array.
 
 ## Wiki Link Validation
 

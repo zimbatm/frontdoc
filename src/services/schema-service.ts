@@ -5,6 +5,7 @@ import { serializeRepoConfig } from "../config/repo-config.js";
 import { generateDefaultSlug, serializeCollectionSchema } from "../config/schema.js";
 import {
 	COLLECTION_NAME_PATTERN,
+	parseArrayElementType,
 	type CollectionSchema,
 	type FieldDefinition,
 	RESERVED_COLLECTION_NAMES,
@@ -266,7 +267,10 @@ export class SchemaService {
 			throw new Error(`field already exists: ${fieldName}`);
 		}
 		schema.fields[fieldName] = field;
-		if (field.type === "reference" && referenceTarget) {
+		if (
+			(field.type === "reference" || parseArrayElementType(field.type) === "reference") &&
+			referenceTarget
+		) {
 			schema.references[fieldName] = this.ResolveCollectionAlias(referenceTarget);
 		}
 		await this.persistSchema(collection);

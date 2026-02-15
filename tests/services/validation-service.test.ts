@@ -199,4 +199,72 @@ describe("ValidationService", () => {
 		const result = await validation.Check({});
 		expect(result.issues.some((i) => i.path === "CLAUDE.md")).toBe(false);
 	});
+
+	test("check validates array<reference> fields item-by-item", async () => {
+		const vfs = new MemoryVFS();
+		await vfs.mkdirAll("clients");
+		await vfs.writeFile(
+			"clients/_schema.yaml",
+			'slug: "{{name}}-{{short_id}}"\nfields:\n  name:\n    type: string\n',
+		);
+		await vfs.mkdirAll("projects");
+		await vfs.writeFile(
+			"projects/_schema.yaml",
+			'slug: "{{name}}-{{short_id}}"\nfields:\n  name:\n    type: string\n  client_ids:\n    type: array<reference>\nreferences:\n  client_ids: clients\n',
+		);
+		const schemas = new Map<string, CollectionSchema>([
+			[
+				"clients",
+				{
+					slug: "{{name}}-{{short_id}}",
+					fields: { name: { type: "string", required: true } },
+					references: {},
+				},
+			],
+			[
+				"projects",
+				{
+					slug: "{{name}}-{{short_id}}",
+					fields: {
+						name: { type: "string", required: true },
+						client_ids: { type: "array<reference>" },
+					},
+					references: { client_ids: "clients" },
+				},
+			],
+		]);
+		const aliases = { cli: "clients", prj: "projects" };
+		const repo = new Repository(vfs);
+		const documents = new DocumentService(schemas, aliases, repo);
+		const validation = new ValidationService(schemas, aliases, [".DS_Store"], repo);
+
+		const c1 = await documents.Create({
+			collection: "clients",
+			fields: { id: "01arz3ndektsv4rrffq69g5fc1", name: "Acme" },
+		});
+		const c2 = await documents.Create({
+			collection: "clients",
+			fields: { id: "01arz3ndektsv4rrffq69g5fc2", name: "Beta" },
+		});
+		await documents.Create({
+			collection: "projects",
+			fields: {
+				id: "01arz3ndektsv4rrffq69g5fc3",
+				name: "Project One",
+				client_ids: [c1.document.metadata._id, c2.document.metadata._id],
+			},
+		});
+		await documents.Create({
+			collection: "projects",
+			fields: {
+				id: "01arz3ndektsv4rrffq69g5fc4",
+				name: "Broken Project",
+				client_ids: [String(c1.document.metadata._id), "missing-id"],
+			},
+		});
+
+		const result = await validation.Check({});
+		const missing = result.issues.filter((i) => i.code === "reference.missing");
+		expect(missing.some((i) => i.message.includes("missing-id"))).toBe(true);
+	});
 });

@@ -33,6 +33,9 @@ fields:
   enabled:
     type: boolean
     default: true
+  scores:
+    type: array<number>
+    default: [1, "2.5"]
   status:
     type: enum
     enum_values: [Open, Closed]

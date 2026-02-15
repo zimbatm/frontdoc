@@ -196,13 +196,37 @@ This means:
 | `number`    | int/float          | optional min/max constraints               |
 | `boolean`   | bool               | true/false (supports common CLI boolean inputs) |
 | `enum`      | string             | must be one of `enum_values`               |
-| `array`     | list               | must be an array                           |
+| `array`     | list               | must be an array (untyped)                 |
+| `array<T>`  | list               | typed array; each item validated as `T`    |
 | `reference` | string             | referenced document must exist and match collection |
 
 ### Enum Fields
 
 Fields are `string` by default unless the schema explicitly declares
 `type: enum` with `enum_values`.
+
+### Typed Arrays
+
+Arrays may optionally declare an element type using `array<T>`. Supported
+element types: `string`, `email`, `currency`, `country`, `date`, `datetime`,
+`number`, `boolean`, `enum`, and `reference`.
+
+Examples:
+
+```yaml
+fields:
+  tags:
+    type: array<string>
+  scores:
+    type: array<number>
+  reviewer_ids:
+    type: array<reference>
+references:
+  reviewer_ids: users
+```
+
+For `array<reference>`, the field key must also exist in `references`,
+and each item is resolved by ID against the target collection.
 
 ## Field Ordering (Interactive Prompts)
 
