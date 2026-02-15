@@ -295,12 +295,15 @@ export class ValidationService {
 	}
 
 	private async unreferencedAttachmentIssues(record: DocumentRecord): Promise<ValidationIssue[]> {
+		const collection = collectionFromPath(record.path);
+		const schema = this.schemas.get(collection);
+		const indexFile = schema?.index_file ?? "index.md";
 		const refs = extractAttachmentReferences(record.document.content);
 		const entries = await this.repository.fileSystem().readDir(record.path);
 		const issues: ValidationIssue[] = [];
 
 		for (const entry of entries) {
-			if (entry.name === "index.md") continue;
+			if (entry.name === indexFile) continue;
 			if (entry.isDirectory) continue;
 			if (!refs.has(entry.name)) {
 				issues.push({
@@ -316,12 +319,15 @@ export class ValidationService {
 	}
 
 	private async pruneUnreferencedAttachments(record: DocumentRecord): Promise<number> {
+		const collection = collectionFromPath(record.path);
+		const schema = this.schemas.get(collection);
+		const indexFile = schema?.index_file ?? "index.md";
 		const refs = extractAttachmentReferences(record.document.content);
 		const entries = await this.repository.fileSystem().readDir(record.path);
 		let removed = 0;
 
 		for (const entry of entries) {
-			if (entry.name === "index.md") continue;
+			if (entry.name === indexFile) continue;
 			if (entry.isDirectory) continue;
 			if (!refs.has(entry.name)) {
 				await this.repository.fileSystem().remove(`${record.path}/${entry.name}`);
@@ -333,6 +339,11 @@ export class ValidationService {
 	}
 
 	private async collapseFolderIfPossible(record: DocumentRecord): Promise<boolean> {
+		const collection = collectionFromPath(record.path);
+		const schema = this.schemas.get(collection);
+		if (schema?.index_file) {
+			return false;
+		}
 		const entries = await this.repository.fileSystem().readDir(record.path);
 		const removableIgnore = new Set(this.ignoreFiles);
 		for (const entry of entries) {

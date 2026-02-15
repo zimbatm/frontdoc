@@ -871,27 +871,54 @@ async function resolveCanonicalDocumentRoute(
 	collection: string,
 	target: string,
 ): Promise<string | null> {
+	const schema = manager.Schemas().get(collection);
+	const shortLength = schema?.short_id_length ?? 6;
 	const docs = await listDocumentsUseCase(manager, { collection });
-	if (docs.some((record) => routeTargetFromPath(collection, record.path) === target)) {
+	if (
+		docs.some((record) => {
+			const id = String(record.document.metadata._id ?? "");
+			const shortId = id.length >= shortLength ? id.slice(-shortLength) : id;
+			return routeTargetFromPath(collection, record.path, shortId) === target;
+		})
+	) {
 		return null;
 	}
 
-	try {
-		const record = await manager.Documents().ReadByID(`${collection}/${target}`);
-		const canonical = routeTargetFromPath(collection, record.path);
-		if (canonical === target) {
-			return null;
-		}
-		return `/c/${encodeURIComponent(collection)}/${encodeURIComponent(canonical)}`;
-	} catch {
-		return null;
+	// Try direct ID lookup first, then extract trailing short_id from slug URL
+	const lookupIDs = [`${collection}/${target}`, target];
+	const trailingMatch = target.match(/-([a-z0-9]+)$/);
+	if (trailingMatch) {
+		lookupIDs.push(trailingMatch[1]);
 	}
+	for (const lookupID of lookupIDs) {
+		try {
+			const record = await manager.Documents().ReadByID(lookupID);
+			const id = String(record.document.metadata._id ?? "");
+			const shortId = id.length >= shortLength ? id.slice(-shortLength) : id;
+			const canonical = routeTargetFromPath(collection, record.path, shortId);
+			if (canonical === target) {
+				return null;
+			}
+			return `/c/${encodeURIComponent(collection)}/${encodeURIComponent(canonical)}`;
+		} catch {
+			continue;
+		}
+	}
+	return null;
 }
 
-function routeTargetFromPath(collection: string, path: string): string {
+function routeTargetFromPath(
+	collection: string,
+	path: string,
+	shortId?: string,
+): string {
 	const prefix = `${collection}/`;
 	const relative = path.startsWith(prefix) ? path.slice(prefix.length) : path;
-	return relative.endsWith(".md") ? relative.slice(0, -3) : relative;
+	const base = relative.endsWith(".md") ? relative.slice(0, -3) : relative;
+	if (shortId && !base.endsWith(`-${shortId}`) && base !== shortId) {
+		return `${base}-${shortId}`;
+	}
+	return base;
 }
 
 function tryOpenBrowser(url: string): void {

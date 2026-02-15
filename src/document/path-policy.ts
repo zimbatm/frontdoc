@@ -42,7 +42,10 @@ export function expectedPathForDocument(
 	const id = String(doc.metadata._id ?? "");
 	const values = buildTemplateValues(doc.metadata, schema, id, doc.content);
 	const path = `${collection}/${generateDocumentFilename(schema, values)}`;
-	return doc.isFolder ? stripMd(path) : path;
+	if (schema.index_file || doc.isFolder) {
+		return stripMd(path);
+	}
+	return path;
 }
 
 function slugifyTemplateValues(values: Record<string, string>): Record<string, string> {

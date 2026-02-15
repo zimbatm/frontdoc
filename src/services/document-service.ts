@@ -86,6 +86,7 @@ export class DocumentService {
 		);
 		const path = doc.path;
 		const collection = collectionFromPath(path);
+		const schema = this.getCollectionSchema(collection);
 
 		if (!options.overwrite && (await this.repository.fileSystem().exists(path))) {
 			throw new Error(`document already exists: ${path}`);
@@ -95,7 +96,7 @@ export class DocumentService {
 			await this.assertNoValidationErrors(collection, path, buildDocument(doc));
 		}
 
-		await saveDocument(this.repository.fileSystem(), doc);
+		await saveDocument(this.repository.fileSystem(), doc, schema.index_file);
 
 		const info = await this.repository.fileSystem().stat(path);
 		return { document: doc, path, info };
@@ -132,9 +133,13 @@ export class DocumentService {
 			doc.content = options.content;
 		}
 
-		await saveDocument(this.repository.fileSystem(), doc);
+		await saveDocument(this.repository.fileSystem(), doc, schema.index_file);
 		const renamedPath = await this.AutoRenamePath(doc.path);
-		const updated = await loadDocumentRecordByPath(this.repository.fileSystem(), renamedPath);
+		const updated = await loadDocumentRecordByPath(
+			this.repository.fileSystem(),
+			renamedPath,
+			schema.index_file,
+		);
 		if (!options.skipValidation && this.validationService) {
 			await this.assertNoValidationErrors(
 				collectionFromPath(updated.path),
@@ -161,12 +166,15 @@ export class DocumentService {
 		force = false,
 	): Promise<string> {
 		const record = await this.ReadByID(id);
+		const collection = collectionFromPath(record.path);
+		const schema = this.getCollectionSchema(collection);
+		const indexFile = schema.index_file ?? "index.md";
 		let docPath = record.path;
 
 		if (!record.document.isFolder) {
 			const folderPath = stripMdExtension(record.path);
 			await this.repository.fileSystem().mkdirAll(folderPath);
-			await this.repository.fileSystem().rename(record.path, `${folderPath}/index.md`);
+			await this.repository.fileSystem().rename(record.path, `${folderPath}/${indexFile}`);
 			docPath = folderPath;
 		}
 
@@ -180,10 +188,14 @@ export class DocumentService {
 		await this.repository.fileSystem().writeFileBytes(destPath, content);
 
 		if (addReference) {
-			const loaded = await loadDocumentRecordByPath(this.repository.fileSystem(), docPath);
+			const loaded = await loadDocumentRecordByPath(
+				this.repository.fileSystem(),
+				docPath,
+				indexFile,
+			);
 			const suffix = loaded.document.content.endsWith("\n") ? "" : "\n";
 			loaded.document.content = `${loaded.document.content}${suffix}\n[${fileName}](${fileName})\n`;
-			await saveDocument(this.repository.fileSystem(), loaded.document);
+			await saveDocument(this.repository.fileSystem(), loaded.document, indexFile);
 		}
 
 		return destPath;
@@ -232,7 +244,9 @@ export class DocumentService {
 		if (await this.repository.fileSystem().exists(planned.draft.path)) {
 			throw new Error(`document already exists: ${planned.draft.path}`);
 		}
-		await saveDocument(this.repository.fileSystem(), planned.draft);
+		const collection = this.ResolveCollection(collectionInput);
+		const upsertSchema = this.getCollectionSchema(collection);
+		await saveDocument(this.repository.fileSystem(), planned.draft, upsertSchema.index_file);
 		const info = await this.repository.fileSystem().stat(planned.draft.path);
 		return { record: { document: planned.draft, path: planned.draft.path, info }, created: true };
 	}
@@ -304,6 +318,16 @@ export class DocumentService {
 			: (content ?? "");
 		const templateValues = buildTemplateValues(fields, schema, id, initialContent);
 		const filename = generateDocumentFilename(schema, templateValues);
+
+		if (schema.index_file) {
+			const folderName = filename.endsWith(".md") ? filename.slice(0, -3) : filename;
+			return {
+				path: `${collection}/${folderName}`,
+				metadata: fields,
+				content: initialContent,
+				isFolder: true,
+			};
+		}
 
 		return {
 			path: `${collection}/${filename}`,
