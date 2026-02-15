@@ -152,6 +152,43 @@ describe("ValidationService", () => {
 		expect(invalidTargetIssues[0].message).toContain("unknown_collection");
 	});
 
+	test("check suppresses folder collapse when index_file is set", async () => {
+		const vfs = new MemoryVFS();
+		await vfs.mkdirAll("skills");
+		await vfs.writeFile(
+			"skills/_schema.yaml",
+			'slug: "{{name}}"\nindex_file: SKILL.md\nfields:\n  name:\n    type: string\n    required: true\n',
+		);
+		const schemas = new Map<string, CollectionSchema>([
+			[
+				"skills",
+				{
+					slug: "{{name}}",
+					index_file: "SKILL.md",
+					fields: { name: { type: "string", required: true } },
+					references: {},
+				},
+			],
+		]);
+		const aliases = { skl: "skills" };
+		const repo = new Repository(vfs);
+		const documents = new DocumentService(schemas, aliases, repo);
+		const validation = new ValidationService(schemas, aliases, [".DS_Store"], repo);
+
+		const created = await documents.Create({
+			collection: "skills",
+			fields: { name: "my-skill" },
+			content: "# My Skill",
+		});
+		expect(created.document.isFolder).toBe(true);
+		expect(await vfs.isDir("skills/my-skill")).toBe(true);
+
+		// Even though it has only the entry file, fix should NOT collapse it
+		const result = await validation.Check({ fix: true, pruneAttachments: true });
+		expect(await vfs.isDir("skills/my-skill")).toBe(true);
+		expect(await vfs.isFile("skills/my-skill/SKILL.md")).toBe(true);
+	});
+
 	test("check ignores root-level markdown outside collections", async () => {
 		const vfs = new MemoryVFS();
 		await vfs.mkdirAll("clients");

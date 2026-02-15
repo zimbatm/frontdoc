@@ -252,9 +252,13 @@ export class DocumentService {
 	}
 
 	async AutoRenamePath(path: string): Promise<string> {
-		const record = await loadDocumentRecordByPath(this.repository.fileSystem(), path);
-		const collection = collectionFromPath(record.path);
+		const collection = collectionFromPath(path);
 		const schema = this.getCollectionSchema(collection);
+		const record = await loadDocumentRecordByPath(
+			this.repository.fileSystem(),
+			path,
+			schema.index_file,
+		);
 		const targetPath = expectedPathForDocument(record.document, schema, collection);
 		return await renamePathIfNeeded(this.repository.fileSystem(), record.path, targetPath);
 	}

@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { parseCollectionSchema } from "../../src/config/schema.js";
+import {
+	discoverCollections,
+	generateDefaultSlug,
+	parseCollectionSchema,
+} from "../../src/config/schema.js";
+import { MemoryVFS } from "../../src/storage/memory-vfs.js";
 
 describe("parseCollectionSchema", () => {
 	test("accepts valid field defaults", () => {
@@ -69,5 +74,84 @@ short_id_length: 3
 title_field: "  "
 `),
 		).toThrow("title_field");
+	});
+
+	test("parses index_file from schema", () => {
+		const schema = parseCollectionSchema(`slug: "{{name}}"
+index_file: SKILL.md
+fields:
+  name:
+    type: string
+`);
+		expect(schema.index_file).toBe("SKILL.md");
+	});
+
+	test("round-trips index_file through serialization", async () => {
+		const { serializeCollectionSchema } = await import("../../src/config/schema.js");
+		const schema = parseCollectionSchema(`slug: "{{name}}"
+index_file: SKILL.md
+fields:
+  name:
+    type: string
+`);
+		const serialized = serializeCollectionSchema(schema);
+		const reparsed = parseCollectionSchema(serialized);
+		expect(reparsed.index_file).toBe("SKILL.md");
+	});
+
+	test("rejects empty index_file", () => {
+		expect(() =>
+			parseCollectionSchema(`slug: "{{short_id}}"
+index_file: "  "
+`),
+		).toThrow("index_file must not be empty");
+	});
+
+	test("rejects index_file not ending with .md", () => {
+		expect(() =>
+			parseCollectionSchema(`slug: "{{short_id}}"
+index_file: SKILL.txt
+`),
+		).toThrow("index_file must end with .md");
+	});
+});
+
+describe("generateDefaultSlug", () => {
+	test("produces {{name}}-{{short_id}} when name field exists", () => {
+		const slug = generateDefaultSlug({ name: { type: "string" } });
+		expect(slug).toBe("{{name}}-{{short_id}}");
+	});
+
+	test("produces {{title}}-{{short_id}} when title field exists", () => {
+		const slug = generateDefaultSlug({ title: { type: "string" } });
+		expect(slug).toBe("{{title}}-{{short_id}}");
+	});
+
+	test("produces {{short_id}} when no title/name/subject field", () => {
+		const slug = generateDefaultSlug({ email: { type: "email" } });
+		expect(slug).toBe("{{short_id}}");
+	});
+
+	test("checks title before name before subject", () => {
+		const slug = generateDefaultSlug({
+			subject: { type: "string" },
+			name: { type: "string" },
+			title: { type: "string" },
+		});
+		expect(slug).toBe("{{title}}-{{short_id}}");
+	});
+});
+
+describe("discoverCollections", () => {
+	test("skips dot-prefixed directories", async () => {
+		const vfs = new MemoryVFS();
+		await vfs.mkdirAll("clients");
+		await vfs.writeFile("clients/_schema.yaml", 'slug: "{{name}}-{{short_id}}"\n');
+		await vfs.mkdirAll(".claude");
+		await vfs.writeFile(".claude/skills", "symlink target");
+
+		const collections = await discoverCollections(vfs);
+		expect(collections.has("clients")).toBe(true);
+		expect(collections.has(".claude")).toBe(false);
 	});
 });

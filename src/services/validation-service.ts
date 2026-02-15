@@ -244,11 +244,17 @@ export class ValidationService {
 			fixed++;
 		}
 
-		const refreshed = await loadDocumentRecordByPath(this.repository.fileSystem(), renamedPath);
-		const schema = this.schemas.get(collectionFromPath(refreshed.path));
+		const schema = this.schemas.get(collectionFromPath(renamedPath));
 		if (!schema) {
 			return fixed;
 		}
+		const indexFile = schema.index_file ?? "index.md";
+
+		const refreshed = await loadDocumentRecordByPath(
+			this.repository.fileSystem(),
+			renamedPath,
+			indexFile,
+		);
 
 		let changedFields = false;
 		for (const [fieldName, field] of Object.entries(schema.fields)) {
@@ -262,7 +268,7 @@ export class ValidationService {
 			}
 		}
 		if (changedFields) {
-			await saveDocument(this.repository.fileSystem(), refreshed.document);
+			await saveDocument(this.repository.fileSystem(), refreshed.document, indexFile);
 			fixed++;
 		}
 
@@ -276,7 +282,11 @@ export class ValidationService {
 		}
 
 		if (refreshed.document.isFolder) {
-			const after = await loadDocumentRecordByPath(this.repository.fileSystem(), refreshed.path);
+			const after = await loadDocumentRecordByPath(
+				this.repository.fileSystem(),
+				refreshed.path,
+				indexFile,
+			);
 			const collapsed = await this.collapseFolderIfPossible(after);
 			if (collapsed) fixed++;
 		}
@@ -426,7 +436,9 @@ export class ValidationService {
 			return false;
 		}
 		record.document.content = rebuilt.content;
-		await saveDocument(this.repository.fileSystem(), record.document);
+		const collection = collectionFromPath(record.path);
+		const schema = this.schemas.get(collection);
+		await saveDocument(this.repository.fileSystem(), record.document, schema?.index_file);
 		return true;
 	}
 

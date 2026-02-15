@@ -110,7 +110,7 @@ describe("DocumentService", () => {
 		expect(third.record.path).not.toBe(first.record.path);
 	});
 
-	test("auto-appends short id when slug template omits short_id", async () => {
+	test("slug template without short_id produces filename without short_id", async () => {
 		const vfs = new MemoryVFS();
 		await vfs.mkdirAll("clients");
 		await vfs.writeFile("clients/_schema.yaml", 'slug: "{{name}}"\n');
@@ -129,7 +129,39 @@ describe("DocumentService", () => {
 			collection: "clients",
 			fields: { name: "Acme Corp" },
 		});
-		expect(created.path).toMatch(/^clients\/acme-corp-[a-z0-9]+\.md$/);
+		expect(created.path).toBe("clients/acme-corp.md");
+	});
+
+	test("create with index_file produces folder document", async () => {
+		const vfs = new MemoryVFS();
+		await vfs.mkdirAll("skills");
+		await vfs.writeFile(
+			"skills/_schema.yaml",
+			'slug: "{{name}}"\nindex_file: SKILL.md\nfields:\n  name:\n    type: string\n    required: true\n',
+		);
+		const schemas = new Map<string, CollectionSchema>([
+			[
+				"skills",
+				{
+					slug: "{{name}}",
+					index_file: "SKILL.md",
+					fields: { name: { type: "string", required: true } },
+					references: {},
+				},
+			],
+		]);
+		const service = new DocumentService(schemas, { skl: "skills" }, new Repository(vfs));
+		const created = await service.Create({
+			collection: "skills",
+			fields: { name: "my-skill" },
+			content: "# My Skill",
+		});
+		expect(created.path).toBe("skills/my-skill");
+		expect(created.document.isFolder).toBe(true);
+		expect(await vfs.isFile("skills/my-skill/SKILL.md")).toBe(true);
+		const raw = await vfs.readFile("skills/my-skill/SKILL.md");
+		expect(raw).toContain("name: my-skill");
+		expect(raw).toContain("# My Skill");
 	});
 
 	test("attach writes binary bytes without utf8 conversion", async () => {
